@@ -19,11 +19,24 @@ import SignCustomer from "./pages/SignCustomer";
 import SignInspection from "./pages/SignInspection";
 import NotFound from "./pages/NotFound";
 
-const queryClient = new QueryClient();
+import CustomerPortal from "./pages/CustomerPortal";
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // 5 minutes (data is considered fresh and loads instantly)
+      gcTime: 30 * 60 * 1000, // 30 minutes garbage collection
+      refetchOnWindowFocus: false, // Don't refetch just because user swapped tabs
+      retry: 1, // Only retry once on failure to prevent long hanging loads
+    },
+  },
+});
 
 function AppRoutes() {
   return (
     <Routes>
+
+      <Route path="/portal" element={<CustomerPortal />} />
       <Route path="/sign/repair/:id" element={<SignRepair />} />
       <Route path="/sign/customer/:id" element={<SignCustomer />} />
       <Route path="/sign/inspection/:id" element={<SignInspection />} />
@@ -41,6 +54,7 @@ function AppRoutes() {
             <Route path="/inquiries" element={<Inquiries />} />
             <Route path="/inspections" element={<Inspections />} />
             <Route path="/repairs" element={<RepairsMaintenance />} />
+
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AppLayout>

@@ -1,4 +1,4 @@
-import { LayoutDashboard, Car, Users, MessageSquare, ClipboardCheck, Wrench, FileText } from "lucide-react";
+import { LayoutDashboard, Car, Users, MessageSquare, ClipboardCheck, Wrench, FileText, Settings, LogOut } from "lucide-react";
 import { NairaIcon } from "@/components/NairaIcon";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -12,6 +12,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarHeader,
+  SidebarFooter,
   useSidebar,
 } from "@/components/ui/sidebar";
 import logo from "@/assets/logo.png";
@@ -37,6 +38,7 @@ export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
+  const navItems = items;
 
   return (
     <Sidebar collapsible="icon">
@@ -57,7 +59,7 @@ export function AppSidebar() {
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {items.map((item) => (
+              {navItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <div className="py-1">
                     <NavLink
@@ -76,6 +78,7 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
+
     </Sidebar>
   );
 }

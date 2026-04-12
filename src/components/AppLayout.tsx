@@ -1,6 +1,5 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
-import { Menu } from "lucide-react";
 import logo from "@/assets/logo.png";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {

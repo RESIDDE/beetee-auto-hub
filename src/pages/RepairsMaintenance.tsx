@@ -290,7 +290,7 @@ export default function RepairsMaintenance() {
 
       {/* Form Dialog */}
       <Dialog open={open} onOpenChange={(v) => !v && closeDialog()}>
-        <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto rounded-3xl glass-panel shadow-2xl border-white/10 p-0 overflow-hidden bg-background/95 backdrop-blur-3xl">
+        <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto rounded-3xl glass-panel shadow-2xl border-white/10 p-0 bg-background/95 backdrop-blur-3xl">
           <div className="p-6 border-b border-white/5 bg-foreground/5 pointer-events-none">
              <DialogHeader><DialogTitle className="text-xl font-bold">{editId ? "Edit Repair Details" : "Record New Repair"}</DialogTitle></DialogHeader>
           </div>
