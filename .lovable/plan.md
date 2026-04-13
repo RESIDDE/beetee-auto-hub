@@ -1,75 +1,55 @@
 
 
-# Implementation Plan: Auth, Analytics Dashboard, and Customer Engagement
+# Implement Full RBAC System
 
-## Feature 1: User Authentication & Role-Based Access Control
+## Current State
+- **Database**: `user_roles` table, `has_role()` function, `handle_new_user()` function all exist, but **no triggers are attached** (confirmed: "There are no triggers in the database")
+- **Auth page**: exists at `src/pages/Auth.tsx` but no route guard — anyone can access the app without logging in
+- **Settings page**: exists at `src/pages/Settings.tsx` but has no route in `App.tsx`
+- **Sidebar**: no role-based filtering, no logout button, no user display
+- **RLS**: all tables still use `public: true` (wide open)
 
-### Database changes
-- Create `app_role` enum: `admin`, `sales`, `mechanic`
-- Create `user_roles` table with `user_id` + `role` (unique constraint)
-- Add RLS policies using a `has_role()` security definer function
-- Create a trigger on `auth.users` to auto-create a profile row on signup
-- Tighten RLS on all existing tables (vehicles, customers, sales, repairs, invoices, inspections, inquiries) so only authenticated users can access them
+## Step 1: Database Migration
+Fix the trigger and tighten RLS in a single migration:
 
-### New pages and components
-- **Login page** (`src/pages/Auth.tsx`) — email/password login and signup with Supabase Auth, clean branded UI
-- **Role management** — first user to sign up becomes admin; admin can assign roles to other users from a simple settings page (`src/pages/Settings.tsx`)
-- **Auth guard** — wrap `AppLayout` with an auth check; redirect unauthenticated users to `/auth`
-- **Profile display** — show logged-in user name/avatar in the sidebar header with a logout button
-- Update `AppLayout.tsx` and `App.tsx` to handle auth state via `onAuthStateChange`
+- **Attach trigger**: `CREATE TRIGGER on_auth_user_created AFTER INSERT ON auth.users FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();`
+- **Tighten RLS** on `vehicles`, `customers`, `sales`, `repairs`, `invoices`, `inspections`, `inquiries`, `vehicle_images`, `invoice_repairs`: drop all `Public *` policies, replace with `authenticated`-only policies for all operations
+- **Customer portal access**: add `anon` SELECT on `customers` (by phone) via the existing `get_customer_portal_data` security definer function — no direct anon table access needed
 
-### Files affected
-- New: `src/pages/Auth.tsx`, `src/pages/Settings.tsx`, `src/hooks/useAuth.tsx`
-- Modified: `src/App.tsx`, `src/components/AppLayout.tsx`, `src/components/AppSidebar.tsx`
-- New migration for `user_roles`, `has_role()` function, profile trigger, and tightened RLS
+## Step 2: Auth Guard in AppLayout
+- Wrap `AppLayout` with `AuthProvider` from `useAuth.tsx`
+- Add auth check: if `isLoading`, show spinner; if no `user`, redirect to `/auth`
+- Show logged-in user's name + role badge in the header, with a logout button
 
----
+## Step 3: Role-Based Sidebar Visibility
+Define which nav items each role can see:
+- **Admin**: everything + Settings
+- **Sales**: Dashboard, Vehicles, Customers, Sales, Invoices, Inquiries
+- **Mechanic**: Dashboard, Repairs, Inspections
 
-## Feature 2: Advanced Analytics Dashboard
+Filter the `items` array in `AppSidebar` using `useAuth().role`. Add Settings link for admins. Add logout button in sidebar footer.
 
-Upgrade the existing Dashboard with richer interactive charts and KPIs.
+## Step 4: Route Protection
+- Add `/settings` route inside `AppLayout` routes
+- Add `/auth` route outside `AppLayout` (public)
+- Wrap `App` with `AuthProvider`
+- In `AppLayout`, redirect to `/auth` if not authenticated
 
-### New charts and metrics
-- **Monthly sales revenue trend** — line/area chart showing ₦ revenue per month (last 12 months)
-- **Profit margin per vehicle** — bar chart comparing cost price vs sale price for sold vehicles
-- **Repair turnaround time** — average days from repair creation to completion, shown as a stat + trend
-- **Inventory aging** — horizontal bar chart showing how long unsold vehicles have been in stock (0-30, 30-60, 60-90, 90+ days)
-- **Sales vs Repairs revenue split** — donut chart comparing the two revenue streams
-- **Top selling makes** — small ranked list of best-selling vehicle brands
+## Step 5: Settings Page Cleanup
+The existing `Settings.tsx` already has role management UI. Just need to:
+- Remove the "Force Claim Admin" dev button (or keep behind a flag)
+- Ensure it's only accessible to admins (sidebar filtering + optional inline role check)
 
-### Implementation
-- Expand data fetching in `Dashboard.tsx` to pull cost_price from vehicles and join sales with vehicles
-- Add new `useMemo` calculations for each metric
-- Use existing Recharts (already installed) with `AreaChart`, `LineChart`, `BarChart`, `PieChart`
-- Responsive bento grid layout, consistent with current design language
+## Files Changed
+| File | Action |
+|------|--------|
+| New migration | Attach trigger, tighten RLS |
+| `src/App.tsx` | Add `AuthProvider`, `/auth` route, `/settings` route |
+| `src/components/AppLayout.tsx` | Auth guard, user display, logout |
+| `src/components/AppSidebar.tsx` | Role-based nav filtering, Settings link, logout in footer |
+| `src/pages/Settings.tsx` | Minor cleanup |
 
-### Files affected
-- Modified: `src/pages/Dashboard.tsx` (major expansion)
-
----
-
-## Feature 3: Customer Engagement — Public Customer Portal
-
-Since WhatsApp/SMS integration requires external API keys and services, I will focus on the **Customer Portal** — a read-only public page where customers can check their repair status and view invoice history using their phone number. No login required.
-
-### How it works
-- New public route `/portal` (outside `AppLayout`, no auth required)
-- Customer enters their phone number
-- System looks up the customer by phone, then shows:
-  - Active repairs and their status
-  - Invoice history with amounts and status
-  - Vehicle details associated with their records
-- Clean, mobile-first branded interface
-
-### Files affected
-- New: `src/pages/CustomerPortal.tsx`
-- Modified: `src/App.tsx` (add `/portal` route outside AppLayout)
-
----
-
-## Technical notes
-- The `profiles` table already exists with `user_id`, `display_name`, `avatar_url`, `phone` columns — will reuse it
-- All existing tables currently have open RLS (`true` for all operations) — the auth migration will tighten these to `authenticated` only
-- The customer portal will use the `anon` key with targeted RLS policies so customers can look up only their own data by phone number
-- No external API keys or third-party services are needed for any of these three features
+## Technical Notes
+- The `handle_new_user()` function already assigns `'admin'` to every new user. This should be changed to only assign admin to the first user and default to `'mechanic'` for subsequent users. This will be fixed in the migration.
+- The `has_role()` function signature takes only `checking_role` (no user_id param) and uses `auth.uid()` internally — the Settings page cast `(supabase as any)` for `user_roles` because it's not in the generated types. This is fine.
 
