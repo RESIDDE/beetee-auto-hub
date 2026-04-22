@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
+import logoAsset from "@/assets/logo_old_backup.png";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -25,7 +26,17 @@ import {
 import {
   Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious,
 } from "@/components/ui/pagination";
-import { PlusCircle, Pencil, Trash2, Receipt, Download, FileText, Printer, FileOutput, DollarSign, Calendar, Search, Car, Users, QrCode, CheckCircle } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { 
+  PlusCircle, Pencil, Trash2, Receipt, Download, FileText, Printer, FileOutput, 
+  DollarSign, Calendar, Search, Car, Users, QrCode, CheckCircle, Image, FileDown,
+  TrendingUp, TrendingDown, ShoppingBag, Target, ArrowUpRight, BarChart3, PieChart as PieChartIcon
+} from "lucide-react";
+import {
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
+  BarChart, Bar, PieChart, Pie, Cell
+} from "recharts";
+import { format, subMonths, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
 import { toast } from "sonner";
 import { exportToCSV, exportToJSON, printTable } from "@/lib/exportHelpers";
 import { useAuth } from "@/hooks/useAuth";
@@ -37,6 +48,24 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { SignaturePad } from "@/components/SignaturePad";
 import { QrSignDialog } from "@/lib/qrHelpers";
 import { CurrencyInput } from "@/components/CurrencyInput";
+
+const COLORS = ["hsl(var(--primary))", "hsl(142 76% 36%)", "hsl(38 92% 50%)", "hsl(262 83% 58%)", "hsl(0 84% 60%)", "hsl(199 89% 48%)"];
+
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="glass-panel p-3 border border-white/20 shadow-2xl rounded-xl z-50 min-w-[150px]">
+        <p className="font-semibold text-foreground mb-1">{label}</p>
+        {payload.map((entry: any, index: number) => (
+          <p key={index} className="text-sm font-medium flex justify-between gap-4" style={{ color: entry.color || entry.fill }}>
+            <span>{entry.name}:</span> <span>₦{entry.value.toLocaleString()}</span>
+          </p>
+        ))}
+      </div>
+    );
+  }
+  return null;
+};
 
 const emptyForm = { 
   customer_id: "", 
@@ -65,6 +94,7 @@ export default function Sales() {
   const [search, setSearch] = useState("");
   const [vehicleSearch, setVehicleSearch] = useState("");
   const [page, setPage] = useState(0);
+  const [showAnalytics, setShowAnalytics] = useState(true);
   const PAGE_SIZE = 15;
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -93,7 +123,7 @@ export default function Sales() {
   const { data: vehicles = [] } = useQuery({
     queryKey: ["vehicles"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("vehicles").select("id, make, model, year, color");
+      const { data, error } = await supabase.from("vehicles").select("id, make, model, year, color, cost_price");
       if (error) throw error;
       return data;
     },
@@ -112,6 +142,7 @@ export default function Sales() {
     v.id, 
     `${v.year} ${v.make} ${v.model} ${v.color ? `(${v.color})` : ""}`.trim()
   ]));
+  const fullVehicleMap = Object.fromEntries(vehicles.map((v) => [v.id, v]));
   const customerMap = Object.fromEntries(customers.map((c) => [c.id, c.name]));
   const customerObjMap = Object.fromEntries(customers.map((c) => [c.id, c]));
 
@@ -323,6 +354,201 @@ export default function Sales() {
     if (win) { win.document.write(html); win.document.close(); win.print(); }
   };
 
+  const downloadSaleReceipt = async (sale: any, format: "png" | "jpeg" | "pdf") => {
+    const cust = customerObjMap[sale.customer_id];
+    const saleItems = sale.sale_vehicles?.length > 0
+      ? sale.sale_vehicles.map((sv: any) => vehicleMap[sv.vehicle_id] || "Unknown Vehicle")
+      : [vehicleMap[sale.vehicle_id] || "Unknown Vehicle"];
+
+    const receiptNo = sale.id.slice(0, 8).toUpperCase();
+    const filename = `sale-receipt-${receiptNo}`;
+
+    try {
+      toast.loading("Preparing download...", { id: "receipt-dl" });
+
+      // Convert logo to base64 so it renders inside the sandboxed iframe
+      const logoBase64 = await fetch(logoAsset)
+        .then(r => r.blob())
+        .then(blob => new Promise<string>((res, rej) => {
+          const reader = new FileReader();
+          reader.onload = () => res(reader.result as string);
+          reader.onerror = rej;
+          reader.readAsDataURL(blob);
+        }));
+
+      const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Sales Receipt</title>
+      <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; padding: 40px 48px 0 48px; width: 700px; background: transparent; color: #1a1a2e; line-height: 1.6; }
+
+        /* ── Receipt Title ── */
+        .receipt-title { text-align: center; margin-bottom: 24px; position: relative; z-index: 10; }
+        .receipt-title h2 { font-size: 18px; letter-spacing: 3px; text-transform: uppercase; color: #1D3557; border-bottom: 1px solid #ddd; padding-bottom: 8px; display: inline-block; }
+        .receipt-title p { font-size: 12px; color: #666; margin-top: 6px; }
+
+        /* ── Sections ── */
+        .section { margin-bottom: 20px; position: relative; z-index: 10; }
+        .section-title { font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: #999; border-bottom: 1px solid #eee; padding-bottom: 4px; margin-bottom: 10px; font-weight: bold; }
+        .row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 13px; border-bottom: 1px dotted #f0f0f0; }
+        .row:last-child { border-bottom: none; }
+        .row .label { color: #555; }
+        .row .value { font-weight: 600; color: #1a1a2e; }
+
+        /* ── Vehicles ── */
+        .vehicle-list { list-style: none; }
+        .vehicle-item { padding: 8px 12px; background: #f0f4ff; border-left: 3px solid #1D3557; border-radius: 4px; margin-bottom: 6px; font-size: 13px; font-weight: 500; }
+
+        /* ── Total ── */
+        .total-box { display: flex; justify-content: flex-end; margin-top: 16px; position: relative; z-index: 10; }
+        .total-inner { background: #1D3557; color: #fff; padding: 12px 24px; border-radius: 6px; text-align: right; }
+        .total-inner .label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; opacity: 0.8; }
+        .total-inner .amount { font-size: 22px; font-weight: bold; margin-top: 2px; }
+
+        /* ── Refund Notice ── */
+        .refund-note { margin-top: 20px; padding: 12px; background: #fff5f5; border: 1px solid #fca5a5; border-radius: 6px; color: #b91c1c; font-weight: bold; font-size: 12px; text-align: center; letter-spacing: 1px; position: relative; z-index: 10; }
+
+        /* ── Signatures ── */
+        .signature-area { display: flex; justify-content: space-between; margin-top: 40px; padding-top: 20px; position: relative; z-index: 10; }
+        .sig-box { width: 44%; text-align: center; }
+        .sig-line { border-top: 1.5px solid #333; padding-top: 8px; font-size: 11px; color: #444; }
+        .signature-img { max-height: 56px; display: block; margin: 0 auto 8px; }
+        .sig-date { font-size: 10px; color: #999; margin-top: 4px; }
+
+        /* ── Footer Swoosh ── */
+        .swoosh-footer { position: relative; width: 100%; height: 120px; overflow: hidden; margin-top: 40px; background: transparent; }
+      </style>
+      </head><body>
+
+      ${getPrintWatermarkHTML(logoBase64)}
+      ${getPrintHeaderHTML(logoBase64)}
+
+      <!-- Receipt Title -->
+      <div class="receipt-title">
+        <h2>Sales Receipt</h2>
+        <p>Receipt No: ${receiptNo} &nbsp;&bull;&nbsp; ${new Date(sale.sale_date).toLocaleDateString(undefined, { dateStyle: 'long' })}</p>
+      </div>
+
+      <!-- Customer Information -->
+      <div class="section">
+        <div class="section-title">Customer Information</div>
+        <div class="row"><span class="label">Name</span><span class="value">${cust?.name || '—'}</span></div>
+        ${cust?.phone ? `<div class="row"><span class="label">Phone</span><span class="value">${cust.phone}</span></div>` : ''}
+        ${cust?.email ? `<div class="row"><span class="label">Email</span><span class="value">${cust.email}</span></div>` : ''}
+        ${cust?.address ? `<div class="row"><span class="label">Address</span><span class="value">${cust.address}</span></div>` : ''}
+      </div>
+
+      <!-- Vehicles -->
+      <div class="section">
+        <div class="section-title">Purchased Vehicle(s)</div>
+        <ul class="vehicle-list">
+          ${saleItems.map((v: string) => `<li class="vehicle-item">${v}</li>`).join('')}
+        </ul>
+      </div>
+
+      <!-- Payment -->
+      <div class="section">
+        <div class="section-title">Payment Details</div>
+        <div class="row"><span class="label">Payment Type</span><span class="value" style="text-transform:capitalize">${(sale.payment_type || 'Cash').replace(/_/g,' ')}</span></div>
+        <div class="row"><span class="label">Payment Status</span><span class="value">${(sale.payment_status || 'Paid').replace(/_/g, ' ')}</span></div>
+        ${sale.rep_name ? `<div class="row"><span class="label">Sales Representative</span><span class="value">${sale.rep_name}</span></div>` : ''}
+        <div class="total-box">
+          <div class="total-inner">
+            <div class="label">Total Amount Paid</div>
+            <div class="amount">&#8358;${Number(sale.sale_price).toLocaleString()}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Refund Notice -->
+      <div class="refund-note">&#9888; NOTICE: NO REFUND AFTER PAYMENT</div>
+
+      <!-- Signatures -->
+      <div class="signature-area">
+        <div class="sig-box">
+          ${sale.buyer_signature ? `<img src="${sale.buyer_signature}" class="signature-img" />` : '<div style="height:56px"></div>'}
+          <div class="sig-line">Customer Signature</div>
+          ${sale.buyer_signature_date ? `<div class="sig-date">${new Date(sale.buyer_signature_date).toLocaleDateString()}</div>` : ''}
+        </div>
+        <div class="sig-box">
+          ${sale.rep_signature ? `<img src="${sale.rep_signature}" class="signature-img" />` : '<div style="height:56px"></div>'}
+          <div class="sig-line">Representative: <strong>${sale.rep_name || 'Beetee Autos'}</strong></div>
+        </div>
+      </div>
+
+      <!-- Swoosh Footer -->
+      <div class="swoosh-footer">
+        <svg style="position:absolute;bottom:0;left:0;width:100%;height:100%;" viewBox="0 0 1000 150" preserveAspectRatio="none">
+          <path d="M 400 150 C 650 150 900 80 1000 0 L 1000 150 Z" fill="#1e3a8a" />
+          <path d="M 600 150 C 800 150 950 120 1000 40 L 1000 150 Z" fill="#0f172a" />
+          <path d="M 0 132 C 80 132 180 150 240 150 L 0 150 Z" fill="#0f172a" />
+        </svg>
+      </div>
+
+      </body></html>`;
+
+      // Render HTML in a hidden iframe sized wide enough for the layout
+      const iframe = document.createElement("iframe");
+      iframe.style.cssText = "position:fixed;left:-9999px;top:-9999px;width:700px;height:2400px;border:none;visibility:hidden;";
+      document.body.appendChild(iframe);
+      const iDoc = iframe.contentDocument!;
+      iDoc.open(); iDoc.write(html); iDoc.close();
+
+      // Wait for images (logo, signatures) to load
+      await new Promise<void>(res => {
+        const imgs = Array.from(iDoc.images);
+        if (imgs.length === 0) { setTimeout(res, 400); return; }
+        let loaded = 0;
+        const done = () => { if (++loaded >= imgs.length) setTimeout(res, 200); };
+        imgs.forEach(img => {
+          if (img.complete) done();
+          else { img.onload = done; img.onerror = done; }
+        });
+        setTimeout(res, 1200); // Safety timeout
+      });
+
+      // Measure the full content height
+      const contentEl = iDoc.documentElement;
+      const fullHeight = contentEl.scrollHeight;
+      // Resize iframe to exactly match content so nothing is clipped
+      iframe.style.height = `${fullHeight}px`;
+      await new Promise<void>(res => setTimeout(res, 100));
+
+      const { toPng, toJpeg } = await import("html-to-image");
+      const captureOptions = {
+        pixelRatio: 2,
+        backgroundColor: "#ffffff",
+        width: 700,
+        height: fullHeight,
+      };
+
+      if (format === "pdf") {
+        const { default: jsPDF } = await import("jspdf");
+        const imgData = await toPng(contentEl, captureOptions);
+        // Calculate PDF page height proportionally to A4 width (595px)
+        const a4Width = 595;
+        const scale = a4Width / (700 * 2); // pixelRatio: 2
+        const pdfPageH = fullHeight * 2 * scale; // height in PDF points
+        const pdf = new jsPDF({ orientation: "portrait", unit: "pt", format: [a4Width, pdfPageH] });
+        pdf.addImage(imgData, "PNG", 0, 0, a4Width, pdfPageH);
+        pdf.save(`${filename}.pdf`);
+      } else if (format === "jpeg") {
+        const dataUrl = await toJpeg(contentEl, { ...captureOptions, quality: 0.95 });
+        const a = document.createElement("a");
+        a.href = dataUrl; a.download = `${filename}.jpg`; a.click();
+      } else {
+        const dataUrl = await toPng(contentEl, captureOptions);
+        const a = document.createElement("a");
+        a.href = dataUrl; a.download = `${filename}.png`; a.click();
+      }
+
+      document.body.removeChild(iframe);
+      toast.success(`Receipt downloaded as ${format.toUpperCase()}`, { id: "receipt-dl" });
+    } catch (err) {
+      console.error("Download error:", err);
+      toast.error("Failed to generate download", { id: "receipt-dl" });
+    }
+  };
+
   return (
     <>
       <div className="space-y-8 animate-fade-up pb-10 max-w-6xl mx-auto">
@@ -341,6 +567,14 @@ export default function Sales() {
           </p>
         </div>
         <div className="flex gap-2 shrink-0">
+          <Button 
+            variant="outline" 
+            size="lg" 
+            onClick={() => setShowAnalytics(!showAnalytics)}
+            className={`rounded-2xl glass-panel border-white/10 transition-all ${showAnalytics ? 'bg-violet-500/20 text-violet-500 border-violet-500/20' : 'hover:bg-white/5'}`}
+          >
+            <TrendingUp className="mr-2 h-4 w-4" /> {showAnalytics ? "Hide Analytics" : "Analytics"}
+          </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="lg" className="rounded-2xl glass-panel border-white/10 hover:bg-white/5 transition-all">
@@ -358,6 +592,125 @@ export default function Sales() {
           </Button>
         </div>
       </div>
+
+      {showAnalytics && (
+        <div className="space-y-6 animate-fade-down">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+            <Card className="bento-card border-none shadow-xl">
+              <CardContent className="p-6">
+                <div className="flex justify-between items-start mb-4">
+                  <div className="p-3 bg-emerald-500/10 rounded-2xl"><DollarSign className="h-6 w-6 text-emerald-500" /></div>
+                </div>
+                <h3 className="text-3xl font-bold truncate">₦{sales.reduce((sum, s) => sum + (Number(s.sale_price) || 0), 0).toLocaleString()}</h3>
+                <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider mt-1">Total Revenue</p>
+              </CardContent>
+            </Card>
+
+            <Card className="bento-card border-none shadow-xl">
+              <CardContent className="p-6">
+                <div className="flex justify-between items-start mb-4">
+                  <div className="p-3 bg-violet-500/10 rounded-2xl"><TrendingUp className="h-6 w-6 text-violet-500" /></div>
+                </div>
+                <h3 className="text-3xl font-bold truncate">₦{sales.reduce((sum, s) => {
+                  const vehicleId = s.vehicle_id || s.sale_vehicles?.[0]?.vehicle_id;
+                  const v = vehicleId ? fullVehicleMap[vehicleId] : null;
+                  const cost = Number(v?.cost_price) || 0;
+                  const sale = Number(s.sale_price) || 0;
+                  return sum + (sale - cost);
+                }, 0).toLocaleString()}</h3>
+                <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider mt-1">Total profit</p>
+              </CardContent>
+            </Card>
+
+            <Card className="bento-card border-none shadow-xl">
+              <CardContent className="p-6">
+                <div className="flex justify-between items-start mb-4">
+                  <div className="p-3 bg-primary/10 rounded-2xl"><ShoppingBag className="h-6 w-6 text-primary" /></div>
+                </div>
+                <h3 className="text-3xl font-bold">{sales.length}</h3>
+                <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider mt-1">Units Sold</p>
+              </CardContent>
+            </Card>
+
+            <Card className="bento-card border-none shadow-xl">
+              <CardContent className="p-6">
+                <div className="flex justify-between items-start mb-4">
+                  <div className="p-3 bg-amber-500/10 rounded-2xl"><Target className="h-6 w-6 text-amber-500" /></div>
+                </div>
+                <h3 className="text-3xl font-bold">{((sales.reduce((sum, s) => sum + (Number(s.sale_price) || 0), 0) / 5000000) * 100).toFixed(1)}%</h3>
+                <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider mt-1">Target Achievement</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div className="lg:col-span-8 bento-card p-6 min-h-[400px]">
+              <h3 className="font-bold text-lg flex items-center gap-2 mb-6"><BarChart3 className="w-5 h-5 text-emerald-500" /> Revenue & Profit Trend</h3>
+              <div className="h-[300px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={(() => {
+                    const data = [];
+                    const now = new Date();
+                    for (let i = 5; i >= 0; i--) {
+                      const d = subMonths(now, i);
+                      const m = d.getMonth();
+                      const y = d.getFullYear();
+                      const mSales = sales.filter(s => {
+                        const sd = new Date(s.sale_date || s.created_at);
+                        return sd.getMonth() === m && sd.getFullYear() === y;
+                      });
+                      const rev = mSales.reduce((sum, s) => sum + (Number(s.sale_price) || 0), 0);
+                      const prf = mSales.reduce((sum, s) => {
+                        const vehicleId = s.vehicle_id || s.sale_vehicles?.[0]?.vehicle_id;
+                        const v = vehicleId ? fullVehicleMap[vehicleId] : null;
+                        const cost = Number(v?.cost_price) || 0;
+                        const sale = Number(s.sale_price) || 0;
+                        return sum + (sale - cost);
+                      }, 0);
+                      data.push({ name: format(d, 'MMM'), Revenue: rev, Profit: prf });
+                    }
+                    return data;
+                  })()} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="colorRevS" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.8}/><stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/></linearGradient>
+                      <linearGradient id="colorPrfS" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="hsl(142 76% 36%)" stopOpacity={0.8}/><stop offset="95%" stopColor="hsl(142 76% 36%)" stopOpacity={0}/></linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--foreground)/0.05)" />
+                    <XAxis dataKey="name" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 12 }} axisLine={false} tickLine={false} tickFormatter={(v) => `₦${(v/1000000).toFixed(1)}M`} />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Area type="monotone" dataKey="Revenue" stroke="hsl(var(--primary))" fillOpacity={1} fill="url(#colorRevS)" strokeWidth={3} />
+                    <Area type="monotone" dataKey="Profit" stroke="hsl(142 76% 36%)" fillOpacity={1} fill="url(#colorPrfS)" strokeWidth={3} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            <div className="lg:col-span-4 bento-card p-6 flex flex-col justify-center">
+              <h3 className="font-bold text-lg flex items-center gap-2 mb-6"><PieChartIcon className="w-5 h-5 text-amber-500" /> Top Makes</h3>
+              <div className="h-[250px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={(() => {
+                      const makes: Record<string, number> = {};
+                      sales.forEach(s => {
+                        const vehicleId = s.vehicle_id || s.sale_vehicles?.[0]?.vehicle_id;
+                        const v = vehicleId ? fullVehicleMap[vehicleId] : null;
+                        const make = v?.make || 'Unknown';
+                        makes[make] = (makes[make] || 0) + 1;
+                      });
+                      return Object.entries(makes).map(([name, value]) => ({ name, value })).sort((a,b) => b.value - a.value).slice(0, 5);
+                    })()} innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
+                      {COLORS.map((color, i) => <Cell key={i} fill={color} />)}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Search Bar */}
       <div className="glass-panel p-4 rounded-3xl flex flex-col sm:flex-row gap-4 items-center relative overflow-hidden">
@@ -423,6 +776,24 @@ export default function Sales() {
                           <Button variant="ghost" size="sm" className="h-8 rounded-lg hover:bg-foreground/20 text-amber-500" onClick={() => setQrId(s.id)}>
                             <QrCode className="h-4 w-4 mr-1.5" /> Sign Link
                           </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm" className="h-8 rounded-lg hover:bg-foreground/20 text-sky-500">
+                                <FileDown className="h-4 w-4 mr-1.5" /> Download
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent className="rounded-xl glass-panel p-2 shadow-2xl border-white/10" align="end">
+                              <DropdownMenuItem onClick={() => downloadSaleReceipt(s, "png")} className="rounded-lg cursor-pointer gap-2">
+                                <Image className="h-4 w-4 text-emerald-500" /> Save as PNG
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => downloadSaleReceipt(s, "jpeg")} className="rounded-lg cursor-pointer gap-2">
+                                <Image className="h-4 w-4 text-amber-500" /> Save as JPEG
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => downloadSaleReceipt(s, "pdf")} className="rounded-lg cursor-pointer gap-2">
+                                <FileDown className="h-4 w-4 text-violet-500" /> Save as PDF
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                           <Button variant="ghost" size="sm" className="h-8 rounded-lg hover:bg-foreground/20" onClick={() => printReceipt(s)}>
                             <Receipt className="h-4 w-4 mr-1.5" /> Receipt
                           </Button>

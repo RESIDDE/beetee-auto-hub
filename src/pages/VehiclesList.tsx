@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -19,13 +19,40 @@ import {
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Card, CardContent } from "@/components/ui/card";
 import { Link } from "react-router-dom";
-import { PlusCircle, Search, Eye, Pencil, Trash2, Download, FileText, Printer, Car, ListFilter } from "lucide-react";
+import { 
+  PlusCircle, Search, Eye, Pencil, Trash2, Download, FileText, Printer, 
+  Car, ListFilter, BarChart as BarChartIcon, Clock, Package, ShieldCheck, AlertTriangle, PieChart as PieChartIcon, ChevronRight
+} from "lucide-react";
+import {
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
+  PieChart, Pie, Cell, CartesianGrid
+} from "recharts";
+import { differenceInDays } from "date-fns";
 import { toast } from "sonner";
 import { exportToCSV, exportToJSON, printTable } from "@/lib/exportHelpers";
 import { useAuth } from "@/hooks/useAuth";
 import { canEdit } from "@/lib/permissions";
 import { logAction } from "@/lib/logger";
+
+const COLORS = ["hsl(var(--primary))", "hsl(142 76% 36%)", "hsl(38 92% 50%)", "hsl(262 83% 58%)", "hsl(0 84% 60%)", "hsl(199 89% 48%)"];
+
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="glass-panel p-3 border border-white/20 shadow-2xl rounded-xl z-50 min-w-[150px]">
+        <p className="font-semibold text-foreground mb-1">{label}</p>
+        {payload.map((entry: any, index: number) => (
+          <p key={index} className="text-sm font-medium flex justify-between gap-4" style={{ color: entry.color || entry.fill }}>
+            <span>{entry.name}:</span> <span>{entry.value.toLocaleString()}</span>
+          </p>
+        ))}
+      </div>
+    );
+  }
+  return null;
+};
 
 const PAGE_SIZE = 20;
 
@@ -37,6 +64,7 @@ export default function VehiclesList() {
   const [conditionFilter, setConditionFilter] = useState("all");
   const [page, setPage] = useState(0);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [showAnalytics, setShowAnalytics] = useState(true);
   const queryClient = useQueryClient();
 
   const { data: vehicles = [], isLoading } = useQuery({
@@ -113,6 +141,14 @@ export default function VehiclesList() {
           </p>
         </div>
         <div className="flex gap-2 shrink-0">
+          <Button 
+            variant="outline" 
+            size="lg" 
+            onClick={() => setShowAnalytics(!showAnalytics)}
+            className={`rounded-2xl glass-panel border-white/10 transition-all ${showAnalytics ? 'bg-primary/20 text-primary border-primary/20' : 'hover:bg-white/5'}`}
+          >
+            <BarChartIcon className="mr-2 h-4 w-4" /> {showAnalytics ? "Hide Analytics" : "Analytics"}
+          </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="lg" className="rounded-2xl glass-panel border-white/10 hover:bg-white/5 transition-all">
@@ -132,6 +168,100 @@ export default function VehiclesList() {
           </Button>
         </div>
       </div>
+
+      {showAnalytics && (
+        <div className="space-y-6 animate-fade-down">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+            <Card className="bento-card border-none shadow-xl">
+              <CardContent className="p-6">
+                <div className="flex justify-between items-start mb-4">
+                  <div className="p-3 bg-primary/10 rounded-2xl"><Package className="h-6 w-6 text-primary" /></div>
+                </div>
+                <h3 className="text-3xl font-bold">{vehicles.filter(v => v.status !== 'Sold').length}</h3>
+                <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider mt-1">Units In Stock</p>
+              </CardContent>
+            </Card>
+
+            <Card className="bento-card border-none shadow-xl">
+              <CardContent className="p-6">
+                <div className="flex justify-between items-start mb-4">
+                  <div className="p-3 bg-emerald-500/10 rounded-2xl"><ShieldCheck className="h-6 w-6 text-emerald-500" /></div>
+                </div>
+                <h3 className="text-3xl font-bold">₦{vehicles.filter(v => v.status !== 'Sold').reduce((sum, v) => sum + (Number(v.cost_price) || 0), 0).toLocaleString()}</h3>
+                <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider mt-1">Stock Value</p>
+              </CardContent>
+            </Card>
+
+            <Card className="bento-card border-none shadow-xl">
+              <CardContent className="p-6">
+                <div className="flex justify-between items-start mb-4">
+                  <div className="p-3 bg-amber-500/10 rounded-2xl"><Clock className="h-6 w-6 text-amber-500" /></div>
+                </div>
+                <h3 className="text-3xl font-bold">{vehicles.filter(v => v.status === 'Reserved').length}</h3>
+                <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider mt-1">Reserved Units</p>
+              </CardContent>
+            </Card>
+
+            <Card className="bento-card border-none shadow-xl">
+              <CardContent className="p-6">
+                <div className="flex justify-between items-start mb-4">
+                  <div className="p-3 bg-red-500/10 rounded-2xl"><AlertTriangle className="h-6 w-6 text-red-500" /></div>
+                </div>
+                <h3 className="text-3xl font-bold">{vehicles.filter(v => v.condition === 'Damaged').length}</h3>
+                <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider mt-1">Damaged Stock</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="bento-card p-6 min-h-[350px]">
+              <h3 className="font-bold text-lg flex items-center gap-2 mb-6"><Clock className="w-5 h-5 text-sky-500" /> Aging Analysis</h3>
+              <div className="h-[250px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={(() => {
+                    const counts: any = { "0-30 Days": 0, "31-60 Days": 0, "61-90 Days": 0, "90+ Days": 0 };
+                    vehicles.filter(v => v.status !== 'Sold').forEach(v => {
+                      const days = differenceInDays(new Date(), new Date((v as any).date_arrived || v.created_at));
+                      if (days <= 30) counts["0-30 Days"]++;
+                      else if (days <= 60) counts["31-60 Days"]++;
+                      else if (days <= 90) counts["61-90 Days"]++;
+                      else counts["90+ Days"]++;
+                    });
+                    return Object.entries(counts).map(([name, value]) => ({ name, value }));
+                  })()}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--foreground)/0.05)" />
+                    <XAxis dataKey="name" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Bar dataKey="value" name="Vehicles" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            <div className="bento-card p-6 flex flex-col justify-center">
+              <h3 className="font-bold text-lg flex items-center gap-2 mb-6"><PieChartIcon className="w-5 h-5 text-amber-500" /> Status Mix</h3>
+              <div className="h-[250px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie 
+                      data={[
+                        { name: 'Available', value: vehicles.filter(v => v.status === 'Available').length },
+                        { name: 'Reserved', value: vehicles.filter(v => v.status === 'Reserved').length },
+                        { name: 'Sold', value: vehicles.filter(v => v.status === 'Sold').length },
+                      ].filter(x => x.value > 0)} 
+                      innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value"
+                    >
+                      {COLORS.map((color, i) => <Cell key={i} fill={color} />)}
+                    </Pie>
+                    <Tooltip content={<CustomTooltip />} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Filters Control Bar */}
       <div className="glass-panel p-4 rounded-3xl flex flex-col sm:flex-row gap-4 items-center relative overflow-hidden">

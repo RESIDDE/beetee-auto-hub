@@ -657,7 +657,7 @@ export default function AuthorityToSell() {
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => viewHistoryItem(item)}
-                                className="h-10 rounded-xl hover:bg-sky-500/10 hover:text-sky-500 font-bold px-4"
+                                className="h-10 rounded-xl font-bold px-4"
                               >
                                 <Printer className="w-4 h-4 mr-2" /> View & Print
                               </Button>

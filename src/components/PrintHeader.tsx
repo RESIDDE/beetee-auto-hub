@@ -25,10 +25,11 @@ export function PrintHeader() {
 
 // For use inside string-based html window popups (like Invoices.tsx, Sales.tsx, exportHelpers.ts)
 // Note: Since Vite compiles assets, we use window.location.origin to ensure the image resolves.
-export function getPrintHeaderHTML() {
+export function getPrintHeaderHTML(base64Logo?: string) {
+  const logoUrl = base64Logo || `${window.location.origin}${logo}`;
   return `
     <div style="display: flex; align-items: center; justify-content: flex-start; border-bottom: 3px solid #1D3557; padding-bottom: 16px; margin-bottom: 24px;">
-      <img src="${window.location.origin}${logo}" style="width: 110px; height: 110px; object-fit: contain; margin-right: 24px;" />
+      <img src="${logoUrl}" style="width: 110px; height: 110px; object-fit: contain; margin-right: 24px;" />
       <div style="text-align: left; color: #1D3557;">
         <h1 style="font-family: 'Arial Black', Impact, sans-serif; font-size: 28px; margin: 0 0 4px 0; letter-spacing: 1px; color: #1D3557; text-transform: uppercase;">
           BEE TEE AUTOMOBILE
@@ -57,8 +58,8 @@ export function PrintWatermark() {
 }
 
 // For use inside string-based html window popups (like Invoices.tsx, Sales.tsx, exportHelpers.ts)
-export function getPrintWatermarkHTML() {
-  const logoUrl = `${window.location.origin}${logo}`;
+export function getPrintWatermarkHTML(base64Logo?: string) {
+  const logoUrl = base64Logo || `${window.location.origin}${logo}`;
   return `
     <div style="
       position: fixed;
@@ -67,7 +68,7 @@ export function getPrintWatermarkHTML() {
       transform: translate(-50%, -50%);
       pointer-events: none;
       z-index: 0;
-      opacity: 0.4;
+      opacity: 0.2;
       user-select: none;
     ">
       <img src="${logoUrl}" style="width: 500px; height: 500px; object-fit: contain;" />

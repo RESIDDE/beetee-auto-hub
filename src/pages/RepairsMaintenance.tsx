@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -141,6 +141,20 @@ export default function RepairsMaintenance() {
   const [historyVehicleLabel, setHistoryVehicleLabel] = useState("");
   const [page, setPage] = useState(0);
   const PAGE_SIZE = 10;
+
+  // Auto-calculate repair cost (Grand Total)
+  useEffect(() => {
+    const parts = parseFloat(form.parts_total.toString().replace(/,/g, "")) || 0;
+    const labour = parseFloat(form.labour_total.toString().replace(/,/g, "")) || 0;
+    const other = parseFloat(form.other_charges.toString().replace(/,/g, "")) || 0;
+    const vat = parseFloat(form.vat.toString().replace(/,/g, "")) || 0;
+    const total = parts + labour + other + vat;
+    
+    const totalStr = total.toString();
+    if (form.repair_cost !== totalStr) {
+      setForm(prev => ({ ...prev, repair_cost: totalStr }));
+    }
+  }, [form.parts_total, form.labour_total, form.other_charges, form.vat]);
 
   // 1. All Queries at the top
   const { data: repairs = [], isLoading } = useQuery({
@@ -445,7 +459,16 @@ export default function RepairsMaintenance() {
     <div class="row"><span class="label">Customer</span><span class="value">${cust?.name || "—"}</span></div>
     <div class="row"><span class="label">Vehicle</span><span class="value">${getVehicleLabel(r)}</span></div>
     
-    <div class="row" style="margin-top: 20px;"><span class="label">Total Repair Cost</span><span class="value">₦${Number(r.repair_cost || 0).toLocaleString()}</span></div>
+    <div style="margin-top: 25px; border-bottom: 2px solid #333; padding-bottom: 5px; margin-bottom: 10px;">
+      <h3 style="font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color: #1D3557; margin: 0;">Cost Breakdown</h3>
+    </div>
+    
+    <div class="row"><span class="label">Parts Total</span><span class="value">₦${Number(r.parts_total || 0).toLocaleString()}</span></div>
+    <div class="row"><span class="label">Labour Total</span><span class="value">₦${Number(r.labour_total || 0).toLocaleString()}</span></div>
+    <div class="row"><span class="label">Other Charges</span><span class="value">₦${Number(r.other_charges || 0).toLocaleString()}</span></div>
+    <div class="row"><span class="label">VAT (Tax)</span><span class="value">₦${Number(r.vat || 0).toLocaleString()}</span></div>
+    
+    <div class="row total" style="margin-top: 5px;"><span class="label">Total Repair Cost</span><span class="value">₦${Number(r.repair_cost || 0).toLocaleString()}</span></div>
     <div class="row"><span class="label">Deposit Paid</span><span class="value text-emerald-600">₦${Number(r.deposit_amount || 0).toLocaleString()}</span></div>
     <div class="row total"><span class="label">Balance Due</span><span class="value" style="color: ${balance > 0 ? '#d32f2f' : '#2e7d32'}">₦${balance.toLocaleString()}</span></div>
     
@@ -1145,7 +1168,10 @@ export default function RepairsMaintenance() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label className="text-[10px] font-extrabold uppercase">Final Quote (Grand Total)</Label>
+                    <Label className="text-[10px] font-extrabold uppercase flex items-center justify-between">
+                      <span>Final Quote (Grand Total)</span>
+                      <span className="text-[9px] text-amber-500/60 font-medium lowercase italic tracking-normal">(Auto-calculated)</span>
+                    </Label>
                     <CurrencyInput className="rounded-xl h-11 bg-amber-500/10 border-amber-500/20 text-amber-500 font-black text-lg" placeholder="0" value={form.repair_cost} onChange={(e) => setForm({ ...form, repair_cost: e.target.value })} />
                   </div>
                   <div className="space-y-2">
