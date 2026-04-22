@@ -27,7 +27,18 @@ import { useAuth } from "@/hooks/useAuth";
 import { canEdit } from "@/lib/permissions";
 
 const statuses = ["Open", "In Progress", "Closed"];
-const emptyForm = { customer_id: "", vehicle_id: "", message: "", status: "Open" };
+const emptyForm = { 
+  customer_id: "", 
+  vehicle_id: "", 
+  message: "", 
+  status: "Open",
+  manual_customer_name: "",
+  manual_customer_phone: "",
+  manual_customer_email: "",
+  manual_vehicle_make: "",
+  manual_vehicle_model: "",
+  manual_vehicle_year: ""
+};
 
 export default function Inquiries() {
   const { role } = useAuth();
@@ -72,12 +83,20 @@ export default function Inquiries() {
   const vehicleMap = Object.fromEntries(vehicles.map((v) => [v.id, `${v.year} ${v.make} ${v.model}`]));
   const customerMap = Object.fromEntries(customers.map((c) => [c.id, c.name]));
 
-  const filtered = inquiries.filter((i) => {
+  const filtered = (inquiries as any[]).filter((i) => {
     const q = search.toLowerCase();
-    const cName = i.customer_id ? (customerMap[i.customer_id] || "").toLowerCase() : "";
-    const vName = i.vehicle_id ? (vehicleMap[i.vehicle_id] || "").toLowerCase() : "";
+    const cName = i.customer_id 
+      ? (customerMap[i.customer_id] || "").toLowerCase() 
+      : (i.manual_customer_name || "").toLowerCase();
+    const cPhone = (i.manual_customer_phone || "").toLowerCase();
+    const cEmail = (i.manual_customer_email || "").toLowerCase();
+
+    const vName = i.vehicle_id 
+      ? (vehicleMap[i.vehicle_id] || "").toLowerCase() 
+      : `${i.manual_vehicle_year || ""} ${i.manual_vehicle_make || ""} ${i.manual_vehicle_model || ""}`.trim().toLowerCase();
+
     const msg = i.message.toLowerCase();
-    return !q || cName.includes(q) || vName.includes(q) || msg.includes(q);
+    return !q || cName.includes(q) || cPhone.includes(q) || cEmail.includes(q) || vName.includes(q) || msg.includes(q);
   });
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
@@ -90,12 +109,18 @@ export default function Inquiries() {
         vehicle_id: form.vehicle_id || null,
         message: form.message,
         status: form.status,
+        manual_customer_name: form.manual_customer_name || null,
+        manual_customer_phone: form.manual_customer_phone || null,
+        manual_customer_email: form.manual_customer_email || null,
+        manual_vehicle_make: form.manual_vehicle_make || null,
+        manual_vehicle_model: form.manual_vehicle_model || null,
+        manual_vehicle_year: form.manual_vehicle_year || null,
       };
       if (editId) {
-        const { error } = await supabase.from("inquiries").update(payload).eq("id", editId);
+        const { error } = await supabase.from("inquiries").update(payload as any).eq("id", editId);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("inquiries").insert(payload);
+        const { error } = await supabase.from("inquiries").insert(payload as any);
         if (error) throw error;
       }
     },
@@ -128,6 +153,12 @@ export default function Inquiries() {
       vehicle_id: i.vehicle_id || "",
       message: i.message,
       status: i.status,
+      manual_customer_name: i.manual_customer_name || "",
+      manual_customer_phone: i.manual_customer_phone || "",
+      manual_customer_email: i.manual_customer_email || "",
+      manual_vehicle_make: i.manual_vehicle_make || "",
+      manual_vehicle_model: i.manual_vehicle_model || "",
+      manual_vehicle_year: i.manual_vehicle_year || "",
     });
     setDialogOpen(true);
   };
@@ -198,18 +229,33 @@ export default function Inquiries() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {paged.map((i) => (
+                  {paged.map((i: any) => (
                     <TableRow key={i.id} className="border-border/10 hover:bg-white/5 transition-colors group">
                       <TableCell className="px-6 py-4">
-                         <div className="flex items-center gap-2">
-                            <Users className="h-4 w-4 text-muted-foreground" />
-                            <span className="font-semibold text-sm transition-colors group-hover:text-indigo-500">{i.customer_id ? customerMap[i.customer_id] || "—" : "—"}</span>
-                         </div>
+                        <div className="flex flex-col">
+                          <div className="flex items-center gap-2">
+                             <Users className="h-4 w-4 text-muted-foreground" />
+                             <span className="font-semibold text-sm transition-colors group-hover:text-indigo-500">
+                               {i.customer_id ? customerMap[i.customer_id] || "—" : i.manual_customer_name || "—"}
+                             </span>
+                          </div>
+                          {(i.manual_customer_phone || i.manual_customer_email) && (
+                            <div className="text-[10px] text-muted-foreground ml-6 mt-0.5">
+                              {i.manual_customer_phone} {i.manual_customer_email ? `| ${i.manual_customer_email}` : ""}
+                            </div>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
                          <div className="flex items-center gap-2">
-                            {i.vehicle_id ? <Car className="h-4 w-4 text-muted-foreground" /> : null}
-                            <span className="text-sm">{i.vehicle_id ? vehicleMap[i.vehicle_id] || "—" : "—"}</span>
+                            {(i.vehicle_id || i.manual_vehicle_make) ? <Car className="h-4 w-4 text-muted-foreground" /> : null}
+                            <span className="text-sm">
+                              {i.vehicle_id 
+                                ? vehicleMap[i.vehicle_id] || "—" 
+                                : i.manual_vehicle_make 
+                                  ? `${i.manual_vehicle_year || ""} ${i.manual_vehicle_make} ${i.manual_vehicle_model || ""}`.trim() 
+                                  : "—"}
+                            </span>
                          </div>
                       </TableCell>
                       <TableCell className="max-w-[300px] truncate text-sm text-muted-foreground">{i.message}</TableCell>
@@ -289,27 +335,78 @@ export default function Inquiries() {
             </DialogHeader>
           </div>
           <div className="p-6 space-y-5">
-            <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Customer (Optional)</Label>
-              <Select value={form.customer_id} onValueChange={(v) => setForm({ ...form, customer_id: v })}>
-                <SelectTrigger className="rounded-xl h-11 bg-background/50 border-white/10 focus-visible:ring-indigo-500"><SelectValue placeholder="Select existing customer" /></SelectTrigger>
-                <SelectContent className="glass-panel rounded-xl">
-                  {customers.map((c) => (
-                    <SelectItem key={c.id} value={c.id} className="rounded-lg">{c.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            {/* Customer Section */}
+            <div className="space-y-4 pt-2">
+              <div className="flex items-center gap-2 mb-1">
+                <Users className="w-4 h-4 text-indigo-500" />
+                <h3 className="text-xs font-bold uppercase tracking-wider text-indigo-500">Customer Information</h3>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-[10px] uppercase font-bold text-muted-foreground ml-1">Select Existing</Label>
+                <Select value={form.customer_id} onValueChange={(v) => setForm({ ...form, customer_id: v })}>
+                  <SelectTrigger className="rounded-xl h-10 bg-background/50 border-white/10 focus-visible:ring-indigo-500"><SelectValue placeholder="Choose from database" /></SelectTrigger>
+                  <SelectContent className="glass-panel rounded-xl">
+                    <SelectItem value="none" className="rounded-lg text-muted-foreground italic">None (Use Manual Entry)</SelectItem>
+                    {customers.map((c) => (
+                      <SelectItem key={c.id} value={c.id} className="rounded-lg">{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {!form.customer_id || form.customer_id === "none" ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 rounded-2xl bg-indigo-500/5 border border-indigo-500/10 animate-fade-down">
+                  <div className="sm:col-span-2 space-y-1.5">
+                    <Label className="text-[10px] uppercase font-bold text-muted-foreground ml-1">Manual Name</Label>
+                    <Input className="rounded-lg h-9 bg-background/50 border-white/10" value={form.manual_customer_name} onChange={(e) => setForm({ ...form, manual_customer_name: e.target.value })} placeholder="Customer's full name" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] uppercase font-bold text-muted-foreground ml-1">Phone</Label>
+                    <Input className="rounded-lg h-9 bg-background/50 border-white/10" value={form.manual_customer_phone} onChange={(e) => setForm({ ...form, manual_customer_phone: e.target.value })} placeholder="0812..." />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] uppercase font-bold text-muted-foreground ml-1">Email</Label>
+                    <Input className="rounded-lg h-9 bg-background/50 border-white/10" value={form.manual_customer_email} onChange={(e) => setForm({ ...form, manual_customer_email: e.target.value })} placeholder="example@mail.com" />
+                  </div>
+                </div>
+              ) : null}
             </div>
-            <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Vehicle Interest (Optional)</Label>
-              <Select value={form.vehicle_id} onValueChange={(v) => setForm({ ...form, vehicle_id: v })}>
-                <SelectTrigger className="rounded-xl h-11 bg-background/50 border-white/10 focus-visible:ring-indigo-500"><SelectValue placeholder="Select vehicle" /></SelectTrigger>
-                <SelectContent className="glass-panel rounded-xl">
-                  {vehicles.map((v) => (
-                    <SelectItem key={v.id} value={v.id} className="rounded-lg">{v.year} {v.make} {v.model}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+
+            {/* Vehicle Section */}
+            <div className="space-y-4 pt-2">
+              <div className="flex items-center gap-2 mb-1">
+                <Car className="w-4 h-4 text-indigo-500" />
+                <h3 className="text-xs font-bold uppercase tracking-wider text-indigo-500">Vehicle Interest</h3>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-[10px] uppercase font-bold text-muted-foreground ml-1">Select Existing</Label>
+                <Select value={form.vehicle_id} onValueChange={(v) => setForm({ ...form, vehicle_id: v })}>
+                  <SelectTrigger className="rounded-xl h-10 bg-background/50 border-white/10 focus-visible:ring-indigo-500"><SelectValue placeholder="Choose from inventory" /></SelectTrigger>
+                  <SelectContent className="glass-panel rounded-xl">
+                    <SelectItem value="none" className="rounded-lg text-muted-foreground italic">None (Use Manual Entry)</SelectItem>
+                    {vehicles.map((v) => (
+                      <SelectItem key={v.id} value={v.id} className="rounded-lg">{v.year} {v.make} {v.model}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {!form.vehicle_id || form.vehicle_id === "none" ? (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-4 rounded-2xl bg-indigo-500/5 border border-indigo-500/10 animate-fade-down">
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] uppercase font-bold text-muted-foreground ml-1">Make</Label>
+                    <Input className="rounded-lg h-9 bg-background/50 border-white/10" value={form.manual_vehicle_make} onChange={(e) => setForm({ ...form, manual_vehicle_make: e.target.value })} placeholder="e.g. Toyota" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] uppercase font-bold text-muted-foreground ml-1">Model</Label>
+                    <Input className="rounded-lg h-9 bg-background/50 border-white/10" value={form.manual_vehicle_model} onChange={(e) => setForm({ ...form, manual_vehicle_model: e.target.value })} placeholder="e.g. Camry" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] uppercase font-bold text-muted-foreground ml-1">Year</Label>
+                    <Input className="rounded-lg h-9 bg-background/50 border-white/10" value={form.manual_vehicle_year} onChange={(e) => setForm({ ...form, manual_vehicle_year: e.target.value })} placeholder="e.g. 2022" />
+                  </div>
+                </div>
+              ) : null}
             </div>
             <div className="space-y-2">
               <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Message *</Label>
