@@ -30,6 +30,7 @@ import { getPrintFooterHTML } from "@/components/PrintFooter";
 import { SignaturePad } from "@/components/SignaturePad";
 import { QrSignDialog } from "@/lib/qrHelpers";
 import { CurrencyInput } from "@/components/CurrencyInput";
+import { numberToWords } from "@/lib/numberToWords";
 
 type Repair = {
   id: string;
@@ -440,48 +441,114 @@ export default function RepairsMaintenance() {
 
   const printBill = (r: Repair) => {
     const cust = customers.find(c => c.id === r.customer_id);
-    const balance = (Number(r.repair_cost) || 0) - (Number(r.deposit_amount) || 0);
-    const html = `<html><head><title>Repair Bill</title>
+    const totalAmount = Number(r.repair_cost) || 0;
+    const vehicleLabel = getVehicleLabel(r).toUpperCase();
+
+    const html = `<html><head><title>Service Bill - ${vehicleLabel}</title>
     <style>
-      body { font-family: Arial, sans-serif; padding: 40px; max-width: 700px; margin: 0 auto; color: #333; }
-      .row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #eee; font-size: 15px; }
-      .row.total { font-weight: bold; font-size: 18px; border-top: 2px solid #333; margin-top: 12px; padding-top: 16px; }
-      .label { color: #555; width: 40%; font-weight: 600; text-transform: uppercase; font-size: 12px; letter-spacing: 0.5px; }
-      .value { font-weight: 600; width: 60%; text-align: right; }
-      .footer { text-align: center; margin-top: 40px; font-size: 12px; color: #999; }
-      @media print { body { padding: 20px; } }
+      @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap');
+      body { font-family: 'Roboto', 'Arial', sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; color: #1a1a1a; line-height: 1.4; }
+      .date-section { text-align: right; font-weight: 800; font-size: 14px; margin-bottom: 20px; text-transform: uppercase; }
+      .bill-to { margin-bottom: 30px; }
+      .bill-to p { margin: 2px 0; font-size: 14px; }
+      .main-container {
+        background-color: #cbd5e1;
+        border-radius: 40px;
+        padding: 40px;
+        min-height: 600px;
+        position: relative;
+        border: 1px solid #94a3b8;
+      }
+      .content-wrapper { position: relative; z-index: 1; }
+      .bill-title { text-align: center; text-decoration: underline; font-weight: 900; font-size: 22px; margin-bottom: 30px; color: #1e293b; text-transform: uppercase; }
+      
+      table { width: 100%; border-collapse: collapse; background: rgba(255, 255, 255, 0.4); margin-bottom: 30px; }
+      th, td { border: 1px solid #475569; padding: 12px; text-align: left; font-size: 14px; font-weight: 600; }
+      th { background: rgba(255, 255, 255, 0.3); text-transform: uppercase; }
+      td:first-child { width: 40px; text-align: center; }
+      
+      .total-row td { border-top: 3px solid #1e293b; font-weight: 900; font-size: 18px; }
+      .amount-words { font-weight: 900; margin-bottom: 30px; font-size: 15px; text-transform: uppercase; }
+      .bank-details { margin-top: 20px; font-size: 13px; }
+      .bank-details h4 { margin: 0 0 5px 0; font-weight: 900; text-transform: uppercase; }
+      .bank-details p { margin: 2px 0; font-weight: 500; }
     </style></head><body>
-    ${getPrintWatermarkHTML()}
     ${getPrintHeaderHTML()}
-    <h2 style="text-align: center; margin-bottom: 30px; text-transform: uppercase; letter-spacing: 2px; font-size: 24px; color: #1D3557;">Repair Bill</h2>
     
-    <div class="row"><span class="label">Date</span><span class="value">${new Date(r.created_at).toLocaleDateString()}</span></div>
-    <div class="row"><span class="label">Customer</span><span class="value">${cust?.name || "—"}</span></div>
-    <div class="row"><span class="label">Vehicle</span><span class="value">${getVehicleLabel(r)}</span></div>
-    
-    <div style="margin-top: 25px; border-bottom: 2px solid #333; padding-bottom: 5px; margin-bottom: 10px;">
-      <h3 style="font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color: #1D3557; margin: 0;">Cost Breakdown</h3>
-    </div>
-    
-    <div class="row"><span class="label">Parts Total</span><span class="value">₦${Number(r.parts_total || 0).toLocaleString()}</span></div>
-    <div class="row"><span class="label">Labour Total</span><span class="value">₦${Number(r.labour_total || 0).toLocaleString()}</span></div>
-    <div class="row"><span class="label">Other Charges</span><span class="value">₦${Number(r.other_charges || 0).toLocaleString()}</span></div>
-    <div class="row"><span class="label">VAT (Tax)</span><span class="value">₦${Number(r.vat || 0).toLocaleString()}</span></div>
-    
-    <div class="row total" style="margin-top: 5px;"><span class="label">Total Repair Cost</span><span class="value">₦${Number(r.repair_cost || 0).toLocaleString()}</span></div>
-    <div class="row"><span class="label">Deposit Paid</span><span class="value text-emerald-600">₦${Number(r.deposit_amount || 0).toLocaleString()}</span></div>
-    <div class="row total"><span class="label">Balance Due</span><span class="value" style="color: ${balance > 0 ? '#d32f2f' : '#2e7d32'}">₦${balance.toLocaleString()}</span></div>
-    
-    <div style="margin-top: 40px; background: #fafafa; padding: 20px; border-radius: 8px; border: 1px solid #eee;">
-      <h3 style="font-size: 13px; margin-bottom: 12px; border-bottom: 2px solid #ddd; padding-bottom: 8px; text-transform: uppercase; color: #1D3557;">Service Notes</h3>
-      <p style="font-size: 14px; line-height: 1.6; color: #444; margin: 0;">
-        <strong>Replaced Parts:</strong><br/> ${r.replacement_parts || "None specified"}<br/><br/>
-        <strong>Damaged Parts / Issues:</strong><br/> ${r.damaged_parts || "None specified"}
-      </p>
+    <div class="date-section">DATE: ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
+
+    <div class="bill-to">
+      <p style="font-weight: 900;">BILL TO:</p>
+      <p><strong>${cust?.name || 'Cash Customer'}</strong></p>
+      <p>Tel: ${cust?.phone || r.registration_no || ''}</p>
     </div>
 
-    <div class="footer">Thank you for your business!<br/><strong>Beetee Autos Team</strong></div>
-    ${getPrintFooterHTML()}
+    <div class="main-container">
+      ${getPrintWatermarkHTML()}
+      <div class="content-wrapper">
+        <h2 class="bill-title">${vehicleLabel} SERVICE BILL</h2>
+        
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 40px; text-align: center;">#</th>
+              <th>SERVICE DESCRIPTION</th>
+              <th style="width: 60px; text-align: center;">QTY</th>
+              <th style="width: 120px;">UNIT PRICE</th>
+              <th style="width: 120px; text-align: right;">AMOUNT (₦)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>1.</td>
+              <td>PARTS & MATERIALS</td>
+              <td style="text-align: center;">1</td>
+              <td>₦${(Number(r.parts_total) || 0).toLocaleString()}</td>
+              <td style="text-align: right;">₦${(Number(r.parts_total) || 0).toLocaleString()}</td>
+            </tr>
+            <tr>
+              <td>2.</td>
+              <td>LABOUR CHARGES</td>
+              <td style="text-align: center;">1</td>
+              <td>₦${(Number(r.labour_total) || 0).toLocaleString()}</td>
+              <td style="text-align: right;">₦${(Number(r.labour_total) || 0).toLocaleString()}</td>
+            </tr>
+            ${Number(r.other_charges) > 0 ? `
+            <tr>
+              <td>3.</td>
+              <td>OTHER SERVICES / CHARGES</td>
+              <td style="text-align: center;">1</td>
+              <td>₦${(Number(r.other_charges) || 0).toLocaleString()}</td>
+              <td style="text-align: right;">₦${(Number(r.other_charges) || 0).toLocaleString()}</td>
+            </tr>` : ''}
+            ${Number(r.vat) > 0 ? `
+            <tr>
+              <td>${Number(r.other_charges) > 0 ? '4.' : '3.'}</td>
+              <td>VAT / TAX</td>
+              <td style="text-align: center;"></td>
+              <td>₦${(Number(r.vat) || 0).toLocaleString()}</td>
+              <td style="text-align: right;">₦${(Number(r.vat) || 0).toLocaleString()}</td>
+            </tr>` : ''}
+            <tr class="total-row">
+              <td colspan="3" style="border: none;"></td>
+              <td style="text-align: right;">GRAND TOTAL</td>
+              <td style="text-align: right;">₦${totalAmount.toLocaleString()}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="amount-words">
+          AMOUNT IN WORDS: ${numberToWords(totalAmount)}
+        </div>
+
+        <div class="bank-details">
+          <h4>BANK DETAILS:</h4>
+          <p>Account name: <strong>BEE TEE AUTOMOBILE -SERVICES</strong></p>
+          <p>Account Number: <strong>1229785752</strong></p>
+          <p>Bank: <strong>ZENITH BANK</strong></p>
+        </div>
+      </div>
+    </div>
     </body></html>`;
     const win = window.open("", "_blank");
     if (win) { win.document.write(html); win.document.close(); win.print(); }

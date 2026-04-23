@@ -43,6 +43,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { canEdit } from "@/lib/permissions";
 import { getPrintHeaderHTML, getPrintWatermarkHTML } from "@/components/PrintHeader";
 import { getPrintFooterHTML } from "@/components/PrintFooter";
+import { numberToWords } from "@/lib/numberToWords";
 
 import { Checkbox } from "@/components/ui/checkbox";
 import { SignaturePad } from "@/components/SignaturePad";
@@ -272,81 +273,108 @@ export default function Sales() {
 
   const printReceipt = (sale: any) => {
     const cust = customerObjMap[sale.customer_id];
+    const totalAmount = Number(sale.sale_price) || 0;
     const saleItems = sale.sale_vehicles?.length > 0 
       ? sale.sale_vehicles.map((sv: any) => vehicleMap[sv.vehicle_id] || "Unknown Vehicle")
       : [vehicleMap[sale.vehicle_id] || "Unknown Vehicle"];
 
-    const html = `<html><head><title>Receipt</title>
+    const html = `<html><head><title>Receipt - ${sale.id.slice(0, 8).toUpperCase()}</title>
     <style>
-      body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; max-width: 600px; margin: 0 auto; line-height: 1.5; color: #333; }
-      .header { text-align: center; border-bottom: 2px solid #1a1a2e; padding-bottom: 20px; margin-bottom: 30px; }
-      .header h1 { font-size: 24px; margin: 0; color: #1a1a2e; }
-      .header p { color: #666; font-size: 13px; margin: 5px 0 0; }
-      .section { margin-bottom: 25px; }
-      .section-title { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #999; margin-bottom: 8px; border-bottom: 1px solid #eee; padding-bottom: 4px; }
-      .row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 14px; }
-      .row .label { color: #666; }
-      .row .value { font-weight: 600; }
-      .vehicle-list { list-style: none; padding: 0; margin: 10px 0; }
-      .vehicle-item { padding: 8px; background: #f9f9f9; border-radius: 6px; margin-bottom: 5px; font-size: 14px; font-weight: 500; }
-      .total { font-size: 22px; text-align: right; margin-top: 20px; padding-top: 15px; border-top: 2px solid #1a1a2e; font-weight: bold; }
-      .refund-note { margin-top: 30px; padding: 15px; background: #fff5f5; border: 1px solid #feb2b2; border-radius: 8px; color: #c53030; font-weight: bold; font-size: 14px; text-align: center; }
-      .signature-area { display: flex; justify-content: space-between; margin-top: 40px; }
-      .sig-box { width: 45%; border-top: 1px solid #333; padding-top: 10px; font-size: 12px; text-align: center; }
-      .signature-img { max-height: 60px; display: block; margin: 0 auto 10px; }
-      .footer { text-align: center; margin-top: 40px; font-size: 12px; color: #999; }
-      @media print { body { padding: 20px; } .refund-note { background: #fee2e2 !important; } }
+      @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap');
+      body { font-family: 'Roboto', 'Arial', sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; color: #1a1a1a; line-height: 1.4; }
+      .date-section { text-align: right; font-weight: 800; font-size: 14px; margin-bottom: 20px; text-transform: uppercase; }
+      .bill-to { margin-bottom: 30px; }
+      .bill-to p { margin: 2px 0; font-size: 14px; }
+      .main-container {
+        background-color: #cbd5e1;
+        border-radius: 40px;
+        padding: 40px;
+        min-height: 600px;
+        position: relative;
+        border: 1px solid #94a3b8;
+      }
+      .content-wrapper { position: relative; z-index: 1; }
+      .bill-title { text-align: center; text-decoration: underline; font-weight: 900; font-size: 22px; margin-bottom: 30px; color: #1e293b; text-transform: uppercase; }
+      
+      table { width: 100%; border-collapse: collapse; background: rgba(255, 255, 255, 0.4); margin-bottom: 30px; }
+      th, td { border: 1px solid #475569; padding: 12px; text-align: left; font-size: 14px; font-weight: 600; }
+      th { background: rgba(255, 255, 255, 0.3); text-transform: uppercase; }
+      td:first-child { width: 40px; text-align: center; }
+      
+      .total-row td { border-top: 3px solid #1e293b; font-weight: 900; font-size: 18px; }
+      .amount-words { font-weight: 900; margin-bottom: 30px; font-size: 15px; text-transform: uppercase; }
+      .refund-note { margin-top: 20px; padding: 15px; background: #fee2e2; border: 2px solid #ef4444; border-radius: 12px; color: #b91c1c; font-weight: 900; font-size: 14px; text-align: center; margin-bottom: 30px; }
+      .bank-details { margin-top: 20px; font-size: 13px; }
+      .bank-details h4 { margin: 0 0 5px 0; font-weight: 900; text-transform: uppercase; }
+      .bank-details p { margin: 2px 0; font-weight: 500; }
+      .signature-area { display: flex; justify-content: space-between; margin-top: 40px; border-top: 2px solid #94a3b8; padding-top: 20px; }
+      .sig-box { width: 45%; text-align: center; font-size: 12px; }
+      .signature-img { max-height: 50px; display: block; margin: 0 auto 5px; }
     </style></head><body>
-    ${getPrintWatermarkHTML()}
     ${getPrintHeaderHTML()}
-    <div class="header">
-      <h1>SALES RECEIPT</h1>
-      <p>Receipt No: ${sale.id.slice(0, 8).toUpperCase()}</p>
+    
+    <div class="date-section">RECEIPT NO: ${sale.id.slice(0, 8).toUpperCase()}<br/>DATE: ${new Date(sale.sale_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
+
+    <div class="bill-to">
+      <p style="font-weight: 900;">CUSTOMER:</p>
+      <p><strong>${cust?.name || "—"}</strong></p>
+      ${cust?.phone ? `<p>Tel: ${cust.phone}</p>` : ""}
     </div>
 
-    <div class="section">
-      <div class="section-title">Customer Information</div>
-      <div class="row"><span class="label">Name</span><span class="value">${cust?.name || "—"}</span></div>
-      ${cust?.phone ? `<div class="row"><span class="label">Phone</span><span class="value">${cust.phone}</span></div>` : ""}
-      <div class="row"><span class="label">Date</span><span class="value">${new Date(sale.sale_date).toLocaleDateString(undefined, { dateStyle: 'long' })}</span></div>
-    </div>
+    <div class="main-container">
+      ${getPrintWatermarkHTML()}
+      <div class="content-wrapper">
+        <h2 class="bill-title">SALES RECEIPT</h2>
+        
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>VEHICLE DESCRIPTION</th>
+              <th style="text-align: right;">AMOUNT (₦)</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${saleItems.map((v: string, i: number) => `
+              <tr>
+                <td>${i + 1}.</td>
+                <td>${v}</td>
+                <td style="text-align: right;">₦${(totalAmount / saleItems.length).toLocaleString()}</td>
+              </tr>
+            `).join("")}
+            <tr class="total-row">
+              <td colspan="2" style="text-align: right;">TOTAL PAID</td>
+              <td style="text-align: right;">₦${totalAmount.toLocaleString()}</td>
+            </tr>
+          </tbody>
+        </table>
 
-    <div class="section">
-      <div class="section-title">Purchased vehicles</div>
-      <ul class="vehicle-list">
-        ${saleItems.map((v: string) => `<li class="vehicle-item">${v}</li>`).join("")}
-      </ul>
-    </div>
-
-    <div class="section">
-      <div class="section-title">Payment Details</div>
-      <div class="row"><span class="label">Payment Type</span><span class="value" style="text-transform: capitalize;">${sale.payment_type || 'Cash'}</span></div>
-      <div class="row"><span class="label">Status</span><span class="value" style="text-transform: capitalize;">${(sale.payment_status || 'Paid').replace(/_/g, ' ')}</span></div>
-      <div class="total">Total Paid: ₦${Number(sale.sale_price).toLocaleString()}</div>
-    </div>
-
-    <div class="refund-note">
-       NOTICE: NO REFUND AFTER PAYMENT
-    </div>
-
-      ${sale.rep_signature || sale.buyer_signature ? `<div class="signature-area">
-        <div class="sig-box">
-          ${sale.buyer_signature ? `<img src="${sale.buyer_signature}" class="signature-img" />` : ""}
-          <p>Customer Signature</p>
-          <p style="font-size:10px; color:#999; margin-top:2px;">${sale.buyer_signature_date ? new Date(sale.buyer_signature_date).toLocaleDateString() : ""}</p>
+        <div class="amount-words">
+          AMOUNT IN WORDS: ${numberToWords(totalAmount)}
         </div>
-        <div class="sig-box">
-          ${sale.rep_signature ? `<img src="${sale.rep_signature}" class="signature-img" />` : ""}
-          <p>Seller/Representative: <strong>${sale.rep_name || 'Beetee Autos'}</strong></p>
-        </div>
-      </div>` : `
-      <div class="signature-area">
-        <div class="sig-box"><p>Customer Signature</p></div>
-        <div class="sig-box"><p>Representative</p></div>
-      </div>`}
 
-    <div class="footer">
-      <p>Thank you for choosing Beetee Autos!</p>
+        <div class="refund-note">
+          NOTICE: NO REFUND AFTER PAYMENT
+        </div>
+
+        <div class="bank-details">
+          <h4>BANK DETAILS:</h4>
+          <p>Account name: <strong>BEE TEE AUTOMOBILE -SERVICES</strong></p>
+          <p>Account Number: <strong>1229785752</strong></p>
+          <p>Bank: <strong>ZENITH BANK</strong></p>
+        </div>
+
+        <div class="signature-area">
+          <div class="sig-box">
+            ${sale.buyer_signature ? `<img src="${sale.buyer_signature}" class="signature-img" />` : '<div style="height:50px"></div>'}
+            <p style="border-top: 1px solid #1a1a1a; padding-top: 5px;"><strong>CUSTOMER SIGNATURE</strong></p>
+          </div>
+          <div class="sig-box">
+             ${sale.rep_signature ? `<img src="${sale.rep_signature}" class="signature-img" />` : '<div style="height:50px"></div>'}
+            <p style="border-top: 1px solid #1a1a1a; padding-top: 5px;"><strong>FOR: BEE TEE AUTOMOBILE</strong></p>
+          </div>
+        </div>
+      </div>
     </div>
     ${getPrintFooterHTML()}
     </body></html>`;
@@ -359,6 +387,7 @@ export default function Sales() {
     const saleItems = sale.sale_vehicles?.length > 0
       ? sale.sale_vehicles.map((sv: any) => vehicleMap[sv.vehicle_id] || "Unknown Vehicle")
       : [vehicleMap[sale.vehicle_id] || "Unknown Vehicle"];
+    const totalAmount = Number(sale.sale_price) || 0;
 
     const receiptNo = sale.id.slice(0, 8).toUpperCase();
     const filename = `sale-receipt-${receiptNo}`;
@@ -378,112 +407,106 @@ export default function Sales() {
 
       const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Sales Receipt</title>
       <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap');
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: 'Segoe UI', Arial, sans-serif; padding: 40px 48px 0 48px; width: 700px; background: transparent; color: #1a1a2e; line-height: 1.6; }
-
-        /* ── Receipt Title ── */
-        .receipt-title { text-align: center; margin-bottom: 24px; position: relative; z-index: 10; }
-        .receipt-title h2 { font-size: 18px; letter-spacing: 3px; text-transform: uppercase; color: #1D3557; border-bottom: 1px solid #ddd; padding-bottom: 8px; display: inline-block; }
-        .receipt-title p { font-size: 12px; color: #666; margin-top: 6px; }
-
-        /* ── Sections ── */
-        .section { margin-bottom: 20px; position: relative; z-index: 10; }
-        .section-title { font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: #999; border-bottom: 1px solid #eee; padding-bottom: 4px; margin-bottom: 10px; font-weight: bold; }
-        .row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 13px; border-bottom: 1px dotted #f0f0f0; }
-        .row:last-child { border-bottom: none; }
-        .row .label { color: #555; }
-        .row .value { font-weight: 600; color: #1a1a2e; }
-
-        /* ── Vehicles ── */
-        .vehicle-list { list-style: none; }
-        .vehicle-item { padding: 8px 12px; background: #f0f4ff; border-left: 3px solid #1D3557; border-radius: 4px; margin-bottom: 6px; font-size: 13px; font-weight: 500; }
-
-        /* ── Total ── */
-        .total-box { display: flex; justify-content: flex-end; margin-top: 16px; position: relative; z-index: 10; }
-        .total-inner { background: #1D3557; color: #fff; padding: 12px 24px; border-radius: 6px; text-align: right; }
-        .total-inner .label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; opacity: 0.8; }
-        .total-inner .amount { font-size: 22px; font-weight: bold; margin-top: 2px; }
-
-        /* ── Refund Notice ── */
-        .refund-note { margin-top: 20px; padding: 12px; background: #fff5f5; border: 1px solid #fca5a5; border-radius: 6px; color: #b91c1c; font-weight: bold; font-size: 12px; text-align: center; letter-spacing: 1px; position: relative; z-index: 10; }
-
-        /* ── Signatures ── */
-        .signature-area { display: flex; justify-content: space-between; margin-top: 40px; padding-top: 20px; position: relative; z-index: 10; }
-        .sig-box { width: 44%; text-align: center; }
-        .sig-line { border-top: 1.5px solid #333; padding-top: 8px; font-size: 11px; color: #444; }
-        .signature-img { max-height: 56px; display: block; margin: 0 auto 8px; }
-        .sig-date { font-size: 10px; color: #999; margin-top: 4px; }
-
-        /* ── Footer Swoosh ── */
-        .swoosh-footer { position: relative; width: 100%; height: 120px; overflow: hidden; margin-top: 40px; background: transparent; }
+        body { font-family: 'Roboto', 'Arial', sans-serif; padding: 40px; width: 750px; background: #fff; color: #1a1a1a; line-height: 1.4; }
+        .date-section { text-align: right; font-weight: 800; font-size: 14px; margin-bottom: 20px; text-transform: uppercase; }
+        .bill-to { margin-bottom: 30px; }
+        .bill-to p { margin: 2px 0; font-size: 14px; }
+        .main-container {
+          background-color: #cbd5e1;
+          border-radius: 40px;
+          padding: 40px;
+          min-height: 600px;
+          position: relative;
+          border: 1px solid #94a3b8;
+          width: 100%;
+        }
+        .content-wrapper { position: relative; z-index: 1; }
+        .bill-title { text-align: center; text-decoration: underline; font-weight: 900; font-size: 22px; margin-bottom: 30px; color: #1e293b; text-transform: uppercase; }
+        
+        table { width: 100%; border-collapse: collapse; background: rgba(255, 255, 255, 0.4); margin-bottom: 30px; }
+        th, td { border: 1px solid #475569; padding: 12px; text-align: left; font-size: 14px; font-weight: 600; }
+        th { background: rgba(255, 255, 255, 0.3); text-transform: uppercase; }
+        td:first-child { width: 40px; text-align: center; }
+        
+        .total-row td { border-top: 3px solid #1e293b; font-weight: 900; font-size: 18px; }
+        .amount-words { font-weight: 900; margin-bottom: 30px; font-size: 15px; text-transform: uppercase; }
+        .refund-note { margin-top: 20px; padding: 15px; background: #fee2e2; border: 2px solid #ef4444; border-radius: 12px; color: #b91c1c; font-weight: 900; font-size: 14px; text-align: center; margin-bottom: 30px; }
+        .bank-details { margin-top: 20px; font-size: 13px; }
+        .bank-details h4 { margin: 0 0 5px 0; font-weight: 900; text-transform: uppercase; }
+        .bank-details p { margin: 2px 0; font-weight: 500; }
+        .signature-area { display: flex; justify-content: space-between; margin-top: 40px; border-top: 2px solid #94a3b8; padding-top: 20px; }
+        .sig-box { width: 45%; text-align: center; font-size: 12px; }
+        .signature-img { max-height: 50px; display: block; margin: 0 auto 5px; }
       </style>
       </head><body>
 
-      ${getPrintWatermarkHTML(logoBase64)}
       ${getPrintHeaderHTML(logoBase64)}
+      
+      <div class="date-section">RECEIPT NO: ${receiptNo}<br/>DATE: ${new Date(sale.sale_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
 
-      <!-- Receipt Title -->
-      <div class="receipt-title">
-        <h2>Sales Receipt</h2>
-        <p>Receipt No: ${receiptNo} &nbsp;&bull;&nbsp; ${new Date(sale.sale_date).toLocaleDateString(undefined, { dateStyle: 'long' })}</p>
+      <div class="bill-to">
+        <p style="font-weight: 900;">CUSTOMER:</p>
+        <p><strong>${cust?.name || "—"}</strong></p>
+        ${cust?.phone ? `<p>Tel: ${cust.phone}</p>` : ""}
       </div>
 
-      <!-- Customer Information -->
-      <div class="section">
-        <div class="section-title">Customer Information</div>
-        <div class="row"><span class="label">Name</span><span class="value">${cust?.name || '—'}</span></div>
-        ${cust?.phone ? `<div class="row"><span class="label">Phone</span><span class="value">${cust.phone}</span></div>` : ''}
-        ${cust?.email ? `<div class="row"><span class="label">Email</span><span class="value">${cust.email}</span></div>` : ''}
-        ${cust?.address ? `<div class="row"><span class="label">Address</span><span class="value">${cust.address}</span></div>` : ''}
-      </div>
+      <div class="main-container">
+        ${getPrintWatermarkHTML(logoBase64)}
+        <div class="content-wrapper">
+          <h2 class="bill-title">SALES RECEIPT</h2>
+          
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>VEHICLE DESCRIPTION</th>
+                <th style="text-align: right;">AMOUNT (₦)</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${saleItems.map((v: string, i: number) => `
+                <tr>
+                  <td>${i + 1}.</td>
+                  <td>${v}</td>
+                  <td style="text-align: right;">₦${(totalAmount / saleItems.length).toLocaleString()}</td>
+                </tr>
+              `).join("")}
+              <tr class="total-row">
+                <td colspan="2" style="text-align: right;">TOTAL PAID</td>
+                <td style="text-align: right;">₦${totalAmount.toLocaleString()}</td>
+              </tr>
+            </tbody>
+          </table>
 
-      <!-- Vehicles -->
-      <div class="section">
-        <div class="section-title">Purchased Vehicle(s)</div>
-        <ul class="vehicle-list">
-          ${saleItems.map((v: string) => `<li class="vehicle-item">${v}</li>`).join('')}
-        </ul>
-      </div>
+          <div class="amount-words">
+            AMOUNT IN WORDS: ${numberToWords(totalAmount)}
+          </div>
 
-      <!-- Payment -->
-      <div class="section">
-        <div class="section-title">Payment Details</div>
-        <div class="row"><span class="label">Payment Type</span><span class="value" style="text-transform:capitalize">${(sale.payment_type || 'Cash').replace(/_/g,' ')}</span></div>
-        <div class="row"><span class="label">Payment Status</span><span class="value">${(sale.payment_status || 'Paid').replace(/_/g, ' ')}</span></div>
-        ${sale.rep_name ? `<div class="row"><span class="label">Sales Representative</span><span class="value">${sale.rep_name}</span></div>` : ''}
-        <div class="total-box">
-          <div class="total-inner">
-            <div class="label">Total Amount Paid</div>
-            <div class="amount">&#8358;${Number(sale.sale_price).toLocaleString()}</div>
+          <div class="refund-note">
+            NOTICE: NO REFUND AFTER PAYMENT
+          </div>
+
+          <div class="bank-details">
+            <h4>BANK DETAILS:</h4>
+            <p>Account name: <strong>BEE TEE AUTOMOBILE -SERVICES</strong></p>
+            <p>Account Number: <strong>1229785752</strong></p>
+            <p>Bank: <strong>ZENITH BANK</strong></p>
+          </div>
+
+          <div class="signature-area">
+            <div class="sig-box">
+              ${sale.buyer_signature ? `<img src="${sale.buyer_signature}" class="signature-img" />` : '<div style="height:50px"></div>'}
+              <p style="border-top: 1px solid #1a1a1a; padding-top: 5px;"><strong>CUSTOMER SIGNATURE</strong></p>
+            </div>
+            <div class="sig-box">
+              ${sale.rep_signature ? `<img src="${sale.rep_signature}" class="signature-img" />` : '<div style="height:50px"></div>'}
+              <p style="border-top: 1px solid #1a1a1a; padding-top: 5px;"><strong>FOR: BEE TEE AUTOMOBILE</strong></p>
+            </div>
           </div>
         </div>
       </div>
-
-      <!-- Refund Notice -->
-      <div class="refund-note">&#9888; NOTICE: NO REFUND AFTER PAYMENT</div>
-
-      <!-- Signatures -->
-      <div class="signature-area">
-        <div class="sig-box">
-          ${sale.buyer_signature ? `<img src="${sale.buyer_signature}" class="signature-img" />` : '<div style="height:56px"></div>'}
-          <div class="sig-line">Customer Signature</div>
-          ${sale.buyer_signature_date ? `<div class="sig-date">${new Date(sale.buyer_signature_date).toLocaleDateString()}</div>` : ''}
-        </div>
-        <div class="sig-box">
-          ${sale.rep_signature ? `<img src="${sale.rep_signature}" class="signature-img" />` : '<div style="height:56px"></div>'}
-          <div class="sig-line">Representative: <strong>${sale.rep_name || 'Beetee Autos'}</strong></div>
-        </div>
-      </div>
-
-      <!-- Swoosh Footer -->
-      <div class="swoosh-footer">
-        <svg style="position:absolute;bottom:0;left:0;width:100%;height:100%;" viewBox="0 0 1000 150" preserveAspectRatio="none">
-          <path d="M 400 150 C 650 150 900 80 1000 0 L 1000 150 Z" fill="#1e3a8a" />
-          <path d="M 600 150 C 800 150 950 120 1000 40 L 1000 150 Z" fill="#0f172a" />
-          <path d="M 0 132 C 80 132 180 150 240 150 L 0 150 Z" fill="#0f172a" />
-        </svg>
-      </div>
-
       </body></html>`;
 
       // Render HTML in a hidden iframe sized wide enough for the layout

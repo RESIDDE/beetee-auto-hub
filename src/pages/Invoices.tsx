@@ -16,6 +16,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { getPrintHeaderHTML, getPrintWatermarkHTML } from "@/components/PrintHeader";
 import { getPrintFooterHTML } from "@/components/PrintFooter";
+import { numberToWords } from "@/lib/numberToWords";
 import {
   Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious,
 } from "@/components/ui/pagination";
@@ -186,11 +187,9 @@ export default function Invoices() {
   const printInvoice = (inv: any) => {
     const cust = customerMap[inv.customer_id];
     const sale = sales.find((s) => s.id === inv.sale_id);
-
-    const linkedRepairIds = invoiceRepairLinks
-      .filter((l) => l.invoice_id === inv.id)
-      .map((l) => l.repair_id);
+    const linkedRepairIds = invoiceRepairLinks.filter((l) => l.invoice_id === inv.id).map((l) => l.repair_id);
     const linkedRepairs = repairs.filter((r) => linkedRepairIds.includes(r.id));
+    const totalAmount = Number(inv.total) || 0;
 
     const vehicleInfo = sale
       ? `${(sale as any).vehicles?.year || ""} ${(sale as any).vehicles?.make || ""} ${(sale as any).vehicles?.model || ""}`.trim()
@@ -198,53 +197,84 @@ export default function Invoices() {
 
     const html = `<html><head><title>Invoice ${inv.invoice_number}</title>
     <style>
-      * { margin: 0; padding: 0; box-sizing: border-box; }
-      body { font-family: 'Segoe UI', Arial, sans-serif; padding: 40px; max-width: 800px; margin: 0 auto; color: #333; }
-      .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid #1a1a2e; padding-bottom: 20px; margin-bottom: 30px; }
-      .company h1 { font-size: 24px; color: #1a1a2e; margin-bottom: 4px; }
-      .company p { font-size: 11px; color: #666; }
-      .invoice-info { text-align: right; }
-      .invoice-info h2 { font-size: 28px; color: #1a1a2e; letter-spacing: 2px; }
-      .invoice-info p { font-size: 12px; color: #666; margin-top: 4px; }
-      .details { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 30px; }
-      .details h3 { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #999; margin-bottom: 8px; }
-      .details p { font-size: 13px; line-height: 1.6; }
-      table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-      th { background: #1a1a2e; color: white; padding: 10px 12px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
-      td { padding: 10px 12px; border-bottom: 1px solid #eee; font-size: 13px; }
-      .totals { text-align: right; margin-top: 10px; }
-      .totals .row { display: flex; justify-content: flex-end; gap: 40px; padding: 6px 0; font-size: 13px; }
-      .totals .total-row { font-size: 18px; font-weight: 700; border-top: 2px solid #1a1a2e; padding-top: 10px; margin-top: 6px; }
-      .footer { text-align: center; margin-top: 50px; padding-top: 20px; border-top: 1px solid #eee; font-size: 11px; color: #999; }
-      .status { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; }
-      .status-draft { background: #fff3e0; color: #e65100; }
-      .status-paid { background: #e8f5e9; color: #2e7d32; }
-      @media print { body { padding: 20px; } }
+      @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap');
+      body { font-family: 'Roboto', 'Arial', sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; color: #1a1a1a; line-height: 1.4; }
+      .date-section { text-align: right; font-weight: 800; font-size: 14px; margin-bottom: 20px; text-transform: uppercase; }
+      .bill-to { margin-bottom: 30px; }
+      .bill-to p { margin: 2px 0; font-size: 14px; }
+      .main-container {
+        background-color: #f1f5f9;
+        border-radius: 40px;
+        padding: 40px;
+        min-height: 600px;
+        position: relative;
+        border: 1px solid #cbd5e1;
+      }
+      .content-wrapper { position: relative; z-index: 1; }
+      .bill-title { text-align: center; text-decoration: underline; font-weight: 900; font-size: 22px; margin-bottom: 30px; color: #1e293b; text-transform: uppercase; }
+      
+      table { width: 100%; border-collapse: collapse; margin-bottom: 30px; background: rgba(255,255,255,0.4); }
+      th, td { border: 1px solid #475569; padding: 12px; text-align: left; font-size: 14px; font-weight: 600; }
+      th { background: rgba(255, 255, 255, 0.3); text-transform: uppercase; }
+      
+      .total-row td { border-top: 3px solid #1e293b; font-weight: 900; font-size: 18px; }
+      .amount-words { font-weight: 900; margin-bottom: 30px; font-size: 15px; text-transform: uppercase; }
+      .bank-details { margin-top: 20px; font-size: 13px; }
+      .bank-details h4 { margin: 0 0 5px 0; font-weight: 900; text-transform: uppercase; }
+      .bank-details p { margin: 2px 0; font-weight: 500; }
     </style></head><body>
-    ${getPrintWatermarkHTML()}
     ${getPrintHeaderHTML()}
-    <div class="header">
-      <div class="company"></div>
-      <div class="invoice-info"><h2>INVOICE</h2><p>${inv.invoice_number}</p><p>Date: ${new Date(inv.created_at).toLocaleDateString()}</p>
-      ${inv.due_date ? `<p>Due: ${new Date(inv.due_date).toLocaleDateString()}</p>` : ""}
-      <p><span class="status ${inv.status === "paid" ? "status-paid" : "status-draft"}">${inv.status.toUpperCase()}</span></p></div>
+    
+    <div class="date-section">INVOICE NO: ${inv.invoice_number}<br/>DATE: ${new Date(inv.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
+
+    <div class="bill-to">
+      <p style="font-weight: 900;">BILL TO:</p>
+      <p><strong>${cust?.name || "—"}</strong></p>
+      ${cust?.phone ? `<p>Tel: ${cust.phone}</p>` : ""}
+      ${cust?.address ? `<p>${cust.address}</p>` : ""}
     </div>
-    <div class="details">
-      <div><h3>Bill To</h3><p><strong>${cust?.name || "—"}</strong></p>${cust?.phone ? `<p>${cust.phone}</p>` : ""}${cust?.email ? `<p>${cust.email}</p>` : ""}${cust?.address ? `<p>${cust.address}</p>` : ""}</div>
-      <div><h3>Invoice Details</h3><p>Type: ${inv.invoice_type === "sale" ? "Vehicle Sale" : inv.invoice_type === "repair" ? "Repair" : "Sale + Repairs"}</p>${vehicleInfo ? `<p>Vehicle: ${vehicleInfo}</p>` : ""}${inv.notes ? `<p>Notes: ${inv.notes}</p>` : ""}</div>
+
+    <div class="main-container">
+      ${getPrintWatermarkHTML()}
+      <div class="content-wrapper">
+        <h2 class="bill-title">OFFICIAL INVOICE</h2>
+        
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 40px; text-align: center;">#</th>
+              <th>DESCRIPTION</th>
+              <th style="text-align: right;">AMOUNT (₦)</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${sale ? `<tr><td style="text-align: center;">1.</td><td>VEHICLE SALE: ${vehicleInfo}</td><td style="text-align: right;">₦${Number(sale.sale_price).toLocaleString()}</td></tr>` : ""}
+            ${linkedRepairs.map((r, i) => `
+              <tr>
+                <td style="text-align: center;">${(sale ? 2 : 1) + i}.</td>
+                <td>REPAIR SERVICE: ${getRepairLabel(r)}</td>
+                <td style="text-align: right;">₦${Number(r.repair_cost || 0).toLocaleString()}</td>
+              </tr>
+            `).join("")}
+            <tr class="total-row">
+              <td colspan="2" style="text-align: right;">GRAND TOTAL</td>
+              <td style="text-align: right;">₦${totalAmount.toLocaleString()}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="amount-words">
+          AMOUNT IN WORDS: ${numberToWords(totalAmount)}
+        </div>
+
+        <div class="bank-details">
+          <h4>BANK DETAILS:</h4>
+          <p>Account name: <strong>BEE TEE AUTOMOBILE -SERVICES</strong></p>
+          <p>Account Number: <strong>1229785752</strong></p>
+          <p>Bank: <strong>ZENITH BANK</strong></p>
+        </div>
+      </div>
     </div>
-    <table>
-      <thead><tr><th>#</th><th>Description</th><th>Details</th><th style="text-align:right">Amount (₦)</th></tr></thead>
-      <tbody>
-      ${sale ? `<tr><td>1</td><td>Vehicle Sale</td><td>${vehicleInfo}</td><td style="text-align:right">₦${Number(sale.sale_price).toLocaleString()}</td></tr>` : ""}
-      ${linkedRepairs.map((r, i) => `<tr><td>${(sale ? 2 : 1) + i}</td><td>Repair Service</td><td>${getRepairLabel(r)} — ${r.damaged_parts || r.replacement_parts || "General repair"}</td><td style="text-align:right">₦${Number(r.repair_cost || 0).toLocaleString()}</td></tr>`).join("")}
-      </tbody>
-    </table>
-    <div class="totals">
-      <div class="row"><span>Subtotal:</span><span>₦${Number(inv.subtotal).toLocaleString()}</span></div>
-      <div class="row total-row"><span>Total Due:</span><span>₦${Number(inv.total).toLocaleString()}</span></div>
-    </div>
-    <div class="footer"><p>Thank you for your business!</p><p>Beetee Autos — Professional Auto Sales & Services</p></div>
     ${getPrintFooterHTML()}
     </body></html>`;
     const win = window.open("", "_blank");
