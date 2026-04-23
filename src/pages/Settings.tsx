@@ -35,6 +35,7 @@ const ROLE_CONFIG: Record<string, { label: string; color: string; icon: React.Re
   admin:       { label: "Admin",       color: "text-emerald-500", icon: <ShieldCheck className="w-3.5 h-3.5" /> },
   sales:       { label: "Sales",       color: "text-blue-400",    icon: <User className="w-3.5 h-3.5" /> },
   mechanic:    { label: "Mechanic",    color: "text-violet-400",  icon: <Settings2 className="w-3.5 h-3.5" /> },
+  pending:     { label: "Pending",     color: "text-rose-400",    icon: <AlertTriangle className="w-3.5 h-3.5" /> },
 };
 
 const ACTION_COLORS: Record<string, string> = {
@@ -100,10 +101,18 @@ export default function Settings() {
       ]);
       if (rolesError) throw rolesError;
       if (profilesError) throw profilesError;
-      return roles.map((r: any) => ({
-        ...r,
-        profile: profiles.find((p: any) => p.user_id === r.user_id) || null,
-      }));
+      
+      // We list ALL profiles, attaching roles where they exist. 
+      // Users without roles are "Pending Approval".
+      return profiles.map((p: any) => {
+        const roleEntry = roles.find((r: any) => r.user_id === p.user_id);
+        return {
+          id: roleEntry?.id || null, // null if no record yet
+          user_id: p.user_id,
+          role: roleEntry?.role || "pending",
+          profile: p,
+        };
+      });
     },
   });
 
@@ -124,11 +133,13 @@ export default function Settings() {
 
   // ── Update Role Mutation ───────────────────────────────────────────────────
   const updateRole = useMutation({
-    mutationFn: async ({ id, newRole, targetName }: { id: string; newRole: string; targetName?: string }) => {
+    mutationFn: async ({ userId, newRole, targetName }: { userId: string; newRole: string; targetName?: string }) => {
       const { error } = await (supabase as any)
-        .from("user_roles").update({ role: newRole }).eq("id", id);
+        .from("user_roles")
+        .upsert({ user_id: userId, role: newRole }, { onConflict: "user_id" });
+      
       if (error) throw error;
-      await logAction("ROLE_CHANGE", "user_roles", id, { new_role: newRole, target_name: targetName });
+      await logAction("ROLE_CHANGE", "user_roles", userId, { new_role: newRole, target_name: targetName });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users-roles"] });
@@ -390,14 +401,15 @@ export default function Settings() {
                           if (isSelf && val !== "super_admin") {
                             if (!window.confirm("⚠️ Warning: Removing your own Super Admin role will lock you out of this page. Proceed?")) return;
                           }
-                          updateRole.mutate({ id: u.id, newRole: val, targetName: profile?.display_name });
+                          updateRole.mutate({ userId: u.user_id, newRole: val, targetName: profile?.display_name });
                         }}
                         disabled={updateRole.isPending}
                       >
                         <SelectTrigger className="w-[160px] rounded-xl bg-background/50 border-white/10 h-10 font-semibold">
-                          <SelectValue />
+                          <SelectValue placeholder="Assign Role" />
                         </SelectTrigger>
                         <SelectContent className="glass-panel font-medium rounded-xl">
+                          <SelectItem value="pending" className="rounded-lg text-rose-400 italic">Pending Approval</SelectItem>
                           <SelectItem value="super_admin" className="rounded-lg font-bold text-amber-400">⭐ Super Admin</SelectItem>
                           <SelectItem value="admin" className="rounded-lg font-bold text-emerald-500">Admin</SelectItem>
                           <SelectItem value="sales" className="rounded-lg text-blue-400">Sales</SelectItem>

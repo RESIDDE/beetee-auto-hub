@@ -41,7 +41,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             setState((prev) => ({
               ...prev,
               profile: profile || null,
-              role: roleData?.role ?? "mechanic",
+              role: roleData?.role ?? null,
               isLoading: false,
             }));
           }
@@ -49,7 +49,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         .catch((err) => {
           console.warn("Could not load profile/role extras:", err);
           if (mounted) {
-            setState((prev) => ({ ...prev, isLoading: false, role: "mechanic" }));
+            setState((prev) => ({ ...prev, isLoading: false, role: null }));
           }
         });
     };
