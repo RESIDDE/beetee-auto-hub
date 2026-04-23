@@ -11,7 +11,6 @@ import {
   SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem,
   SidebarHeader, useSidebar,
 } from "@/components/ui/sidebar";
-import logo from "@/assets/logo_old_backup.png";
 
 type NavItem = {
   title: string;
@@ -49,7 +48,6 @@ export function AppSidebar() {
     <Sidebar collapsible="icon">
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-2">
-          <img src={logo} alt="Beetee Autos logo" className="h-8 w-8 rounded-full object-cover" />
           {!collapsed && (
             <h1 className="text-lg font-bold text-sidebar-primary uppercase tracking-widest">
               BEETEE AUTOMOBILE
