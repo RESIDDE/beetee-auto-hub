@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from "react";
-import logoAsset from "@/assets/logo_old_backup.png";
+import logoAsset from "@/assets/logo.png";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";

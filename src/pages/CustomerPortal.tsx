@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search, Car, Wrench, FileText, Loader2, Phone } from "lucide-react";
 import { toast } from "sonner";
-import logo from "@/assets/logo_old_backup.png";
+import logo from "@/assets/logo.png";
 
 export default function CustomerPortal() {
   const [phone, setPhone] = useState("");
