@@ -213,9 +213,9 @@ export default function Invoices() {
       .content-wrapper { position: relative; z-index: 1; }
       .bill-title { text-align: center; text-decoration: underline; font-weight: 900; font-size: 22px; margin-bottom: 30px; color: #1e293b; text-transform: uppercase; }
       
-      table { width: 100%; border-collapse: collapse; margin-bottom: 30px; background: rgba(255,255,255,0.4); }
+      table { width: 100%; border-collapse: collapse; margin-bottom: 30px; background: transparent; }
       th, td { border: 1px solid #475569; padding: 12px; text-align: left; font-size: 14px; font-weight: 600; }
-      th { background: rgba(255, 255, 255, 0.3); text-transform: uppercase; }
+      th { background: transparent; text-transform: uppercase; }
       
       .total-row td { border-top: 3px solid #1e293b; font-weight: 900; font-size: 18px; }
       .amount-words { font-weight: 900; margin-bottom: 30px; font-size: 15px; text-transform: uppercase; }
@@ -262,6 +262,18 @@ export default function Invoices() {
             </tr>
           </tbody>
         </table>
+        
+        ${linkedRepairs.filter((r: any) => r.parts_to_replace).length > 0 ? `
+        <div style="margin-bottom: 20px; background: transparent; padding: 15px; border-radius: 15px; border: 1px solid #94a3b8;">
+          <h4 style="margin: 0 0 8px 0; text-transform: uppercase; font-size: 13px; font-weight: 900;">Repair Details & Parts:</h4>
+          ${linkedRepairs.filter((r: any) => r.parts_to_replace).map((r: any) => `
+            <div style="margin-bottom: 8px;">
+              <strong style="font-size: 11px;">${getRepairLabel(r)}:</strong>
+              <div style="font-size: 10px; font-weight: 500; white-space: pre-wrap; margin-left: 10px; opacity: 0.8;">${r.parts_to_replace}</div>
+            </div>
+          `).join('')}
+        </div>
+        ` : ''}
 
         <div class="amount-words">
           AMOUNT IN WORDS: ${numberToWords(totalAmount)}

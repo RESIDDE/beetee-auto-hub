@@ -296,9 +296,9 @@ export default function Sales() {
       .content-wrapper { position: relative; z-index: 1; }
       .bill-title { text-align: center; text-decoration: underline; font-weight: 900; font-size: 22px; margin-bottom: 30px; color: #1e293b; text-transform: uppercase; }
       
-      table { width: 100%; border-collapse: collapse; background: rgba(255, 255, 255, 0.4); margin-bottom: 30px; }
+      table { width: 100%; border-collapse: collapse; background: transparent; margin-bottom: 30px; }
       th, td { border: 1px solid #475569; padding: 12px; text-align: left; font-size: 14px; font-weight: 600; }
-      th { background: rgba(255, 255, 255, 0.3); text-transform: uppercase; }
+      th { background: transparent; text-transform: uppercase; }
       td:first-child { width: 40px; text-align: center; }
       
       .total-row td { border-top: 3px solid #1e293b; font-weight: 900; font-size: 18px; }

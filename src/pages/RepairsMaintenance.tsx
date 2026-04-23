@@ -15,8 +15,15 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { 
-  ChevronRight, ArrowRight, Receipt, ClipboardCheck, Wrench, PlusCircle, Clock, DollarSign, PieChart as PieChartIcon, Search, Car, Pencil, QrCode, FileOutput, Trash2, History as HistoryIcon 
+  ChevronRight, ArrowRight, Receipt, ClipboardCheck, Wrench, PlusCircle, Clock, DollarSign, PieChart as PieChartIcon, Search, Car, Pencil, QrCode, FileOutput, Trash2, History as HistoryIcon, Check, ChevronsUpDown 
 } from "lucide-react";
+import {
+  Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList
+} from "@/components/ui/command";
+import {
+  Popover, PopoverContent, PopoverTrigger
+} from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 import {
   Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious,
 } from "@/components/ui/pagination";
@@ -105,6 +112,7 @@ const emptyForm = {
   labour_total: "",
   other_charges: "",
   vat: "",
+  vat_rate: "7.5",
   repair_cost: "",
   deposit_amount: "",
   payment_status: "deposit",
@@ -117,6 +125,12 @@ const emptyForm = {
   rep_signature_date: new Date().toISOString().split("T")[0],
   respray_notes: "",
   notes: "",
+  // Manual Customer
+  manual_customer_name: "",
+  manual_customer_phone: "",
+  manual_customer_email: "",
+  manual_customer_address: "",
+  is_new_customer: false,
 };
 
 const getVehicleLabel = (r: Repair) => {
@@ -141,6 +155,7 @@ export default function RepairsMaintenance() {
   const [historyCustomerName, setHistoryCustomerName] = useState("");
   const [historyVehicleLabel, setHistoryVehicleLabel] = useState("");
   const [page, setPage] = useState(0);
+  const [openCustomerSelect, setOpenCustomerSelect] = useState(false);
   const PAGE_SIZE = 10;
 
   // Auto-calculate repair cost (Grand Total)
@@ -148,14 +163,23 @@ export default function RepairsMaintenance() {
     const parts = parseFloat(form.parts_total.toString().replace(/,/g, "")) || 0;
     const labour = parseFloat(form.labour_total.toString().replace(/,/g, "")) || 0;
     const other = parseFloat(form.other_charges.toString().replace(/,/g, "")) || 0;
-    const vat = parseFloat(form.vat.toString().replace(/,/g, "")) || 0;
-    const total = parts + labour + other + vat;
+    const rate = parseFloat(form.vat_rate.toString().replace(/,/g, "")) || 0;
     
-    const totalStr = total.toString();
-    if (form.repair_cost !== totalStr) {
-      setForm(prev => ({ ...prev, repair_cost: totalStr }));
+    // Auto-calculate VAT
+    const calculatedVat = (parts + labour + other) * (rate / 100);
+    const vatStr = calculatedVat.toFixed(2);
+    
+    const total = parts + labour + other + calculatedVat;
+    const totalStr = total.toFixed(2);
+    
+    if (form.vat !== vatStr || form.repair_cost !== totalStr) {
+      setForm(prev => ({ 
+        ...prev, 
+        vat: vatStr,
+        repair_cost: totalStr 
+      }));
     }
-  }, [form.parts_total, form.labour_total, form.other_charges, form.vat]);
+  }, [form.parts_total, form.labour_total, form.other_charges, form.vat_rate]);
 
   // 1. All Queries at the top
   const { data: repairs = [], isLoading } = useQuery({
@@ -291,6 +315,19 @@ export default function RepairsMaintenance() {
   const upsert = useMutation({
     mutationFn: async () => {
       let finalVehicleId = form.vehicle_id;
+      let finalCustomerId = form.customer_id;
+
+      // Handle New Customer Creation
+      if (form.is_new_customer && form.manual_customer_name) {
+        const { data: newCust, error: cErr } = await supabase.from("customers").insert({
+          name: form.manual_customer_name,
+          phone: form.manual_customer_phone || null,
+          email: form.manual_customer_email || null,
+          address: form.manual_customer_address || null,
+        }).select().single();
+        if (cErr) throw cErr;
+        finalCustomerId = newCust.id;
+      }
 
       if (!finalVehicleId && form.make) {
         const { data: newV, error: vErr } = await supabase.from("vehicles").insert({
@@ -338,6 +375,7 @@ export default function RepairsMaintenance() {
         rep_signature: form.rep_signature,
         rep_signature_date: form.rep_signature_date,
         notes: form.notes,
+        customer_id: finalCustomerId || null,
       };
       if (editId) {
         const { error } = await supabase.from("repairs").update(payload).eq("id", editId);
@@ -349,6 +387,7 @@ export default function RepairsMaintenance() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["repairs"] });
+      queryClient.invalidateQueries({ queryKey: ["customers-list"] });
       toast.success(editId ? "Repair updated" : "Repair added");
       closeDialog();
     },
@@ -371,6 +410,10 @@ export default function RepairsMaintenance() {
 
   const openEdit = (r: Repair) => {
     setEditId(r.id);
+    const subtotal = (Number(r.parts_total) || 0) + (Number(r.labour_total) || 0) + (Number(r.other_charges) || 0);
+    const vatAmt = Number(r.vat) || 0;
+    const derivedRate = subtotal > 0 ? (vatAmt / subtotal) * 100 : 7.5;
+
     setForm({
       job_card_no: r.job_card_no || "",
       vehicle_id: r.vehicle_id || "",
@@ -396,6 +439,7 @@ export default function RepairsMaintenance() {
       labour_total: r.labour_total?.toString() || "0",
       other_charges: r.other_charges?.toString() || "0",
       vat: r.vat?.toString() || "0",
+      vat_rate: derivedRate.toFixed(1),
       repair_cost: r.repair_cost?.toString() || "0",
       deposit_amount: r.deposit_amount?.toString() || "0",
       payment_status: r.payment_status || "deposit",
@@ -408,6 +452,11 @@ export default function RepairsMaintenance() {
       rep_signature_date: r.rep_signature_date || new Date().toISOString().split("T")[0],
       respray_notes: r.respray_notes || "",
       notes: r.notes || "",
+      manual_customer_name: "",
+      manual_customer_phone: "",
+      manual_customer_email: "",
+      manual_customer_address: "",
+      is_new_customer: false,
     });
     setOpen(true);
   };
@@ -462,9 +511,9 @@ export default function RepairsMaintenance() {
       .content-wrapper { position: relative; z-index: 1; }
       .bill-title { text-align: center; text-decoration: underline; font-weight: 900; font-size: 22px; margin-bottom: 30px; color: #1e293b; text-transform: uppercase; }
       
-      table { width: 100%; border-collapse: collapse; background: rgba(255, 255, 255, 0.4); margin-bottom: 30px; }
+      table { width: 100%; border-collapse: collapse; background: transparent; margin-bottom: 30px; }
       th, td { border: 1px solid #475569; padding: 12px; text-align: left; font-size: 14px; font-weight: 600; }
-      th { background: rgba(255, 255, 255, 0.3); text-transform: uppercase; }
+      th { background: transparent; text-transform: uppercase; }
       td:first-child { width: 40px; text-align: center; }
       
       .total-row td { border-top: 3px solid #1e293b; font-weight: 900; font-size: 18px; }
@@ -536,6 +585,13 @@ export default function RepairsMaintenance() {
             </tr>
           </tbody>
         </table>
+        
+        ${r.parts_to_replace ? `
+        <div style="margin-bottom: 20px; background: transparent; padding: 15px; border-radius: 15px; border: 1px solid #94a3b8;">
+          <h4 style="margin: 0 0 8px 0; text-transform: uppercase; font-size: 13px; font-weight: 900;">Replacement Parts List:</h4>
+          <div style="font-size: 12px; font-weight: 500; white-space: pre-wrap;">${r.parts_to_replace}</div>
+        </div>
+        ` : ''}
 
         <div class="amount-words">
           AMOUNT IN WORDS: ${numberToWords(totalAmount)}
@@ -575,7 +631,7 @@ export default function RepairsMaintenance() {
       body { font-family: 'Inter', sans-serif; padding: 20px; max-width: 850px; margin: 0 auto; color: #1a1a1a; line-height: 1.3; }
       .job-header { text-align: center; font-weight: 800; font-size: 24px; text-transform: uppercase; margin: 20px 0; letter-spacing: 2px; }
       .section { border: 1.5px solid #000; margin-bottom: 12px; border-radius: 4px; overflow: hidden; }
-      .section-title { background: #f0f0f0; padding: 6px 12px; font-size: 12px; font-weight: 800; border-bottom: 1.5px solid #000; text-transform: uppercase; display: flex; justify-content: space-between; }
+      .section-title { background: transparent; padding: 6px 12px; font-size: 12px; font-weight: 800; border-bottom: 1.5px solid #000; text-transform: uppercase; display: flex; justify-content: space-between; }
       .section-content { padding: 10px 12px; font-size: 11px; }
       .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
       .grid-3 { display: grid; grid-template-columns: 1.5fr 1fr 1fr; gap: 10px; }
@@ -1049,14 +1105,109 @@ export default function RepairsMaintenance() {
                   <h3 className="text-sm font-bold uppercase tracking-widest text-foreground/70">Customer & Vehicle Details</h3>
                 </div>
                 <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label className="text-[10px] font-bold uppercase tracking-tight opacity-60">Select Customer</Label>
-                    <Select value={form.customer_id} onValueChange={(v) => setForm({ ...form, customer_id: v })}>
-                      <SelectTrigger className="rounded-xl h-11 bg-background/50 border-white/10"><SelectValue placeholder="Select customer..." /></SelectTrigger>
-                      <SelectContent className="glass-panel rounded-xl">
-                        {customers.map((c) => <SelectItem key={c.id} value={c.id} className="rounded-lg">{c.name}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-[10px] font-bold uppercase tracking-tight opacity-60">Customer Selection</Label>
+                      <Button 
+                        type="button" 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-7 text-[10px] font-bold uppercase text-amber-500 hover:text-amber-600 hover:bg-amber-500/5"
+                        onClick={() => setForm({ 
+                          ...form, 
+                          is_new_customer: !form.is_new_customer,
+                          customer_id: !form.is_new_customer ? "" : form.customer_id 
+                        })}
+                      >
+                        {form.is_new_customer ? "Select Existing" : "+ New Customer"}
+                      </Button>
+                    </div>
+
+                    {!form.is_new_customer ? (
+                      <Popover open={openCustomerSelect} onOpenChange={setOpenCustomerSelect}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            role="combobox"
+                            aria-expanded={openCustomerSelect}
+                            className="w-full justify-between rounded-xl h-11 bg-background/50 border-white/10 text-left font-normal"
+                          >
+                            {form.customer_id
+                              ? customers.find((c) => c.id === form.customer_id)?.name
+                              : "Search customers..."}
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[400px] p-0 glass-panel border-white/10" align="start">
+                          <Command className="bg-transparent">
+                            <CommandInput placeholder="Type customer name..." className="h-9" />
+                            <CommandList>
+                              <CommandEmpty>No customer found.</CommandEmpty>
+                              <CommandGroup>
+                                {customers.map((c) => (
+                                  <CommandItem
+                                    key={c.id}
+                                    value={c.name}
+                                    onSelect={() => {
+                                      setForm({ ...form, customer_id: c.id, is_new_customer: false });
+                                      setOpenCustomerSelect(false);
+                                    }}
+                                    className="flex items-center gap-2 cursor-pointer"
+                                  >
+                                    <Check className={cn("mr-2 h-4 w-4", form.customer_id === c.id ? "opacity-100" : "opacity-0")} />
+                                    <div className="flex flex-col">
+                                      <span>{c.name}</span>
+                                      {c.phone && <span className="text-[10px] text-muted-foreground">{c.phone}</span>}
+                                    </div>
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                    ) : (
+                      <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                        <div className="space-y-2">
+                          <Label className="text-[10px] font-bold">New Customer Name</Label>
+                          <Input 
+                            placeholder="Enter full name" 
+                            className="rounded-xl h-11 bg-amber-500/5 border-amber-500/20 focus:border-amber-500"
+                            value={form.manual_customer_name}
+                            onChange={(e) => setForm({ ...form, manual_customer_name: e.target.value })}
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label className="text-[10px] font-bold">Phone Number</Label>
+                            <Input 
+                              placeholder="080..." 
+                              className="rounded-xl h-11 bg-background/50 border-white/10"
+                              value={form.manual_customer_phone}
+                              onChange={(e) => setForm({ ...form, manual_customer_phone: e.target.value })}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-[10px] font-bold">Email (Optional)</Label>
+                            <Input 
+                              placeholder="email@example.com" 
+                              className="rounded-xl h-11 bg-background/50 border-white/10"
+                              value={form.manual_customer_email}
+                              onChange={(e) => setForm({ ...form, manual_customer_email: e.target.value })}
+                            />
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-[10px] font-bold">Address (Optional)</Label>
+                          <Input 
+                            placeholder="Home or Office address" 
+                            className="rounded-xl h-11 bg-background/50 border-white/10"
+                            value={form.manual_customer_address}
+                            onChange={(e) => setForm({ ...form, manual_customer_address: e.target.value })}
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   <div className="bg-foreground/5 p-5 rounded-2xl space-y-4">
@@ -1214,7 +1365,7 @@ export default function RepairsMaintenance() {
                   <Textarea value={form.parts_to_replace} onChange={(e) => setForm({ ...form, parts_to_replace: e.target.value })} className="rounded-xl min-h-[80px]" placeholder="List required parts..." />
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 bg-foreground/5 p-5 rounded-2xl border border-white/5">
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 bg-foreground/5 p-5 rounded-2xl border border-white/5">
                   <div className="space-y-1">
                     <Label className="text-[10px] font-bold uppercase opacity-60">Parts Total</Label>
                     <CurrencyInput value={form.parts_total} onChange={(e) => setForm({ ...form, parts_total: e.target.value })} placeholder="0" className="h-9 text-sm" />
@@ -1228,8 +1379,12 @@ export default function RepairsMaintenance() {
                     <CurrencyInput value={form.other_charges} onChange={(e) => setForm({ ...form, other_charges: e.target.value })} placeholder="0" className="h-9 text-sm" />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-[10px] font-bold uppercase opacity-60">VAT</Label>
-                    <CurrencyInput value={form.vat} onChange={(e) => setForm({ ...form, vat: e.target.value })} placeholder="0" className="h-9 text-sm" />
+                    <Label className="text-[10px] font-bold uppercase opacity-60 text-amber-500">VAT Rate (%)</Label>
+                    <Input value={form.vat_rate} onChange={(e) => setForm({ ...form, vat_rate: e.target.value })} placeholder="7.5" className="h-9 text-sm rounded-lg bg-amber-500/5 border-amber-500/20" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[10px] font-bold uppercase opacity-40">VAT Amount</Label>
+                    <CurrencyInput value={form.vat} readOnly onChange={() => {}} className="h-9 text-sm opacity-60 bg-transparent border-dashed cursor-not-allowed" />
                   </div>
                 </div>
 
