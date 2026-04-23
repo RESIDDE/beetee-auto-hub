@@ -12,11 +12,15 @@ import { Label } from "@/components/ui/label";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import {
   Shield, ShieldAlert, ShieldCheck, User, Users, Settings2,
   ToggleLeft, Eye, Pencil, RotateCcw, Crown, Lock, Activity,
-  UserPlus, ArrowRightLeft, AlertTriangle, CheckCircle2,
+  UserPlus, ArrowRightLeft, AlertTriangle, CheckCircle2, Trash2,
 } from "lucide-react";
 import {
   ALL_PAGES, getPermissions, savePermissions, resetPermissions,
@@ -69,6 +73,10 @@ export default function Settings() {
   const [transferTarget, setTransferTarget] = useState("");
   const [transferDowngradeTo, setTransferDowngradeTo] = useState("admin");
   const [transferring, setTransferring] = useState(false);
+
+  // ── Delete User State ──────────────────────────────────────────────────────
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   if (role !== "super_admin") {
     return (
@@ -127,6 +135,36 @@ export default function Settings() {
       toast.success("Role updated");
     },
     onError: (e: any) => toast.error(e.message),
+  });
+
+  // ── Delete User Mutation ───────────────────────────────────────────────────
+  const deleteUserMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      setDeleting(true);
+      const targetUser = usersData.find((u: any) => u.user_id === userId);
+      
+      // 1. Delete from user_roles
+      const { error: roleErr } = await (supabase as any)
+        .from("user_roles").delete().eq("user_id", userId);
+      if (roleErr) throw roleErr;
+
+      // 2. Delete from profiles
+      const { error: profileErr } = await (supabase as any)
+        .from("profiles").delete().eq("user_id", userId);
+      if (profileErr) throw profileErr;
+
+      await logAction("DELETE", "profiles", userId, { 
+        deleted_user_id: userId,
+        deleted_user_name: targetUser?.profile?.display_name 
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users-roles"] });
+      toast.success("User removed from the library");
+      setDeleteId(null);
+    },
+    onError: (e: any) => toast.error("Failed: " + e.message),
+    onSettled: () => setDeleting(false),
   });
 
   // ── Claim Super Admin ──────────────────────────────────────────────────────
@@ -347,26 +385,39 @@ export default function Settings() {
                       </div>
                     </div>
 
-                    <Select
-                      value={u.role}
-                      onValueChange={(val) => {
-                        if (isSelf && val !== "super_admin") {
-                          if (!window.confirm("⚠️ Warning: Removing your own Super Admin role will lock you out of this page. Proceed?")) return;
-                        }
-                        updateRole.mutate({ id: u.id, newRole: val, targetName: profile?.display_name });
-                      }}
-                      disabled={updateRole.isPending}
-                    >
-                      <SelectTrigger className="w-[160px] rounded-xl bg-background/50 border-white/10 h-10 font-semibold">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="glass-panel font-medium rounded-xl">
-                        <SelectItem value="super_admin" className="rounded-lg font-bold text-amber-400">⭐ Super Admin</SelectItem>
-                        <SelectItem value="admin" className="rounded-lg font-bold text-emerald-500">Admin</SelectItem>
-                        <SelectItem value="sales" className="rounded-lg text-blue-400">Sales</SelectItem>
-                        <SelectItem value="mechanic" className="rounded-lg text-violet-400">Mechanic</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <div className="flex items-center gap-2">
+                      <Select
+                        value={u.role}
+                        onValueChange={(val) => {
+                          if (isSelf && val !== "super_admin") {
+                            if (!window.confirm("⚠️ Warning: Removing your own Super Admin role will lock you out of this page. Proceed?")) return;
+                          }
+                          updateRole.mutate({ id: u.id, newRole: val, targetName: profile?.display_name });
+                        }}
+                        disabled={updateRole.isPending}
+                      >
+                        <SelectTrigger className="w-[160px] rounded-xl bg-background/50 border-white/10 h-10 font-semibold">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="glass-panel font-medium rounded-xl">
+                          <SelectItem value="super_admin" className="rounded-lg font-bold text-amber-400">⭐ Super Admin</SelectItem>
+                          <SelectItem value="admin" className="rounded-lg font-bold text-emerald-500">Admin</SelectItem>
+                          <SelectItem value="sales" className="rounded-lg text-blue-400">Sales</SelectItem>
+                          <SelectItem value="mechanic" className="rounded-lg text-violet-400">Mechanic</SelectItem>
+                        </SelectContent>
+                      </Select>
+
+                      {!isSelf && (
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-10 w-10 text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 rounded-xl"
+                          onClick={() => setDeleteId(u.user_id)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 );
               })}
@@ -641,6 +692,31 @@ export default function Settings() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {/* ── DELETE USER CONFIRM ── */}
+      <AlertDialog open={!!deleteId} onOpenChange={() => !deleting && setDeleteId(null)}>
+        <AlertDialogContent className="rounded-3xl glass-panel border-white/10 p-6 shadow-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-xl font-bold flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-rose-500" /> Remove Team Member
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-base text-muted-foreground pt-2">
+              Are you sure you want to remove <span className="font-bold text-foreground">{usersData.find((u: any) => u.user_id === deleteId)?.profile?.display_name}</span> from the management system?
+              <br /><br />
+              This will revoke their access and delete their profile. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="mt-6 gap-2">
+            <AlertDialogCancel className="rounded-xl border-white/10" disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              className="bg-rose-500 hover:bg-rose-600 text-white rounded-xl shadow-lg shadow-rose-500/20 border-none"
+              disabled={deleting}
+              onClick={() => deleteId && deleteUserMutation.mutate(deleteId)}
+            >
+              {deleting ? "Removing..." : "Remove Access"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
