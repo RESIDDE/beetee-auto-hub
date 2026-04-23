@@ -143,15 +143,13 @@ export default function Settings() {
       setDeleting(true);
       const targetUser = usersData.find((u: any) => u.user_id === userId);
       
-      // 1. Delete from user_roles
-      const { error: roleErr } = await (supabase as any)
-        .from("user_roles").delete().eq("user_id", userId);
-      if (roleErr) throw roleErr;
-
-      // 2. Delete from profiles
-      const { error: profileErr } = await (supabase as any)
-        .from("profiles").delete().eq("user_id", userId);
-      if (profileErr) throw profileErr;
+      // Call the secure RPC function to delete from auth.users
+      // This will automatically cascade to profiles and user_roles
+      const { error } = await (supabase as any).rpc("delete_user_permanently", { 
+        target_id: userId 
+      });
+      
+      if (error) throw error;
 
       await logAction("DELETE", "profiles", userId, { 
         deleted_user_id: userId,
