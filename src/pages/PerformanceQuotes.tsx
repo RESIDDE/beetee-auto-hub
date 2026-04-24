@@ -126,7 +126,7 @@ export default function PerformanceQuotes() {
       }, 0);
 
       // Create Quote
-      const { data: quote, error: quoteErr } = await supabase
+      const response: any = await supabase
         .from("performance_quotes" as any)
         .insert({
           customer_id: finalCustomerId,
@@ -134,7 +134,9 @@ export default function PerformanceQuotes() {
           notes: notes.trim() || null,
         })
         .select()
-        .single()) as any;
+        .single();
+      const quote = response.data;
+      const quoteErr = response.error;
       if (quoteErr) throw quoteErr;
 
       // Create Quote Items
