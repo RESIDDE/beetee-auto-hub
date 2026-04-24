@@ -50,6 +50,7 @@ export default function PerformanceQuotes() {
     base_price: string;
     has_duty: boolean;
     duty_price: string;
+    quantity: number;
   }[]>([]);
   const [vehicleSearch, setVehicleSearch] = useState("");
   const [notes, setNotes] = useState("");
@@ -122,7 +123,8 @@ export default function PerformanceQuotes() {
 
       // Calculate total
       const totalAmount = selectedVehicles.reduce((sum, v) => {
-        return sum + (Number(v.base_price) || 0) + (v.has_duty ? (Number(v.duty_price) || 0) : 0);
+        const qty = v.quantity || 1;
+        return sum + ((Number(v.base_price) || 0) * qty) + (v.has_duty ? ((Number(v.duty_price) || 0) * qty) : 0);
       }, 0);
 
       // Create Quote
@@ -146,6 +148,7 @@ export default function PerformanceQuotes() {
         base_price: Number(v.base_price) || 0,
         has_duty: v.has_duty,
         duty_price: Number(v.duty_price) || 0,
+        quantity: Number(v.quantity) || 1,
       }));
 
       const { error: itemsErr } = await supabase.from("performance_quote_items" as any).insert(items);
@@ -196,6 +199,7 @@ export default function PerformanceQuotes() {
       base_price: v.price?.toString() || "0",
       has_duty: false,
       duty_price: "0",
+      quantity: 1,
     }]);
     setVehicleSearch("");
   };
@@ -278,41 +282,69 @@ export default function PerformanceQuotes() {
               quote.performance_quote_items?.forEach((item: any) => {
                 const v = item.vehicles;
                 const basePrice = Number(item.base_price) || 0;
-                const vehicleDesc = `${v?.year || ''} ${v?.make || ''} ${v?.model || ''} ${v?.trim || ''} ${v?.vin ? `(VIN: ${v.vin})` : ''}`.trim();
+                const qty = Number(item.quantity) || 1;
+                const vehicleDesc = \`\${v?.year || ''} \${v?.make || ''} \${v?.model || ''} \${v?.trim || ''} \${v?.vin ? \`(VIN: \${v.vin})\` : ''}\`.trim();
 
-                rowsHtml += `
+                rowsHtml += \`
                 <tr>
-                  <td>${rowCounter++}.</td>
-                  <td>${vehicleDesc.toUpperCase()}</td>
-                  <td style="text-align: center;">1</td>
-                  <td>₦${basePrice.toLocaleString()}</td>
-                  <td style="text-align: right;">₦${basePrice.toLocaleString()}</td>
+                  <td>\${rowCounter++}.</td>
+                  <td>\${vehicleDesc.toUpperCase()}</td>
+                  <td style="text-align: center;">\${qty}</td>
+                  <td>₦\${basePrice.toLocaleString()}</td>
+                  <td style="text-align: right;">₦\${(basePrice * qty).toLocaleString()}</td>
                 </tr>
-                `;
-
-                if (item.has_duty) {
-                  const dutyPrice = Number(item.duty_price) || 0;
-                  rowsHtml += `
-                  <tr>
-                    <td>${rowCounter++}.</td>
-                    <td>CUSTOMS DUTY & CLEARANCE - ${vehicleDesc.toUpperCase()}</td>
-                    <td style="text-align: center;">1</td>
-                    <td>₦${dutyPrice.toLocaleString()}</td>
-                    <td style="text-align: right;">₦${dutyPrice.toLocaleString()}</td>
-                  </tr>
-                  `;
-                }
+                \`;
               });
 
               return rowsHtml;
             })()}
-            
-            <tr class="total-row">
-              <td colspan="4" style="text-align: right;">GRAND TOTAL</td>
-              <td style="text-align: right;">₦${(Number(quote.total_amount) || 0).toLocaleString()}</td>
-            </tr>
           </tbody>
         </table>
+
+        \${quote.performance_quote_items?.some((item: any) => item.has_duty) ? \`
+        <h3 style="margin-top: 30px; margin-bottom: 15px; font-weight: 800; text-transform: uppercase; font-size: 16px; color: #1e293b;">CUSTOMS DUTY & CLEARANCE</h3>
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 40px; text-align: center;">#</th>
+              <th>DESCRIPTION</th>
+              <th style="width: 60px; text-align: center;">QTY</th>
+              <th style="width: 120px;">UNIT PRICE</th>
+              <th style="width: 120px; text-align: right;">AMOUNT (₦)</th>
+            </tr>
+          </thead>
+          <tbody>
+            \${(() => {
+              let rowsHtml = '';
+              let dutyCounter = 1;
+              quote.performance_quote_items?.forEach((item: any) => {
+                if (item.has_duty) {
+                  const v = item.vehicles;
+                  const dutyPrice = Number(item.duty_price) || 0;
+                  const qty = Number(item.quantity) || 1;
+                  const vehicleDesc = \`\${v?.year || ''} \${v?.make || ''} \${v?.model || ''}\`.trim();
+
+                  rowsHtml += \`
+                  <tr>
+                    <td style="text-align: center;">\${dutyCounter++}.</td>
+                    <td>DUTY & CLEARANCE - \${vehicleDesc.toUpperCase()}</td>
+                    <td style="text-align: center;">\${qty}</td>
+                    <td>₦\${dutyPrice.toLocaleString()}</td>
+                    <td style="text-align: right;">₦\${(dutyPrice * qty).toLocaleString()}</td>
+                  </tr>
+                  \`;
+                }
+              });
+              return rowsHtml;
+            })()}
+          </tbody>
+        </table>
+        \` : ''}
+
+        <div style="display: flex; justify-content: flex-end; margin-top: 20px; border-top: 3px solid #1e293b; padding-top: 15px;">
+          <div style="font-weight: 900; font-size: 18px; margin-right: 40px;">GRAND TOTAL</div>
+          <div style="font-weight: 900; font-size: 18px; text-align: right; width: 144px;">₦\${(Number(quote.total_amount) || 0).toLocaleString()}</div>
+        </div>
 
         <div class="amount-words">
           AMOUNT IN WORDS: ${numberToWords(Number(quote.total_amount) || 0)}
@@ -571,12 +603,24 @@ export default function PerformanceQuotes() {
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-2">
-                          <Label>Vehicle Base Price (₦)</Label>
-                          <CurrencyInput value={sv.base_price} onChange={e => updateVehicleData(sv.id, "base_price", e.target.value)} />
+                        <div className="space-y-4">
+                          <div className="space-y-2">
+                            <Label>Vehicle Base Price (₦)</Label>
+                            <CurrencyInput value={sv.base_price} onChange={e => updateVehicleData(sv.id, "base_price", e.target.value)} />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Quantity</Label>
+                            <Input 
+                              type="number" 
+                              min="1" 
+                              value={sv.quantity} 
+                              onChange={e => updateVehicleData(sv.id, "quantity", parseInt(e.target.value) || 1)} 
+                              className="bg-background/50 border-white/10"
+                            />
+                          </div>
                         </div>
                         
-                        <div className="space-y-3 p-3 bg-black/20 rounded-xl border border-white/5">
+                        <div className="space-y-3 p-4 bg-black/20 rounded-xl border border-white/5 flex flex-col justify-center">
                           <div className="flex items-center space-x-2">
                             <Checkbox 
                               id={`duty-${sv.id}`} 
@@ -586,8 +630,8 @@ export default function PerformanceQuotes() {
                             <Label htmlFor={`duty-${sv.id}`} className="font-semibold text-amber-500 cursor-pointer">Include Duty / Clearance Price</Label>
                           </div>
                           {sv.has_duty && (
-                            <div className="space-y-1 animate-fade-down">
-                              <Label className="text-xs text-muted-foreground">Duty Price Amount (₦)</Label>
+                            <div className="space-y-1 animate-fade-down pt-2">
+                              <Label className="text-xs text-muted-foreground">Duty Price Amount (₦) per unit</Label>
                               <CurrencyInput value={sv.duty_price} onChange={e => updateVehicleData(sv.id, "duty_price", e.target.value)} />
                             </div>
                           )}
@@ -600,7 +644,7 @@ export default function PerformanceQuotes() {
                   <div className="bg-emerald-500/10 border border-emerald-500/20 p-4 rounded-2xl flex justify-between items-center mt-6">
                     <span className="font-bold text-lg text-emerald-500 uppercase tracking-wider">Grand Total Estimate</span>
                     <span className="text-3xl font-black text-emerald-500">
-                      ₦{selectedVehicles.reduce((sum, v) => sum + (Number(v.base_price) || 0) + (v.has_duty ? (Number(v.duty_price) || 0) : 0), 0).toLocaleString()}
+                      ₦{selectedVehicles.reduce((sum, v) => sum + ((Number(v.base_price) || 0) * (v.quantity || 1)) + (v.has_duty ? ((Number(v.duty_price) || 0) * (v.quantity || 1)) : 0), 0).toLocaleString()}
                     </span>
                   </div>
                 </div>
