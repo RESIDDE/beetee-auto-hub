@@ -107,6 +107,7 @@ export default function ResaleVehicles() {
       Make: v.make, Model: v.model, Year: v.year, VIN: v.vin || "", Color: (v as any).color || "",
       Price: v.price, "Cost Price": (v as any).cost_price || "", Status: v.status, Condition: (v as any).condition || "",
       "Source Company": (v as any).source_company || "", "Date Arrived": (v as any).date_arrived || "",
+      "Accepted By": (v as any).accepted_by_name || "", "Accepted Date": (v as any).accepted_date || "",
     }));
     exportToExcel(rows, "resale_vehicles_export");
   };
@@ -116,11 +117,12 @@ export default function ResaleVehicles() {
   const handlePrint = () => {
     const rows = filtered.map((v) => ({
       vehicle: `${v.year} ${v.make} ${v.model}`, vin: v.vin || "—", price: `₦${Number(v.price).toLocaleString()}`,
-      status: v.status, condition: (v as any).condition || "—",
+      status: v.status, accepted_by: (v as any).accepted_by_name || "—", accepted_date: (v as any).accepted_date || "—",
     }));
     printTable("Resale Vehicles Inventory — Beetee Autos", rows, [
       { key: "vehicle", label: "Vehicle" }, { key: "vin", label: "VIN" },
-      { key: "price", label: "Price" }, { key: "status", label: "Status" }, { key: "condition", label: "Condition" },
+      { key: "price", label: "Price" }, { key: "status", label: "Status" }, 
+      { key: "accepted_by", label: "Accepted By" }, { key: "accepted_date", label: "Date" },
     ]);
   };
 
@@ -273,9 +275,8 @@ export default function ResaleVehicles() {
                   <TableHead className="font-semibold">Year</TableHead>
                   <TableHead className="font-semibold">Trim</TableHead>
                   <TableHead className="font-semibold">Chassis (VIN)</TableHead>
-                  <TableHead className="font-semibold">Condition</TableHead>
-                  <TableHead className="font-semibold">Source</TableHead>
-                  <TableHead className="font-semibold">Date</TableHead>
+                  <TableHead className="font-semibold">Accepted By</TableHead>
+                  <TableHead className="font-semibold">Accepted Date</TableHead>
                   <TableHead className="font-semibold">Status</TableHead>
                   <TableHead className="text-right font-semibold px-6">Actions</TableHead>
                 </TableRow>
@@ -296,9 +297,8 @@ export default function ResaleVehicles() {
                     <TableCell>
                       {v.vin ? <span className="font-mono text-xs bg-foreground/5 px-2 py-1 rounded-md">{v.vin}</span> : <span className="opacity-50">—</span>}
                     </TableCell>
-                    <TableCell>{(v as any).condition || "—"}</TableCell>
-                    <TableCell className="max-w-[120px] truncate" title={(v as any).source_company}>{(v as any).source_company || "—"}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{(v as any).date_arrived ? new Date((v as any).date_arrived).toLocaleDateString() : "—"}</TableCell>
+                    <TableCell className="text-sm font-medium">{(v as any).accepted_by_name || "—"}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{(v as any).accepted_date ? new Date((v as any).accepted_date).toLocaleDateString() : "—"}</TableCell>
                     <TableCell>
                       <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider ${
                         v.status?.toLowerCase() === 'available' ? 'bg-emerald-500/10 text-emerald-500' : 

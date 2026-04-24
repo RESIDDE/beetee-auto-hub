@@ -19,12 +19,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { X, Upload } from "lucide-react";
+import { X, Upload, FileSignature } from "lucide-react";
 import VehicleMakeModelSelector from "@/components/VehicleMakeModelSelector";
 import { useAuth } from "@/hooks/useAuth";
 import { canEdit } from "@/lib/permissions";
 import { CurrencyInput } from "@/components/CurrencyInput";
 import { toast } from "sonner";
+import { SignaturePad } from "@/components/SignaturePad";
 
 interface FormData {
   make: string;
@@ -46,6 +47,9 @@ interface FormData {
   condition: string;
   trim: string;
   inventory_type: string;
+  accepted_by_name: string;
+  accepted_date: string;
+  accepted_signature: string;
 }
 
 const emptyForm: FormData = {
@@ -68,6 +72,9 @@ const emptyForm: FormData = {
   condition: "Used",
   trim: "",
   inventory_type: "beetee",
+  accepted_by_name: "",
+  accepted_date: "",
+  accepted_signature: "",
 };
 
 export default function VehicleForm() {
@@ -148,6 +155,9 @@ export default function VehicleForm() {
         condition: v.condition || "Used",
         trim: v.trim || "",
         inventory_type: v.inventory_type || "beetee",
+        accepted_by_name: v.accepted_by_name || "",
+        accepted_date: v.accepted_date || "",
+        accepted_signature: v.accepted_signature || "",
       });
     }
   }, [vehicle]);
@@ -231,6 +241,9 @@ export default function VehicleForm() {
         condition: form.condition,
         trim: form.trim.trim() || null,
         inventory_type: form.inventory_type,
+        accepted_by_name: form.inventory_type === 'resale' ? (form.accepted_by_name.trim() || null) : null,
+        accepted_date: form.inventory_type === 'resale' ? (form.accepted_date || null) : null,
+        accepted_signature: form.inventory_type === 'resale' ? (form.accepted_signature || null) : null,
       };
 
       if (isEdit) {
@@ -439,6 +452,31 @@ export default function VehicleForm() {
             </div>
           </CardContent>
         </Card>
+
+        {form.inventory_type === 'resale' && (
+          <Card className="border-emerald-500/20 bg-emerald-500/5 animate-fade-down">
+            <CardHeader>
+              <CardTitle className="text-emerald-500 flex items-center gap-2">
+                <FileSignature className="h-5 w-5" /> Resale Acceptance Details
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                {field("accepted_by_name", "Accepted By (Staff Name)")}
+                {field("accepted_date", "Acceptance Date", "date")}
+              </div>
+              <div className="space-y-2">
+                <Label>Staff Digital Signature</Label>
+                <div className="rounded-2xl overflow-hidden border border-white/10 bg-background/50 h-[180px]">
+                  <SignaturePad 
+                    value={form.accepted_signature} 
+                    onChange={(v) => setForm({ ...form, accepted_signature: v })} 
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardHeader>
