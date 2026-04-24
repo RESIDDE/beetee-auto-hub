@@ -11,6 +11,7 @@ import Auth from "./pages/Auth";
 import Settings from "./pages/Settings";
 import Unauthorized from "./pages/Unauthorized";
 import VehiclesList from "./pages/VehiclesList";
+import ResaleVehicles from "./pages/ResaleVehicles";
 import VehicleForm from "./pages/VehicleForm";
 import VehicleDetail from "./pages/VehicleDetail";
 import Customers from "./pages/Customers";
@@ -82,6 +83,7 @@ function AppRoutes() {
             <Routes>
               <Route path="/dashboard"         element={<RoleGuard page="dashboard"><Index /></RoleGuard>} />
               <Route path="/vehicles"          element={<RoleGuard page="vehicles"><VehiclesList /></RoleGuard>} />
+              <Route path="/resale-vehicles"   element={<RoleGuard page="vehicles"><ResaleVehicles /></RoleGuard>} />
               <Route path="/vehicles/new"      element={<RoleGuard page="vehicles"><VehicleForm /></RoleGuard>} />
               <Route path="/vehicles/:id"      element={<RoleGuard page="vehicles"><VehicleDetail /></RoleGuard>} />
               <Route path="/vehicles/:id/edit" element={<RoleGuard page="vehicles"><VehicleForm /></RoleGuard>} />

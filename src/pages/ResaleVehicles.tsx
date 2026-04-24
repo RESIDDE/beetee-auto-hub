@@ -56,7 +56,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
 const PAGE_SIZE = 20;
 
-export default function VehiclesList() {
+export default function ResaleVehicles() {
   const { role } = useAuth();
   const hasEdit = canEdit(role, "vehicles");
 
@@ -68,9 +68,9 @@ export default function VehiclesList() {
   const queryClient = useQueryClient();
 
   const { data: vehicles = [], isLoading } = useQuery({
-    queryKey: ["vehicles", "beetee"],
+    queryKey: ["vehicles", "resale"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("vehicles").select("*").eq("inventory_type", "beetee").order("created_at", { ascending: false });
+      const { data, error } = await supabase.from("vehicles").select("*").eq("inventory_type", "resale").order("created_at", { ascending: false });
       if (error) throw error;
       return data;
     },
@@ -108,17 +108,17 @@ export default function VehiclesList() {
       Price: v.price, "Cost Price": (v as any).cost_price || "", Status: v.status, Condition: (v as any).condition || "",
       "Source Company": (v as any).source_company || "", "Date Arrived": (v as any).date_arrived || "",
     }));
-    exportToExcel(rows, "vehicles_export");
+    exportToExcel(rows, "resale_vehicles_export");
   };
 
-  const handleExportJSON = () => exportToJSON(filtered, "vehicles_export");
+  const handleExportJSON = () => exportToJSON(filtered, "resale_vehicles_export");
 
   const handlePrint = () => {
     const rows = filtered.map((v) => ({
       vehicle: `${v.year} ${v.make} ${v.model}`, vin: v.vin || "—", price: `₦${Number(v.price).toLocaleString()}`,
       status: v.status, condition: (v as any).condition || "—",
     }));
-    printTable("Beetee Vehicles Inventory — Beetee Autos", rows, [
+    printTable("Resale Vehicles Inventory — Beetee Autos", rows, [
       { key: "vehicle", label: "Vehicle" }, { key: "vin", label: "VIN" },
       { key: "price", label: "Price" }, { key: "status", label: "Status" }, { key: "condition", label: "Condition" },
     ]);
@@ -130,14 +130,14 @@ export default function VehiclesList() {
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1 opacity-80">
-            <Car className="w-4 h-4 text-sky-500" />
-            <span className="text-sm font-medium uppercase tracking-wider text-sky-500">Fleet Management</span>
+            <Car className="w-4 h-4 text-emerald-500" />
+            <span className="text-sm font-medium uppercase tracking-wider text-emerald-500">Fleet Management</span>
           </div>
           <h1 className="text-4xl md:text-5xl font-heading font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-foreground via-foreground to-foreground/70 tracking-tight">
-            Beetee Vehicles
+            Resale Vehicles
           </h1>
           <p className="text-base text-muted-foreground mt-2 max-w-xl">
-            View, add, and manage your primary vehicle inventory.
+            Manage your resale inventory cars.
           </p>
         </div>
         <div className="flex gap-2 shrink-0">
@@ -145,7 +145,7 @@ export default function VehiclesList() {
             variant="outline" 
             size="lg" 
             onClick={() => setShowAnalytics(!showAnalytics)}
-            className={`rounded-2xl glass-panel border-white/10 transition-all ${showAnalytics ? 'bg-primary/20 text-primary border-primary/20' : 'hover:bg-white/5'}`}
+            className={`rounded-2xl glass-panel border-white/10 transition-all ${showAnalytics ? 'bg-emerald-500/20 text-emerald-500 border-emerald-500/20' : 'hover:bg-white/5'}`}
           >
             <BarChartIcon className="mr-2 h-4 w-4" /> {showAnalytics ? "Hide Analytics" : "Analytics"}
           </Button>
@@ -161,9 +161,9 @@ export default function VehiclesList() {
               <DropdownMenuItem onClick={handlePrint} className="rounded-lg cursor-pointer text-primary"><Printer className="mr-2 h-4 w-4" /> Print / PDF</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button asChild size="lg" className="rounded-2xl shadow-lg shadow-sky-500/25 hover:shadow-sky-500/40 transition-all bg-sky-500 hover:bg-sky-600">
-            <Link to="/vehicles/new">
-              <PlusCircle className="mr-2 h-5 w-5" /> Add Vehicle
+          <Button asChild size="lg" className="rounded-2xl shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all bg-emerald-500 hover:bg-emerald-600">
+            <Link to="/vehicles/new?inventory_type=resale">
+              <PlusCircle className="mr-2 h-5 w-5" /> Add Resale Vehicle
             </Link>
           </Button>
         </div>
@@ -175,7 +175,7 @@ export default function VehiclesList() {
             <Card className="bento-card border-none shadow-xl">
               <CardContent className="p-6">
                 <div className="flex justify-between items-start mb-4">
-                  <div className="p-3 bg-primary/10 rounded-2xl"><Package className="h-6 w-6 text-primary" /></div>
+                  <div className="p-3 bg-emerald-500/10 rounded-2xl"><Package className="h-6 w-6 text-emerald-500" /></div>
                 </div>
                 <h3 className="text-3xl font-bold">{vehicles.filter(v => v.status !== 'Sold').length}</h3>
                 <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider mt-1">Units In Stock</p>
@@ -212,67 +212,19 @@ export default function VehiclesList() {
               </CardContent>
             </Card>
           </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bento-card p-6 min-h-[350px]">
-              <h3 className="font-bold text-lg flex items-center gap-2 mb-6"><Clock className="w-5 h-5 text-sky-500" /> Aging Analysis</h3>
-              <div className="h-[250px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={(() => {
-                    const counts: any = { "0-30 Days": 0, "31-60 Days": 0, "61-90 Days": 0, "90+ Days": 0 };
-                    vehicles.filter(v => v.status !== 'Sold').forEach(v => {
-                      const days = differenceInDays(new Date(), new Date((v as any).date_arrived || v.created_at));
-                      if (days <= 30) counts["0-30 Days"]++;
-                      else if (days <= 60) counts["31-60 Days"]++;
-                      else if (days <= 90) counts["61-90 Days"]++;
-                      else counts["90+ Days"]++;
-                    });
-                    return Object.entries(counts).map(([name, value]) => ({ name, value }));
-                  })()}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--foreground)/0.05)" />
-                    <XAxis dataKey="name" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Bar dataKey="value" name="Vehicles" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-
-            <div className="bento-card p-6 flex flex-col justify-center">
-              <h3 className="font-bold text-lg flex items-center gap-2 mb-6"><PieChartIcon className="w-5 h-5 text-amber-500" /> Status Mix</h3>
-              <div className="h-[250px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie 
-                      data={[
-                        { name: 'Available', value: vehicles.filter(v => v.status === 'Available').length },
-                        { name: 'Reserved', value: vehicles.filter(v => v.status === 'Reserved').length },
-                        { name: 'Sold', value: vehicles.filter(v => v.status === 'Sold').length },
-                      ].filter(x => x.value > 0)} 
-                      innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value"
-                    >
-                      {COLORS.map((color, i) => <Cell key={i} fill={color} />)}
-                    </Pie>
-                    <Tooltip content={<CustomTooltip />} />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-          </div>
         </div>
       )}
 
       {/* Filters Control Bar */}
       <div className="glass-panel p-4 rounded-3xl flex flex-col sm:flex-row gap-4 items-center relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-sky-500/5 to-transparent pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/5 to-transparent pointer-events-none" />
         <div className="relative w-full sm:w-80 group z-10">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-sky-500 transition-colors" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-emerald-500 transition-colors" />
           <Input 
             placeholder="Search by name, model, VIN..." 
             value={search} 
             onChange={(e) => { setSearch(e.target.value); setPage(0); }} 
-            className="pl-10 h-10 rounded-xl bg-background/50 border-white/10 focus-visible:ring-sky-500/50 transition-all font-medium text-sm w-full"
+            className="pl-10 h-10 rounded-xl bg-background/50 border-white/10 focus-visible:ring-emerald-500/50 transition-all font-medium text-sm w-full"
           />
         </div>
         <div className="relative z-10 w-full sm:w-auto flex items-center gap-2">
@@ -303,11 +255,11 @@ export default function VehiclesList() {
         </div>
       ) : paged.length === 0 ? (
         <div className="bento-card p-12 flex flex-col items-center justify-center text-center">
-          <div className="bg-sky-500/10 p-5 rounded-full mb-4">
-            <Car className="h-10 w-10 text-sky-500" />
+          <div className="bg-emerald-500/10 p-5 rounded-full mb-4">
+            <Car className="h-10 w-10 text-emerald-500" />
           </div>
-          <h2 className="text-xl font-bold mb-2">No vehicles found.</h2>
-          <p className="text-muted-foreground max-w-sm mb-6">We couldn't find any vehicles matching your current search criteria.</p>
+          <h2 className="text-xl font-bold mb-2">No resale vehicles found.</h2>
+          <p className="text-muted-foreground max-w-sm mb-6">We couldn't find any vehicles in the resale category.</p>
           <Button variant="outline" onClick={() => {setSearch(''); setConditionFilter('all')}} className="rounded-xl">Clear Filters</Button>
         </div>
       ) : (
@@ -333,8 +285,8 @@ export default function VehiclesList() {
                   <TableRow key={v.id} className="border-border/10 hover:bg-white/5 transition-colors group">
                     <TableCell className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                         <div className="p-2 rounded-lg bg-foreground/5 group-hover:bg-sky-500/10 transition-colors">
-                           <Car className="h-4 w-4 text-sky-500" />
+                         <div className="p-2 rounded-lg bg-foreground/5 group-hover:bg-emerald-500/10 transition-colors">
+                           <Car className="h-4 w-4 text-emerald-500" />
                          </div>
                          <span className="font-semibold text-sm transition-colors group-hover:text-primary">{v.make} {v.model}</span>
                       </div>
@@ -378,8 +330,8 @@ export default function VehiclesList() {
               <div key={v.id} className={`p-5 flex flex-col gap-4 ${i !== paged.length -1 ? 'border-b border-border/10' : ''}`}>
                 <div className="flex justify-between items-start gap-4">
                   <div className="flex items-start gap-3">
-                     <div className="p-2 rounded-xl bg-sky-500/10 shrink-0">
-                       <Car className="h-5 w-5 text-sky-500" />
+                     <div className="p-2 rounded-xl bg-emerald-500/10 shrink-0">
+                       <Car className="h-5 w-5 text-emerald-500" />
                      </div>
                      <div>
                        <p className="font-semibold text-foreground text-sm">{v.year} {v.make} {v.model} {(v as any).trim && <span className="font-normal opacity-60">({(v as any).trim})</span>}</p>

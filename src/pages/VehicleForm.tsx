@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -45,6 +45,7 @@ interface FormData {
   source_company: string;
   condition: string;
   trim: string;
+  inventory_type: string;
 }
 
 const emptyForm: FormData = {
@@ -66,6 +67,7 @@ const emptyForm: FormData = {
   source_company: "",
   condition: "Used",
   trim: "",
+  inventory_type: "beetee",
 };
 
 export default function VehicleForm() {
@@ -79,6 +81,8 @@ export default function VehicleForm() {
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [existingImages, setExistingImages] = useState<{ id: string; image_url: string }[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [searchParams] = useSearchParams();
+  const defaultType = searchParams.get("inventory_type") || "beetee";
   const { role } = useAuth();
   const hasEdit = canEdit(role, "vehicles");
 
@@ -87,7 +91,10 @@ export default function VehicleForm() {
       toast.error("You do not have permission to edit existing vehicles.");
       navigate("/vehicles");
     }
-  }, [isEdit, hasEdit, navigate]);
+    if (!isEdit) {
+      setForm(prev => ({ ...prev, inventory_type: defaultType }));
+    }
+  }, [isEdit, hasEdit, navigate, defaultType]);
 
   const { data: vehicle } = useQuery({
     queryKey: ["vehicle", id],
@@ -140,6 +147,7 @@ export default function VehicleForm() {
         source_company: v.source_company || "",
         condition: v.condition || "Used",
         trim: v.trim || "",
+        inventory_type: v.inventory_type || "beetee",
       });
     }
   }, [vehicle]);
@@ -222,6 +230,7 @@ export default function VehicleForm() {
         source_company: form.source_company.trim() || null,
         condition: form.condition,
         trim: form.trim.trim() || null,
+        inventory_type: form.inventory_type,
       };
 
       if (isEdit) {
@@ -244,7 +253,7 @@ export default function VehicleForm() {
       }
 
       queryClient.invalidateQueries({ queryKey: ["vehicles"] });
-      navigate("/vehicles");
+      navigate(form.inventory_type === 'resale' ? "/resale-vehicles" : "/vehicles");
     } catch (err: any) {
       toast.error(err.message || "Failed to save vehicle");
     } finally {
@@ -414,6 +423,20 @@ export default function VehicleForm() {
             {field("date_stored", "Date Stored", "date")}
             {field("num_keys", "Number of Keys", "number")}
             {field("source_company", "Source Company")}
+            
+            <div className="space-y-1">
+              <Label>Inventory Type</Label>
+              <Select
+                value={form.inventory_type}
+                onValueChange={(v) => setForm({ ...form, inventory_type: v })}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="beetee">Beetee Inventory</SelectItem>
+                  <SelectItem value="resale">Resale Inventory</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </CardContent>
         </Card>
 
@@ -505,7 +528,7 @@ export default function VehicleForm() {
           <Button
             type="button"
             variant="outline"
-            onClick={() => navigate("/vehicles")}
+            onClick={() => navigate(form.inventory_type === 'resale' ? "/resale-vehicles" : "/vehicles")}
           >
             Cancel
           </Button>

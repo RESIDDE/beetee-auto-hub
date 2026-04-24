@@ -22,7 +22,8 @@ type NavItem = {
 
 const ALL_NAV_ITEMS: NavItem[] = [
   { title: "Dashboard",    url: "/dashboard",         pageKey: "dashboard",        icon: LayoutDashboard },
-  { title: "Vehicles",     url: "/vehicles",          pageKey: "vehicles",         icon: Car },
+  { title: "Beetee Vehicles", url: "/vehicles",        pageKey: "vehicles",         icon: Car },
+  { title: "Resale Vehicles", url: "/resale-vehicles", pageKey: "vehicles",         icon: Car },
   { title: "Customers",    url: "/customers",         pageKey: "customers",        icon: Users },
   { title: "Sales",        url: "/sales",             pageKey: "sales",            icon: (props) => <NairaIcon {...props} /> },
   { title: "Invoices",     url: "/invoices",          pageKey: "invoices",         icon: FileText },
