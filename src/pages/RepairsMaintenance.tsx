@@ -38,6 +38,7 @@ import { SignaturePad } from "@/components/SignaturePad";
 import { QrSignDialog } from "@/lib/qrHelpers";
 import { CurrencyInput } from "@/components/CurrencyInput";
 import { numberToWords } from "@/lib/numberToWords";
+import { CustomerSelect } from "@/components/CustomerSelect";
 
 type Repair = {
   id: string;
@@ -82,9 +83,11 @@ type Repair = {
   rep_signature_date: string | null;
   respray_notes: string | null;
   notes: string | null;
+  replacement_parts_list: { name: string; price: number }[] | null;
+  manual_trim?: string | null;
   created_at: string;
   updated_at: string;
-  vehicles?: { make: string; model: string; year: number; color?: string; vin?: string } | null;
+  vehicles?: { make: string; model: string; year: number; trim?: string; color?: string; vin?: string } | null;
 };
 
 const emptyForm = {
@@ -131,12 +134,13 @@ const emptyForm = {
   manual_customer_email: "",
   manual_customer_address: "",
   is_new_customer: false,
+  replacement_parts_list: [] as { name: string; price: number }[],
 };
 
 const getVehicleLabel = (r: Repair) => {
   if (!r) return "Unknown vehicle";
-  if (r.vehicles) return `${r.vehicles.year} ${r.vehicles.make} ${r.vehicles.model}`;
-  if (r.manual_make) return `${r.manual_year || ""} ${r.manual_make} ${r.manual_model || ""}`.trim();
+  if (r.vehicles) return `${r.vehicles.year} ${r.vehicles.make} ${r.vehicles.model} ${r.vehicles.trim || ""}`.trim();
+  if (r.manual_make) return `${r.manual_year || ""} ${r.manual_make} ${r.manual_model || ""} ${r.manual_trim || ""}`.trim();
   return "Unknown vehicle";
 };
 
@@ -157,6 +161,17 @@ export default function RepairsMaintenance() {
   const [page, setPage] = useState(0);
   const [openCustomerSelect, setOpenCustomerSelect] = useState(false);
   const PAGE_SIZE = 10;
+
+  // Auto-calculate parts_total from replacement_parts_list
+  useEffect(() => {
+    if (form.replacement_parts_list && form.replacement_parts_list.length > 0) {
+      const total = form.replacement_parts_list.reduce((acc, item) => acc + (Number(item.price) || 0), 0);
+      const totalStr = total.toString();
+      if (form.parts_total !== totalStr) {
+        setForm(prev => ({ ...prev, parts_total: totalStr }));
+      }
+    }
+  }, [form.replacement_parts_list]);
 
   // Auto-calculate repair cost (Grand Total)
   useEffect(() => {
@@ -187,7 +202,7 @@ export default function RepairsMaintenance() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("repairs")
-        .select("*, vehicles(make, model, year, color, vin)")
+        .select("*, vehicles(make, model, year, trim, color, vin)")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data as any[] as Repair[];
@@ -197,9 +212,9 @@ export default function RepairsMaintenance() {
   const { data: vehicles = [] } = useQuery({
     queryKey: ["vehicles-list"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("vehicles").select("id, make, model, year").order("make");
+      const { data, error } = await supabase.from("vehicles").select("id, make, model, year, trim").order("make");
       if (error) throw error;
-      return data;
+      return data as any[];
     },
   });
 
@@ -376,6 +391,7 @@ export default function RepairsMaintenance() {
         rep_signature_date: form.rep_signature_date,
         notes: form.notes,
         customer_id: finalCustomerId || null,
+        replacement_parts_list: form.replacement_parts_list,
       };
       if (editId) {
         const { error } = await supabase.from("repairs").update(payload).eq("id", editId);
@@ -452,6 +468,7 @@ export default function RepairsMaintenance() {
       rep_signature_date: r.rep_signature_date || new Date().toISOString().split("T")[0],
       respray_notes: r.respray_notes || "",
       notes: r.notes || "",
+      replacement_parts_list: (r.replacement_parts_list as any) || [],
       manual_customer_name: "",
       manual_customer_phone: "",
       manual_customer_email: "",
@@ -501,12 +518,12 @@ export default function RepairsMaintenance() {
       .bill-to { margin-bottom: 30px; }
       .bill-to p { margin: 2px 0; font-size: 14px; }
       .main-container {
-        background-color: #cbd5e1;
+        background-color: transparent;
         border-radius: 40px;
         padding: 40px;
         min-height: 600px;
         position: relative;
-        border: 1px solid #94a3b8;
+        border: none;
       }
       .content-wrapper { position: relative; z-index: 1; }
       .bill-title { text-align: center; text-decoration: underline; font-weight: 900; font-size: 22px; margin-bottom: 30px; color: #1e293b; text-transform: uppercase; }
@@ -548,15 +565,25 @@ export default function RepairsMaintenance() {
             </tr>
           </thead>
           <tbody>
+            ${r.replacement_parts_list && (r.replacement_parts_list as any).length > 0 ? (r.replacement_parts_list as any).map((p: any, idx: number) => `
+              <tr>
+                <td>${idx + 1}.</td>
+                <td>${p.name.toUpperCase()}</td>
+                <td style="text-align: center;">1</td>
+                <td>₦${(Number(p.price) || 0).toLocaleString()}</td>
+                <td style="text-align: right;">₦${(Number(p.price) || 0).toLocaleString()}</td>
+              </tr>
+            `).join('') : `
+              <tr>
+                <td>1.</td>
+                <td>PARTS & MATERIALS</td>
+                <td style="text-align: center;">1</td>
+                <td>₦${(Number(r.parts_total) || 0).toLocaleString()}</td>
+                <td style="text-align: right;">₦${(Number(r.parts_total) || 0).toLocaleString()}</td>
+              </tr>
+            `}
             <tr>
-              <td>1.</td>
-              <td>PARTS & MATERIALS</td>
-              <td style="text-align: center;">1</td>
-              <td>₦${(Number(r.parts_total) || 0).toLocaleString()}</td>
-              <td style="text-align: right;">₦${(Number(r.parts_total) || 0).toLocaleString()}</td>
-            </tr>
-            <tr>
-              <td>2.</td>
+              <td>${r.replacement_parts_list && (r.replacement_parts_list as any).length > 0 ? (r.replacement_parts_list as any).length + 1 : 2}.</td>
               <td>LABOUR CHARGES</td>
               <td style="text-align: center;">1</td>
               <td>₦${(Number(r.labour_total) || 0).toLocaleString()}</td>
@@ -564,7 +591,7 @@ export default function RepairsMaintenance() {
             </tr>
             ${Number(r.other_charges) > 0 ? `
             <tr>
-              <td>3.</td>
+              <td>${r.replacement_parts_list && (r.replacement_parts_list as any).length > 0 ? (r.replacement_parts_list as any).length + 2 : 3}.</td>
               <td>OTHER SERVICES / CHARGES</td>
               <td style="text-align: center;">1</td>
               <td>₦${(Number(r.other_charges) || 0).toLocaleString()}</td>
@@ -572,7 +599,7 @@ export default function RepairsMaintenance() {
             </tr>` : ''}
             ${Number(r.vat) > 0 ? `
             <tr>
-              <td>${Number(r.other_charges) > 0 ? '4.' : '3.'}</td>
+              <td>${(r.replacement_parts_list && (r.replacement_parts_list as any).length > 0 ? (r.replacement_parts_list as any).length : 2) + (Number(r.other_charges) > 0 ? 2 : 1)}</td>
               <td>VAT / TAX</td>
               <td style="text-align: center;"></td>
               <td>₦${(Number(r.vat) || 0).toLocaleString()}</td>
@@ -741,7 +768,13 @@ export default function RepairsMaintenance() {
     <div class="grid-2">
       <div class="section">
         <div class="section-title">6. PARTS TO BE REPLACE</div>
-        <div class="section-content text-xs" style="min-height: 80px;">${r.parts_to_replace || '—'}</div>
+        <div class="section-content text-xs" style="min-height: 80px;">
+          ${r.replacement_parts_list && (r.replacement_parts_list as any).length > 0 
+            ? (r.replacement_parts_list as any).map((p: any) => `<div style="display:flex; justify-content:space-between; margin-bottom: 2px;"><span>• ${p.name}</span> <span>₦${(Number(p.price) || 0).toLocaleString()}</span></div>`).join('')
+            : (r.parts_to_replace || '—')
+          }
+          ${r.replacement_parts_list && (r.replacement_parts_list as any).length > 0 && r.parts_to_replace ? `<div style="margin-top: 5px; border-top: 1px dashed #ccc; padding-top: 5px; font-style: italic;">Note: ${r.parts_to_replace}</div>` : ''}
+        </div>
       </div>
       <div class="section">
         <div class="section-title">7. COST SUMMARY</div>
@@ -1124,48 +1157,16 @@ export default function RepairsMaintenance() {
                     </div>
 
                     {!form.is_new_customer ? (
-                      <Popover open={openCustomerSelect} onOpenChange={setOpenCustomerSelect}>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            role="combobox"
-                            aria-expanded={openCustomerSelect}
-                            className="w-full justify-between rounded-xl h-11 bg-background/50 border-white/10 text-left font-normal"
-                          >
-                            {form.customer_id
-                              ? customers.find((c) => c.id === form.customer_id)?.name
-                              : "Search customers..."}
-                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-[400px] p-0 glass-panel border-white/10" align="start">
-                          <Command className="bg-transparent">
-                            <CommandInput placeholder="Type customer name..." className="h-9" />
-                            <CommandList>
-                              <CommandEmpty>No customer found.</CommandEmpty>
-                              <CommandGroup>
-                                {customers.map((c) => (
-                                  <CommandItem
-                                    key={c.id}
-                                    value={c.name}
-                                    onSelect={() => {
-                                      setForm({ ...form, customer_id: c.id, is_new_customer: false });
-                                      setOpenCustomerSelect(false);
-                                    }}
-                                    className="flex items-center gap-2 cursor-pointer"
-                                  >
-                                    <Check className={cn("mr-2 h-4 w-4", form.customer_id === c.id ? "opacity-100" : "opacity-0")} />
-                                    <div className="flex flex-col">
-                                      <span>{c.name}</span>
-                                      {c.phone && <span className="text-[10px] text-muted-foreground">{c.phone}</span>}
-                                    </div>
-                                  </CommandItem>
-                                ))}
-                              </CommandGroup>
-                            </CommandList>
-                          </Command>
-                        </PopoverContent>
-                      </Popover>
+                      <CustomerSelect 
+                        customers={customers}
+                        value={form.customer_id}
+                        onValueChange={(v) => {
+                          setForm({ ...form, customer_id: v, is_new_customer: false });
+                          setOpenCustomerSelect(false);
+                        }}
+                        onAddNew={() => setForm({ ...form, is_new_customer: true, customer_id: "" })}
+                        placeholder="Search customers..."
+                      />
                     ) : (
                       <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
                         <div className="space-y-2">
@@ -1360,9 +1361,93 @@ export default function RepairsMaintenance() {
                   <h3 className="text-sm font-bold uppercase tracking-widest text-foreground/70">Cost Summary</h3>
                 </div>
                 
-                <div className="space-y-2">
-                  <Label className="text-[10px] font-extrabold uppercase">Parts to Be Replace</Label>
-                  <Textarea value={form.parts_to_replace} onChange={(e) => setForm({ ...form, parts_to_replace: e.target.value })} className="rounded-xl min-h-[80px]" placeholder="List required parts..." />
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-[10px] font-extrabold uppercase">Replacement Parts List</Label>
+                    <Button 
+                      type="button" 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-7 text-[10px] font-bold uppercase text-amber-500 hover:text-amber-600 hover:bg-amber-500/5"
+                      onClick={() => setForm({ 
+                        ...form, 
+                        replacement_parts_list: [...(form.replacement_parts_list || []), { name: "", price: 0 }] 
+                      })}
+                    >
+                      <PlusCircle className="mr-1 h-3 w-3" /> Add Part
+                    </Button>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    {form.replacement_parts_list && form.replacement_parts_list.length > 0 ? (
+                      form.replacement_parts_list.map((part, idx) => (
+                        <div key={idx} className="flex gap-2 items-center animate-in fade-in slide-in-from-top-1 duration-200">
+                          <Input 
+                            placeholder="Part Name / Description" 
+                            className="flex-1 h-10 text-xs rounded-xl bg-background/50 border-white/10 focus:border-amber-500/50" 
+                            value={part.name} 
+                            onChange={(e) => {
+                              const newList = [...(form.replacement_parts_list || [])];
+                              newList[idx].name = e.target.value;
+                              setForm({ ...form, replacement_parts_list: newList });
+                            }}
+                          />
+                          <div className="w-36 relative">
+                            <CurrencyInput 
+                              placeholder="0.00" 
+                              className="h-10 text-xs rounded-xl bg-background/50 border-white/10 pl-7 focus:border-amber-500/50" 
+                              value={part.price} 
+                              onChange={(e) => {
+                                const newList = [...(form.replacement_parts_list || [])];
+                                newList[idx].price = parseFloat(e.target.value.replace(/,/g, "")) || 0;
+                                setForm({ ...form, replacement_parts_list: newList });
+                              }}
+                            />
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-bold opacity-30">₦</span>
+                          </div>
+                          <Button 
+                            type="button" 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-10 w-10 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-xl" 
+                            onClick={() => {
+                              const newList = (form.replacement_parts_list || []).filter((_, i) => i !== idx);
+                              setForm({ ...form, replacement_parts_list: newList });
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-6 border border-dashed border-white/10 rounded-2xl bg-foreground/[0.02]">
+                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">No parts added yet</p>
+                        <Button 
+                          type="button" 
+                          variant="ghost" 
+                          size="sm" 
+                          className="mt-2 h-7 text-[9px] font-bold uppercase text-amber-500 hover:bg-amber-500/5"
+                          onClick={() => setForm({ 
+                            ...form, 
+                            replacement_parts_list: [...(form.replacement_parts_list || []), { name: "", price: 0 }] 
+                          })}
+                        >
+                          + Click to add first part
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Still keep the summary textarea but smaller, as notes */}
+                  <div className="pt-2">
+                    <Label className="text-[10px] font-bold uppercase opacity-60 mb-2 block">Additional Parts Notes</Label>
+                    <Textarea 
+                      value={form.parts_to_replace} 
+                      onChange={(e) => setForm({ ...form, parts_to_replace: e.target.value })} 
+                      className="rounded-xl min-h-[60px] text-xs" 
+                      placeholder="Any extra notes about parts..." 
+                    />
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 bg-foreground/5 p-5 rounded-2xl border border-white/5">

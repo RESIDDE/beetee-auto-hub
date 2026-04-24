@@ -2,20 +2,48 @@ import { toast } from "sonner";
 import { getPrintHeaderHTML, getPrintWatermarkHTML } from "@/components/PrintHeader";
 import { getPrintFooterHTML } from "@/components/PrintFooter";
 
-export function exportToCSV(data: Record<string, any>[], filename: string) {
+export function exportToExcel(data: Record<string, any>[], filename: string) {
   if (data.length === 0) { toast.error("No data to export"); return; }
   const headers = Object.keys(data[0]);
-  const csv = [
-    headers.join(","),
-    ...data.map((row) =>
-      headers.map((h) => {
-        const val = row[h] ?? "";
-        const str = String(val).replace(/"/g, '""');
-        return `"${str}"`;
-      }).join(",")
-    ),
-  ].join("\n");
-  downloadFile(csv, `${filename}.csv`, "text/csv");
+  
+  // Create a simple HTML table for Excel
+  let html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+    <head><meta charset="utf-8" /><style>
+      table { border-collapse: collapse; }
+      th { background-color: #f2f2f2; font-weight: bold; border: 1px solid #000; }
+      td { border: 1px solid #000; }
+    </style></head>
+    <body><table><thead><tr>`;
+  
+  headers.forEach(h => {
+    html += `<th>${h}</th>`;
+  });
+  
+  html += `</tr></thead><tbody>`;
+  
+  data.forEach(row => {
+    html += `<tr>`;
+    headers.forEach(h => {
+      const val = row[h] ?? "";
+      html += `<td>${val}</td>`;
+    });
+    html += `</tr>`;
+  });
+  
+  html += `</tbody></table></body></html>`;
+  
+  const blob = new Blob([html], { type: "application/vnd.ms-excel" });
+  downloadFileBlob(blob, `${filename}.xls`);
+}
+
+function downloadFileBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast.success(`Exported ${filename}`);
 }
 
 export function exportToJSON(data: Record<string, any>[], filename: string) {

@@ -89,7 +89,7 @@ export default function VehicleDetail() {
             </Link>
           </Button>
           <h1 className="text-3xl font-bold text-foreground">
-            {vehicle.year} {vehicle.make} {vehicle.model}
+            {vehicle.year} {vehicle.make} {vehicle.model} {vehicle.trim && <span className="opacity-60">{vehicle.trim}</span>}
           </h1>
         </div>
         <div className="flex gap-2">
@@ -160,6 +160,7 @@ export default function VehicleDetail() {
           <CardContent className="grid grid-cols-2 gap-4">
             {info("Make", vehicle.make)}
             {info("Model", vehicle.model)}
+            {info("Trim", vehicle.trim)}
             {info("Year", vehicle.year)}
             {info("Chassis (VIN)", vehicle.vin)}
             {info("Color", vehicle.color)}

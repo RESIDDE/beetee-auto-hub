@@ -110,7 +110,7 @@ export default function Invoices() {
     queryFn: async () => {
       const { data, error } = await supabase.from("repairs").select("*, vehicles(make, model, year)");
       if (error) throw error;
-      return data;
+      return data as any[];
     },
   });
 
@@ -203,12 +203,12 @@ export default function Invoices() {
       .bill-to { margin-bottom: 30px; }
       .bill-to p { margin: 2px 0; font-size: 14px; }
       .main-container {
-        background-color: #f1f5f9;
+        background-color: transparent;
         border-radius: 40px;
         padding: 40px;
         min-height: 600px;
         position: relative;
-        border: 1px solid #cbd5e1;
+        border: none;
       }
       .content-wrapper { position: relative; z-index: 1; }
       .bill-title { text-align: center; text-decoration: underline; font-weight: 900; font-size: 22px; margin-bottom: 30px; color: #1e293b; text-transform: uppercase; }
@@ -249,31 +249,66 @@ export default function Invoices() {
           </thead>
           <tbody>
             ${sale ? `<tr><td style="text-align: center;">1.</td><td>VEHICLE SALE: ${vehicleInfo}</td><td style="text-align: right;">₦${Number(sale.sale_price).toLocaleString()}</td></tr>` : ""}
-            ${linkedRepairs.map((r, i) => `
-              <tr>
-                <td style="text-align: center;">${(sale ? 2 : 1) + i}.</td>
-                <td>REPAIR SERVICE: ${getRepairLabel(r)}</td>
-                <td style="text-align: right;">₦${Number(r.repair_cost || 0).toLocaleString()}</td>
-              </tr>
-            `).join("")}
+            ${linkedRepairs.map((r: any, i) => {
+              const baseNum = sale ? 2 : 1;
+              const hasParts = r.replacement_parts_list && (r.replacement_parts_list as any).length > 0;
+              
+              let repairRows = `
+                <tr>
+                  <td style="text-align: center;">${baseNum + i}.</td>
+                  <td style="font-weight: 800;">REPAIR SERVICE: ${getRepairLabel(r)}</td>
+                  <td style="text-align: right; font-weight: 800;">₦${Number(r.repair_cost || 0).toLocaleString()}</td>
+                </tr>
+              `;
+
+              if (hasParts) {
+                repairRows += (r.replacement_parts_list as any).map((p: any) => `
+                  <tr>
+                    <td></td>
+                    <td style="padding-left: 30px; font-size: 12px; color: #475569;">• ${p.name.toUpperCase()}</td>
+                    <td style="text-align: right; font-size: 12px; color: #475569;">₦${(Number(p.price) || 0).toLocaleString()}</td>
+                  </tr>
+                `).join('');
+                
+                if (Number(r.labour_total) > 0) {
+                  repairRows += `
+                    <tr>
+                      <td></td>
+                      <td style="padding-left: 30px; font-size: 12px; color: #475569;">• LABOUR CHARGES</td>
+                      <td style="text-align: right; font-size: 12px; color: #475569;">₦${Number(r.labour_total).toLocaleString()}</td>
+                    </tr>
+                  `;
+                }
+
+                if (Number(r.other_charges) > 0) {
+                  repairRows += `
+                    <tr>
+                      <td></td>
+                      <td style="padding-left: 30px; font-size: 12px; color: #475569;">• OTHER SERVICES</td>
+                      <td style="text-align: right; font-size: 12px; color: #475569;">₦${Number(r.other_charges).toLocaleString()}</td>
+                    </tr>
+                  `;
+                }
+
+                if (Number(r.vat) > 0) {
+                  repairRows += `
+                    <tr>
+                      <td></td>
+                      <td style="padding-left: 30px; font-size: 12px; color: #475569;">• VAT / TAX</td>
+                      <td style="text-align: right; font-size: 12px; color: #475569;">₦${Number(r.vat).toLocaleString()}</td>
+                    </tr>
+                  `;
+                }
+              }
+
+              return repairRows;
+            }).join("")}
             <tr class="total-row">
               <td colspan="2" style="text-align: right;">GRAND TOTAL</td>
               <td style="text-align: right;">₦${totalAmount.toLocaleString()}</td>
             </tr>
           </tbody>
         </table>
-        
-        ${linkedRepairs.filter((r: any) => r.parts_to_replace).length > 0 ? `
-        <div style="margin-bottom: 20px; background: transparent; padding: 15px; border-radius: 15px; border: 1px solid #94a3b8;">
-          <h4 style="margin: 0 0 8px 0; text-transform: uppercase; font-size: 13px; font-weight: 900;">Repair Details & Parts:</h4>
-          ${linkedRepairs.filter((r: any) => r.parts_to_replace).map((r: any) => `
-            <div style="margin-bottom: 8px;">
-              <strong style="font-size: 11px;">${getRepairLabel(r)}:</strong>
-              <div style="font-size: 10px; font-weight: 500; white-space: pre-wrap; margin-left: 10px; opacity: 0.8;">${r.parts_to_replace}</div>
-            </div>
-          `).join('')}
-        </div>
-        ` : ''}
 
         <div class="amount-words">
           AMOUNT IN WORDS: ${numberToWords(totalAmount)}

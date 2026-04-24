@@ -38,7 +38,7 @@ import {
 } from "recharts";
 import { format, subMonths, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
 import { toast } from "sonner";
-import { exportToCSV, exportToJSON, printTable } from "@/lib/exportHelpers";
+import { exportToExcel, exportToJSON, printTable } from "@/lib/exportHelpers";
 import { useAuth } from "@/hooks/useAuth";
 import { canEdit } from "@/lib/permissions";
 import { getPrintHeaderHTML, getPrintWatermarkHTML } from "@/components/PrintHeader";
@@ -49,6 +49,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { SignaturePad } from "@/components/SignaturePad";
 import { QrSignDialog } from "@/lib/qrHelpers";
 import { CurrencyInput } from "@/components/CurrencyInput";
+import { CustomerSelect } from "@/components/CustomerSelect";
 
 const COLORS = ["hsl(var(--primary))", "hsl(142 76% 36%)", "hsl(38 92% 50%)", "hsl(262 83% 58%)", "hsl(0 84% 60%)", "hsl(199 89% 48%)"];
 
@@ -79,7 +80,12 @@ const emptyForm = {
   rep_signature: "",
   buyer_signature: "",
   buyer_signature_date: "",
-  notes: "" 
+  notes: "",
+  is_new_customer: false,
+  manual_customer_name: "",
+  manual_customer_phone: "",
+  manual_customer_email: "",
+  manual_customer_address: ""
 };
 
 export default function Sales() {
@@ -124,9 +130,9 @@ export default function Sales() {
   const { data: vehicles = [] } = useQuery({
     queryKey: ["vehicles"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("vehicles").select("id, make, model, year, color, cost_price");
+      const { data, error } = await supabase.from("vehicles").select("id, make, model, year, trim, color, cost_price");
       if (error) throw error;
-      return data;
+      return data as any[];
     },
   });
 
@@ -141,7 +147,7 @@ export default function Sales() {
 
   const vehicleMap = Object.fromEntries(vehicles.map((v) => [
     v.id, 
-    `${v.year} ${v.make} ${v.model} ${v.color ? `(${v.color})` : ""}`.trim()
+    `${v.year} ${v.make} ${v.model} ${v.trim ? `${v.trim} ` : ""}${v.color ? `(${v.color})` : ""}`.trim()
   ]));
   const fullVehicleMap = Object.fromEntries(vehicles.map((v) => [v.id, v]));
   const customerMap = Object.fromEntries(customers.map((c) => [c.id, c.name]));
@@ -159,8 +165,23 @@ export default function Sales() {
 
   const upsertMutation = useMutation({
     mutationFn: async () => {
+      let finalCustomerId = form.customer_id;
+
+      if (form.is_new_customer && form.manual_customer_name) {
+        const { data: newCust, error: cErr } = await supabase.from("customers").insert({
+          name: form.manual_customer_name,
+          phone: form.manual_customer_phone || null,
+          email: form.manual_customer_email || null,
+          address: form.manual_customer_address || null,
+        }).select().single();
+        if (cErr) throw cErr;
+        finalCustomerId = newCust.id;
+      }
+
+      if (!finalCustomerId) throw new Error("Please select or enter a customer");
+
       const payload = {
-        customer_id: form.customer_id,
+        customer_id: finalCustomerId,
         sale_price: parseFloat(form.sale_price),
         sale_date: form.sale_date,
         payment_type: form.payment_type,
@@ -199,6 +220,7 @@ export default function Sales() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["sales"] });
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
       toast.success(editId ? "Sale updated" : "Sale recorded");
       closeDialog();
     },
@@ -233,13 +255,18 @@ export default function Sales() {
       buyer_signature: s.buyer_signature || "",
       buyer_signature_date: s.buyer_signature_date || "",
       notes: s.notes || "",
+      is_new_customer: false,
+      manual_customer_name: "",
+      manual_customer_phone: "",
+      manual_customer_email: "",
+      manual_customer_address: "",
     });
     setDialogOpen(true);
   };
 
-  const canSubmit = form.selected_vehicle_ids.length > 0 && form.customer_id && form.sale_price && !upsertMutation.isPending;
+  const canSubmit = (form.selected_vehicle_ids.length > 0) && (form.customer_id || (form.is_new_customer && form.manual_customer_name)) && form.sale_price && !upsertMutation.isPending;
 
-  const handleExportCSV = () => {
+  const handleExportExcel = () => {
     const rows = sales.map((s) => ({
       Vehicle: vehicleMap[s.vehicle_id] || s.vehicle_id,
       Customer: customerMap[s.customer_id] || s.customer_id,
@@ -247,7 +274,7 @@ export default function Sales() {
       "Sale Date": s.sale_date,
       Notes: s.notes || "",
     }));
-    exportToCSV(rows, "sales_export");
+    exportToExcel(rows, "sales_export");
   };
 
   const handleExportJSON = () => {
@@ -605,7 +632,7 @@ export default function Sales() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="rounded-xl glass-panel p-2 shadow-2xl border-white/10" align="end">
-              <DropdownMenuItem onClick={handleExportCSV} className="rounded-lg cursor-pointer"><FileText className="mr-2 h-4 w-4" /> Export to CSV</DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportExcel} className="rounded-lg cursor-pointer"><FileText className="mr-2 h-4 w-4" /> Export to Excel</DropdownMenuItem>
               <DropdownMenuItem onClick={handleExportJSON} className="rounded-lg cursor-pointer"><FileText className="mr-2 h-4 w-4" /> Export to JSON</DropdownMenuItem>
               <DropdownMenuItem onClick={handlePrint} className="rounded-lg cursor-pointer text-violet-500"><Printer className="mr-2 h-4 w-4" /> Print / PDF</DropdownMenuItem>
             </DropdownMenuContent>
@@ -892,16 +919,71 @@ export default function Sales() {
             </DialogHeader>
           </div>
           <div className="p-6 space-y-5">
-            <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Customer *</Label>
-              <Select value={form.customer_id} onValueChange={(v) => setForm({ ...form, customer_id: v })}>
-                <SelectTrigger className="rounded-xl h-11 bg-background/50 border-white/10 focus-visible:ring-violet-500"><SelectValue placeholder="Select customer" /></SelectTrigger>
-                <SelectContent className="glass-panel rounded-xl">
-                  {customers.map((c) => (
-                    <SelectItem key={c.id} value={c.id} className="rounded-lg">{c.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Customer *</Label>
+                <Button 
+                  type="button" 
+                  variant="ghost" 
+                  size="sm" 
+                  className="h-7 text-[10px] font-bold uppercase text-violet-500 hover:text-violet-600 hover:bg-violet-500/5"
+                  onClick={() => setForm({ 
+                    ...form, 
+                    is_new_customer: !form.is_new_customer,
+                    customer_id: !form.is_new_customer ? "" : form.customer_id 
+                  })}
+                >
+                  {form.is_new_customer ? "Select Existing" : "Add New Customer"}
+                </Button>
+              </div>
+
+              {!form.is_new_customer ? (
+                <CustomerSelect 
+                  customers={customers}
+                  value={form.customer_id}
+                  onValueChange={(v) => setForm({ ...form, customer_id: v })}
+                  onAddNew={() => setForm({ ...form, is_new_customer: true, customer_id: "" })}
+                />
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 rounded-2xl bg-violet-500/5 border border-violet-500/10 animate-fade-down">
+                  <div className="sm:col-span-2 space-y-1.5">
+                    <Label className="text-[10px] uppercase font-bold text-muted-foreground ml-1">Full Name *</Label>
+                    <Input 
+                      className="rounded-lg h-9 bg-background/50 border-white/10" 
+                      value={form.manual_customer_name} 
+                      onChange={(e) => setForm({ ...form, manual_customer_name: e.target.value })} 
+                      placeholder="e.g. John Doe"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] uppercase font-bold text-muted-foreground ml-1">Phone</Label>
+                    <Input 
+                      className="rounded-lg h-9 bg-background/50 border-white/10" 
+                      value={form.manual_customer_phone} 
+                      onChange={(e) => setForm({ ...form, manual_customer_phone: e.target.value })} 
+                      placeholder="0812..."
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] uppercase font-bold text-muted-foreground ml-1">Email</Label>
+                    <Input 
+                      className="rounded-lg h-9 bg-background/50 border-white/10" 
+                      value={form.manual_customer_email} 
+                      onChange={(e) => setForm({ ...form, manual_customer_email: e.target.value })} 
+                      placeholder="john@example.com"
+                    />
+                  </div>
+                  <div className="sm:col-span-2 space-y-1.5">
+                    <Label className="text-[10px] uppercase font-bold text-muted-foreground ml-1">Address</Label>
+                    <Input 
+                      className="rounded-lg h-9 bg-background/50 border-white/10" 
+                      value={form.manual_customer_address} 
+                      onChange={(e) => setForm({ ...form, manual_customer_address: e.target.value })} 
+                      placeholder="Customer's physical address"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">

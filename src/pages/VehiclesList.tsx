@@ -31,7 +31,7 @@ import {
 } from "recharts";
 import { differenceInDays } from "date-fns";
 import { toast } from "sonner";
-import { exportToCSV, exportToJSON, printTable } from "@/lib/exportHelpers";
+import { exportToExcel, exportToJSON, printTable } from "@/lib/exportHelpers";
 import { useAuth } from "@/hooks/useAuth";
 import { canEdit } from "@/lib/permissions";
 import { logAction } from "@/lib/logger";
@@ -102,13 +102,13 @@ export default function VehiclesList() {
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   const paged = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
-  const handleExportCSV = () => {
+  const handleExportExcel = () => {
     const rows = filtered.map((v) => ({
       Make: v.make, Model: v.model, Year: v.year, VIN: v.vin || "", Color: (v as any).color || "",
       Price: v.price, "Cost Price": (v as any).cost_price || "", Status: v.status, Condition: (v as any).condition || "",
       "Source Company": (v as any).source_company || "", "Date Arrived": (v as any).date_arrived || "",
     }));
-    exportToCSV(rows, "vehicles_export");
+    exportToExcel(rows, "vehicles_export");
   };
 
   const handleExportJSON = () => exportToJSON(filtered, "vehicles_export");
@@ -156,7 +156,7 @@ export default function VehiclesList() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="rounded-xl glass-panel p-2 shadow-2xl border-white/10" align="end">
-              <DropdownMenuItem onClick={handleExportCSV} className="rounded-lg cursor-pointer"><FileText className="mr-2 h-4 w-4" /> Export to CSV</DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportExcel} className="rounded-lg cursor-pointer"><FileText className="mr-2 h-4 w-4" /> Export to Excel</DropdownMenuItem>
               <DropdownMenuItem onClick={handleExportJSON} className="rounded-lg cursor-pointer"><FileText className="mr-2 h-4 w-4" /> Export to JSON</DropdownMenuItem>
               <DropdownMenuItem onClick={handlePrint} className="rounded-lg cursor-pointer text-primary"><Printer className="mr-2 h-4 w-4" /> Print / PDF</DropdownMenuItem>
             </DropdownMenuContent>
@@ -319,6 +319,7 @@ export default function VehiclesList() {
                 <TableRow className="border-border/50 hover:bg-transparent">
                   <TableHead className="font-semibold px-6 py-4">Vehicle</TableHead>
                   <TableHead className="font-semibold">Year</TableHead>
+                  <TableHead className="font-semibold">Trim</TableHead>
                   <TableHead className="font-semibold">Chassis (VIN)</TableHead>
                   <TableHead className="font-semibold">Condition</TableHead>
                   <TableHead className="font-semibold">Source</TableHead>
@@ -339,6 +340,7 @@ export default function VehiclesList() {
                       </div>
                     </TableCell>
                     <TableCell className="text-sm font-medium">{v.year}</TableCell>
+                    <TableCell className="text-sm">{(v as any).trim || "—"}</TableCell>
                     <TableCell>
                       {v.vin ? <span className="font-mono text-xs bg-foreground/5 px-2 py-1 rounded-md">{v.vin}</span> : <span className="opacity-50">—</span>}
                     </TableCell>
@@ -380,7 +382,7 @@ export default function VehiclesList() {
                        <Car className="h-5 w-5 text-sky-500" />
                      </div>
                      <div>
-                       <p className="font-semibold text-foreground text-sm">{v.year} {v.make} {v.model}</p>
+                       <p className="font-semibold text-foreground text-sm">{v.year} {v.make} {v.model} {(v as any).trim && <span className="font-normal opacity-60">({(v as any).trim})</span>}</p>
                        {v.vin && <p className="text-xs text-muted-foreground font-mono mt-1 w-full overflow-hidden text-ellipsis">VIN: {v.vin}</p>}
                      </div>
                   </div>

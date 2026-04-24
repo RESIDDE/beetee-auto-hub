@@ -44,6 +44,7 @@ interface FormData {
   num_keys: string;
   source_company: string;
   condition: string;
+  trim: string;
 }
 
 const emptyForm: FormData = {
@@ -64,6 +65,7 @@ const emptyForm: FormData = {
   num_keys: "0",
   source_company: "",
   condition: "Used",
+  trim: "",
 };
 
 export default function VehicleForm() {
@@ -137,6 +139,7 @@ export default function VehicleForm() {
         num_keys: v.num_keys?.toString() || "0",
         source_company: v.source_company || "",
         condition: v.condition || "Used",
+        trim: v.trim || "",
       });
     }
   }, [vehicle]);
@@ -218,6 +221,7 @@ export default function VehicleForm() {
         num_keys: parseInt(form.num_keys) || 0,
         source_company: form.source_company.trim() || null,
         condition: form.condition,
+        trim: form.trim.trim() || null,
       };
 
       if (isEdit) {
@@ -325,6 +329,7 @@ export default function VehicleForm() {
               required={{ make: true, model: true, year: true }}
             />
             {field("vin", "Chassis Number (VIN)")}
+            {field("trim", "Trim (e.g. LE, Sport)")}
             {field("color", "Color")}
             {field("mileage", "Mileage", "number")}
 

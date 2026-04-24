@@ -25,19 +25,22 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { canEdit } from "@/lib/permissions";
+import { CustomerSelect } from "@/components/CustomerSelect";
 
 const statuses = ["Open", "In Progress", "Closed"];
-const emptyForm = { 
-  customer_id: "", 
-  vehicle_id: "", 
-  message: "", 
+const emptyForm = {
+  customer_id: "",
+  vehicle_id: "",
+  message: "",
   status: "Open",
   manual_customer_name: "",
   manual_customer_phone: "",
   manual_customer_email: "",
   manual_vehicle_make: "",
   manual_vehicle_model: "",
-  manual_vehicle_year: ""
+  manual_vehicle_year: "",
+  is_new_customer: false,
+  manual_customer_address: ""
 };
 
 export default function Inquiries() {
@@ -74,7 +77,7 @@ export default function Inquiries() {
   const { data: customers = [] } = useQuery({
     queryKey: ["customers"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("customers").select("id, name");
+      const { data, error } = await supabase.from("customers").select("id, name, phone, email, address").order("name");
       if (error) throw error;
       return data;
     },
@@ -85,14 +88,14 @@ export default function Inquiries() {
 
   const filtered = (inquiries as any[]).filter((i) => {
     const q = search.toLowerCase();
-    const cName = i.customer_id 
-      ? (customerMap[i.customer_id] || "").toLowerCase() 
+    const cName = i.customer_id
+      ? (customerMap[i.customer_id] || "").toLowerCase()
       : (i.manual_customer_name || "").toLowerCase();
     const cPhone = (i.manual_customer_phone || "").toLowerCase();
     const cEmail = (i.manual_customer_email || "").toLowerCase();
 
-    const vName = i.vehicle_id 
-      ? (vehicleMap[i.vehicle_id] || "").toLowerCase() 
+    const vName = i.vehicle_id
+      ? (vehicleMap[i.vehicle_id] || "").toLowerCase()
       : `${i.manual_vehicle_year || ""} ${i.manual_vehicle_make || ""} ${i.manual_vehicle_model || ""}`.trim().toLowerCase();
 
     const msg = i.message.toLowerCase();
@@ -104,9 +107,26 @@ export default function Inquiries() {
 
   const upsertMutation = useMutation({
     mutationFn: async () => {
+      let finalCustomerId = form.customer_id;
+
+      if (form.is_new_customer && form.manual_customer_name) {
+        const { data: newCust, error: cErr } = await supabase.from("customers").insert({
+          name: form.manual_customer_name,
+          phone: form.manual_customer_phone || null,
+          email: form.manual_customer_email || null,
+          address: form.manual_customer_address || null,
+        }).select().single();
+        if (cErr) throw cErr;
+        finalCustomerId = newCust.id;
+      }
+
+      if (form.is_new_customer && !form.manual_customer_name) {
+        throw new Error("Please enter a customer name for the new customer.");
+      }
+
       const payload = {
-        customer_id: form.customer_id || null,
-        vehicle_id: form.vehicle_id || null,
+        customer_id: (finalCustomerId && finalCustomerId !== "none") ? finalCustomerId : null,
+        vehicle_id: (form.vehicle_id && form.vehicle_id !== "none") ? form.vehicle_id : null,
         message: form.message,
         status: form.status,
         manual_customer_name: form.manual_customer_name || null,
@@ -116,6 +136,7 @@ export default function Inquiries() {
         manual_vehicle_model: form.manual_vehicle_model || null,
         manual_vehicle_year: form.manual_vehicle_year || null,
       };
+
       if (editId) {
         const { error } = await supabase.from("inquiries").update(payload as any).eq("id", editId);
         if (error) throw error;
@@ -126,10 +147,14 @@ export default function Inquiries() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["inquiries"] });
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
       toast.success(editId ? "Inquiry updated" : "Inquiry added");
       closeDialog();
     },
-    onError: () => toast.error("Failed to save inquiry"),
+    onError: (error: any) => {
+      console.error("Save error:", error);
+      toast.error(`Failed to save inquiry: ${error.message || "Unknown error"}`);
+    },
   });
 
   const deleteMutation = useMutation({
@@ -159,6 +184,8 @@ export default function Inquiries() {
       manual_vehicle_make: i.manual_vehicle_make || "",
       manual_vehicle_model: i.manual_vehicle_model || "",
       manual_vehicle_year: i.manual_vehicle_year || "",
+      is_new_customer: false,
+      manual_customer_address: i.manual_customer_address || "",
     });
     setDialogOpen(true);
   };
@@ -191,10 +218,10 @@ export default function Inquiries() {
         <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/5 to-transparent pointer-events-none" />
         <div className="relative w-full group z-10">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-indigo-500 transition-colors" />
-          <Input 
-            placeholder="Search by customer, vehicle, or inquiry content..." 
-            value={search} 
-            onChange={(e) => { setSearch(e.target.value); setPage(0); }} 
+          <Input
+            placeholder="Search by customer, vehicle, or inquiry content..."
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setPage(0); }}
             className="pl-10 h-10 rounded-xl bg-background/50 border-white/10 focus-visible:ring-indigo-500/50 transition-all font-medium text-sm w-full"
           />
         </div>
@@ -203,7 +230,7 @@ export default function Inquiries() {
       {/* Main Content Area */}
       {isLoading ? (
         <div className="space-y-4">
-          {[1,2,3,4].map(i => <div key={i} className="h-16 w-full rounded-2xl bg-card/40 animate-pulse border border-white/5" />)}
+          {[1, 2, 3, 4].map(i => <div key={i} className="h-16 w-full rounded-2xl bg-card/40 animate-pulse border border-white/5" />)}
         </div>
       ) : inquiries.length === 0 ? (
         <div className="bento-card p-12 flex flex-col items-center justify-center text-center">
@@ -234,10 +261,10 @@ export default function Inquiries() {
                       <TableCell className="px-6 py-4">
                         <div className="flex flex-col">
                           <div className="flex items-center gap-2">
-                             <Users className="h-4 w-4 text-muted-foreground" />
-                             <span className="font-semibold text-sm transition-colors group-hover:text-indigo-500">
-                               {i.customer_id ? customerMap[i.customer_id] || "—" : i.manual_customer_name || "—"}
-                             </span>
+                            <Users className="h-4 w-4 text-muted-foreground" />
+                            <span className="font-semibold text-sm transition-colors group-hover:text-indigo-500">
+                              {i.customer_id ? customerMap[i.customer_id] || "—" : i.manual_customer_name || "—"}
+                            </span>
                           </div>
                           {(i.manual_customer_phone || i.manual_customer_email) && (
                             <div className="text-[10px] text-muted-foreground ml-6 mt-0.5">
@@ -247,24 +274,23 @@ export default function Inquiries() {
                         </div>
                       </TableCell>
                       <TableCell>
-                         <div className="flex items-center gap-2">
-                            {(i.vehicle_id || i.manual_vehicle_make) ? <Car className="h-4 w-4 text-muted-foreground" /> : null}
-                            <span className="text-sm">
-                              {i.vehicle_id 
-                                ? vehicleMap[i.vehicle_id] || "—" 
-                                : i.manual_vehicle_make 
-                                  ? `${i.manual_vehicle_year || ""} ${i.manual_vehicle_make} ${i.manual_vehicle_model || ""}`.trim() 
-                                  : "—"}
-                            </span>
-                         </div>
+                        <div className="flex items-center gap-2">
+                          {(i.vehicle_id || i.manual_vehicle_make) ? <Car className="h-4 w-4 text-muted-foreground" /> : null}
+                          <span className="text-sm">
+                            {i.vehicle_id
+                              ? vehicleMap[i.vehicle_id] || "—"
+                              : i.manual_vehicle_make
+                                ? `${i.manual_vehicle_year || ""} ${i.manual_vehicle_make} ${i.manual_vehicle_model || ""}`.trim()
+                                : "—"}
+                          </span>
+                        </div>
                       </TableCell>
                       <TableCell className="max-w-[300px] truncate text-sm text-muted-foreground">{i.message}</TableCell>
                       <TableCell>
-                        <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold uppercase tracking-wider ${
-                          i.status === "Open" ? "bg-indigo-500/10 text-indigo-500 border border-indigo-500/20" :
-                          i.status === "In Progress" ? "bg-amber-500/10 text-amber-500 border border-amber-500/20" :
-                          "bg-muted/50 text-muted-foreground border border-white/5"
-                        }`}>{i.status}</span>
+                        <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold uppercase tracking-wider ${i.status === "Open" ? "bg-indigo-500/10 text-indigo-500 border border-indigo-500/20" :
+                            i.status === "In Progress" ? "bg-amber-500/10 text-amber-500 border border-amber-500/20" :
+                              "bg-muted/50 text-muted-foreground border border-white/5"
+                          }`}>{i.status}</span>
                       </TableCell>
                       <TableCell className="text-right px-6">
                         <div className="flex justify-end gap-1 opacity-50 group-hover:opacity-100 transition-opacity">
@@ -293,15 +319,15 @@ export default function Inquiries() {
               <Pagination>
                 <PaginationContent>
                   <PaginationItem>
-                    <PaginationPrevious 
+                    <PaginationPrevious
                       onClick={() => page > 0 && setPage(page - 1)}
                       className={page === 0 ? "pointer-events-none opacity-50" : "cursor-pointer"}
                     />
                   </PaginationItem>
-                  
+
                   {[...Array(totalPages)].map((_, i) => (
                     <PaginationItem key={i} className="hidden sm:block">
-                      <PaginationLink 
+                      <PaginationLink
                         isActive={page === i}
                         onClick={() => setPage(i)}
                         className="cursor-pointer"
@@ -312,7 +338,7 @@ export default function Inquiries() {
                   ))}
 
                   <PaginationItem>
-                    <PaginationNext 
+                    <PaginationNext
                       onClick={() => page < totalPages - 1 && setPage(page + 1)}
                       className={page >= totalPages - 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
                     />
@@ -337,27 +363,42 @@ export default function Inquiries() {
           <div className="p-6 space-y-5">
             {/* Customer Section */}
             <div className="space-y-4 pt-2">
-              <div className="flex items-center gap-2 mb-1">
-                <Users className="w-4 h-4 text-indigo-500" />
-                <h3 className="text-xs font-bold uppercase tracking-wider text-indigo-500">Customer Information</h3>
-              </div>
-              <div className="space-y-2">
-                <Label className="text-[10px] uppercase font-bold text-muted-foreground ml-1">Select Existing</Label>
-                <Select value={form.customer_id} onValueChange={(v) => setForm({ ...form, customer_id: v })}>
-                  <SelectTrigger className="rounded-xl h-10 bg-background/50 border-white/10 focus-visible:ring-indigo-500"><SelectValue placeholder="Choose from database" /></SelectTrigger>
-                  <SelectContent className="glass-panel rounded-xl">
-                    <SelectItem value="none" className="rounded-lg text-muted-foreground italic">None (Use Manual Entry)</SelectItem>
-                    {customers.map((c) => (
-                      <SelectItem key={c.id} value={c.id} className="rounded-lg">{c.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center gap-2">
+                  <Users className="w-4 h-4 text-indigo-500" />
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-indigo-500">Customer Information</h3>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-[10px] font-bold uppercase text-indigo-500 hover:text-indigo-600 hover:bg-indigo-500/5"
+                  onClick={() => setForm({
+                    ...form,
+                    is_new_customer: !form.is_new_customer,
+                    customer_id: !form.is_new_customer ? "none" : form.customer_id
+                  })}
+                >
+                  {form.is_new_customer ? "Select Existing" : "Add New Customer"}
+                </Button>
               </div>
 
-              {!form.customer_id || form.customer_id === "none" ? (
+              {!form.is_new_customer ? (
+                <div className="space-y-2">
+                  <Label className="text-[10px] uppercase font-bold text-muted-foreground ml-1">Select Existing</Label>
+                  <CustomerSelect
+                    customers={customers}
+                    value={form.customer_id}
+                    onValueChange={(v) => setForm({ ...form, customer_id: v })}
+                    onAddNew={() => setForm({ ...form, is_new_customer: true, customer_id: "none" })}
+                    placeholder="Choose from database"
+                    className="h-10"
+                  />
+                </div>
+              ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 rounded-2xl bg-indigo-500/5 border border-indigo-500/10 animate-fade-down">
                   <div className="sm:col-span-2 space-y-1.5">
-                    <Label className="text-[10px] uppercase font-bold text-muted-foreground ml-1">Manual Name</Label>
+                    <Label className="text-[10px] uppercase font-bold text-muted-foreground ml-1">Full Name *</Label>
                     <Input className="rounded-lg h-9 bg-background/50 border-white/10" value={form.manual_customer_name} onChange={(e) => setForm({ ...form, manual_customer_name: e.target.value })} placeholder="Customer's full name" />
                   </div>
                   <div className="space-y-1.5">
@@ -368,8 +409,12 @@ export default function Inquiries() {
                     <Label className="text-[10px] uppercase font-bold text-muted-foreground ml-1">Email</Label>
                     <Input className="rounded-lg h-9 bg-background/50 border-white/10" value={form.manual_customer_email} onChange={(e) => setForm({ ...form, manual_customer_email: e.target.value })} placeholder="example@mail.com" />
                   </div>
+                  <div className="sm:col-span-2 space-y-1.5">
+                    <Label className="text-[10px] uppercase font-bold text-muted-foreground ml-1">Address</Label>
+                    <Input className="rounded-lg h-9 bg-background/50 border-white/10" value={form.manual_customer_address} onChange={(e) => setForm({ ...form, manual_customer_address: e.target.value })} placeholder="Physical address" />
+                  </div>
                 </div>
-              ) : null}
+              )}
             </div>
 
             {/* Vehicle Section */}
@@ -426,8 +471,12 @@ export default function Inquiries() {
           </div>
           <div className="p-6 border-t border-white/5 bg-foreground/5 flex justify-end gap-3">
             <Button variant="outline" onClick={closeDialog} className="rounded-xl border-white/10 hover:bg-white/5">Cancel</Button>
-            <Button onClick={() => upsertMutation.mutate()} disabled={!form.message || upsertMutation.isPending} className="rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white shadow-lg shadow-indigo-500/20">
-              {editId ? "Update Inquiry" : "Save Inquiry"}
+            <Button 
+              onClick={() => upsertMutation.mutate()} 
+              disabled={!form.message || (form.is_new_customer && !form.manual_customer_name) || upsertMutation.isPending} 
+              className="rounded-xl bg-sky-500 hover:bg-sky-600 text-white shadow-lg shadow-sky-500/20"
+            >
+              {upsertMutation.isPending ? "Saving..." : editId ? "Update Inquiry" : "Save Inquiry"}
             </Button>
           </div>
         </DialogContent>
