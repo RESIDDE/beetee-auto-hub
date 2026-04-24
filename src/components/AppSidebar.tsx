@@ -26,6 +26,7 @@ const ALL_NAV_ITEMS: NavItem[] = [
   { title: "Resale Vehicles", url: "/resale-vehicles", pageKey: "vehicles",         icon: Car },
   { title: "Customers",    url: "/customers",         pageKey: "customers",        icon: Users },
   { title: "Sales",        url: "/sales",             pageKey: "sales",            icon: (props) => <NairaIcon {...props} /> },
+  { title: "Perf. Quotes", url: "/performance-quotes", pageKey: "performance-quotes", icon: FileSignature },
   { title: "Invoices",     url: "/invoices",          pageKey: "invoices",         icon: FileText },
   { title: "Inquiries",    url: "/inquiries",         pageKey: "inquiries",        icon: MessageSquare },
   { title: "Inspections",  url: "/inspections",       pageKey: "inspections",      icon: ClipboardCheck },
