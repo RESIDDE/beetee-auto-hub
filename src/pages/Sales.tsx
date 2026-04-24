@@ -130,7 +130,7 @@ export default function Sales() {
   const { data: vehicles = [] } = useQuery({
     queryKey: ["vehicles"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("vehicles").select("id, make, model, year, trim, color, cost_price");
+      const { data, error } = await supabase.from("vehicles").select("id, make, model, year, trim, color, vin, cost_price");
       if (error) throw error;
       return data as any[];
     },
@@ -301,9 +301,13 @@ export default function Sales() {
   const printReceipt = (sale: any, isBulk = false) => {
     const cust = customerObjMap[sale.customer_id];
     const totalAmount = Number(sale.sale_price) || 0;
-    const saleItems = sale.sale_vehicles?.length > 0 
-      ? sale.sale_vehicles.map((sv: any) => vehicleMap[sv.vehicle_id] || "Unknown Vehicle")
-      : [vehicleMap[sale.vehicle_id] || "Unknown Vehicle"];
+    
+    // Get full vehicle objects for the items in this sale
+    const saleVehicleIds = sale.sale_vehicles?.length > 0 
+      ? sale.sale_vehicles.map((sv: any) => sv.vehicle_id)
+      : [sale.vehicle_id];
+      
+    const saleVehicleObjects = vehicles.filter(v => saleVehicleIds.includes(v.id));
 
     return `
     <div class="receipt-page" style="${isBulk ? 'page-break-after: always; padding: 40px 0;' : ''}">
@@ -318,44 +322,55 @@ export default function Sales() {
       <div class="main-container">
         ${getPrintWatermarkHTML()}
         <div class="content-wrapper">
-          <h2 class="bill-title">SALES RECEIPT</h2>
+          <h2 class="bill-title">VEHICLE SALES RECEIPT</h2>
           
-          <table>
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>VEHICLE DESCRIPTION</th>
-                <th style="text-align: right;">AMOUNT (₦)</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${saleItems.map((v: string, i: number) => `
-                <tr>
-                  <td>${i + 1}.</td>
-                  <td>${v}</td>
-                  <td style="text-align: right;">₦${(totalAmount / saleItems.length).toLocaleString()}</td>
-                </tr>
-              `).join("")}
-              <tr class="total-row">
-                <td colspan="2" style="text-align: right;">TOTAL PAID</td>
-                <td style="text-align: right;">₦${totalAmount.toLocaleString()}</td>
-              </tr>
-            </tbody>
-          </table>
+          <div style="margin-bottom: 40px;">
+            ${saleVehicleObjects.map((v: any) => `
+              <div style="margin-bottom: 30px; border-bottom: 1px solid #e2e8f0; padding-bottom: 20px;">
+                <h3 style="font-size: 18px; font-weight: 900; margin-bottom: 15px; color: #0f172a; text-transform: uppercase;">Vehicle Specification</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                  <div>
+                    <p style="font-size: 11px; color: #64748b; font-weight: 800; margin: 0; text-transform: uppercase;">Make</p>
+                    <p style="font-size: 15px; font-weight: 700; margin: 2px 0 0 0;">${v.make}</p>
+                  </div>
+                  <div>
+                    <p style="font-size: 11px; color: #64748b; font-weight: 800; margin: 0; text-transform: uppercase;">Model</p>
+                    <p style="font-size: 15px; font-weight: 700; margin: 2px 0 0 0;">${v.model}</p>
+                  </div>
+                  <div>
+                    <p style="font-size: 11px; color: #64748b; font-weight: 800; margin: 0; text-transform: uppercase;">Year</p>
+                    <p style="font-size: 15px; font-weight: 700; margin: 2px 0 0 0;">${v.year}</p>
+                  </div>
+                  <div>
+                    <p style="font-size: 11px; color: #64748b; font-weight: 800; margin: 0; text-transform: uppercase;">Trim / Edition</p>
+                    <p style="font-size: 15px; font-weight: 700; margin: 2px 0 0 0;">${v.trim || "Standard"}</p>
+                  </div>
+                  <div style="grid-column: span 2;">
+                    <p style="font-size: 11px; color: #64748b; font-weight: 800; margin: 0; text-transform: uppercase;">Chassis No (VIN)</p>
+                    <p style="font-size: 15px; font-weight: 700; margin: 2px 0 0 0; font-family: monospace;">${v.vin || "—"}</p>
+                  </div>
+                  <div>
+                    <p style="font-size: 11px; color: #64748b; font-weight: 800; margin: 0; text-transform: uppercase;">Color</p>
+                    <p style="font-size: 15px; font-weight: 700; margin: 2px 0 0 0;">${v.color || "—"}</p>
+                  </div>
+                </div>
+              </div>
+            `).join("")}
+          </div>
 
-          <div class="amount-words">
-            AMOUNT IN WORDS: ${numberToWords(totalAmount)}
+          <div style="background: #f8fafc; padding: 25px; border-radius: 20px; border: 1px solid #e2e8f0; margin-bottom: 30px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-size: 16px; font-weight: 800; color: #64748b;">TOTAL AMOUNT PAID</span>
+              <span style="font-size: 24px; font-weight: 900; color: #0f172a;">₦${totalAmount.toLocaleString()}</span>
+            </div>
+            <div style="margin-top: 15px; padding-top: 15px; border-top: 1px dashed #cbd5e1;">
+              <p style="font-size: 12px; font-weight: 800; color: #64748b; margin: 0; text-transform: uppercase;">Amount in Words</p>
+              <p style="font-size: 14px; font-weight: 700; color: #0f172a; margin: 5px 0 0 0; line-height: 1.4;">${numberToWords(totalAmount).toUpperCase()}</p>
+            </div>
           </div>
 
           <div class="refund-note">
             NOTICE: NO REFUND AFTER PAYMENT
-          </div>
-
-          <div class="bank-details">
-            <h4>BANK DETAILS:</h4>
-            <p>Account name: <strong>BEE TEE AUTOMOBILE -SERVICES</strong></p>
-            <p>Account Number: <strong>1229785752</strong></p>
-            <p>Bank: <strong>ZENITH BANK</strong></p>
           </div>
 
           <div class="signature-area">
