@@ -374,6 +374,7 @@ export default function Sales() {
   };
 
   const handlePrintReceipt = (sale: any) => {
+    toast.info("Preparing receipt...");
     const html = `<html><head><title>Receipt - ${sale.id.slice(0, 8).toUpperCase()}</title>
     <style>
       @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap');
@@ -382,12 +383,12 @@ export default function Sales() {
       .bill-to { margin-bottom: 30px; }
       .bill-to p { margin: 2px 0; font-size: 14px; }
       .main-container {
-        background-color: #cbd5e1;
+        background-color: transparent;
         border-radius: 40px;
         padding: 40px;
         min-height: 600px;
         position: relative;
-        border: 1px solid #94a3b8;
+        border: none;
       }
       .content-wrapper { position: relative; z-index: 1; }
       .bill-title { text-align: center; text-decoration: underline; font-weight: 900; font-size: 22px; margin-bottom: 30px; color: #1e293b; text-transform: uppercase; }
@@ -412,11 +413,22 @@ export default function Sales() {
     ${getPrintFooterHTML()}
     </body></html>`;
     const win = window.open("", "_blank");
-    if (win) { win.document.write(html); win.document.close(); win.print(); }
+    if (win) { 
+      win.document.write(html); 
+      win.document.close(); 
+      // Give it a moment to render images/styles
+      setTimeout(() => {
+        win.focus();
+        win.print(); 
+      }, 500);
+    } else {
+      toast.error("Pop-up blocked! Please allow pop-ups for this site.");
+    }
   };
 
   const handleBulkPrintReceipts = () => {
     if (filtered.length === 0) { toast.error("No sales to print"); return; }
+    toast.info("Preparing bulk receipts...");
     
     const html = `<html><head><title>Bulk Sales Receipts</title>
     <style>
@@ -426,12 +438,12 @@ export default function Sales() {
       .bill-to { margin-bottom: 30px; }
       .bill-to p { margin: 2px 0; font-size: 14px; }
       .main-container {
-        background-color: #cbd5e1;
+        background-color: transparent;
         border-radius: 40px;
         padding: 40px;
         min-height: 600px;
         position: relative;
-        border: 1px solid #94a3b8;
+        border: none;
       }
       .content-wrapper { position: relative; z-index: 1; }
       .bill-title { text-align: center; text-decoration: underline; font-weight: 900; font-size: 22px; margin-bottom: 30px; color: #1e293b; text-transform: uppercase; }
@@ -464,7 +476,16 @@ export default function Sales() {
     </body></html>`;
     
     const win = window.open("", "_blank");
-    if (win) { win.document.write(html); win.document.close(); win.print(); }
+    if (win) { 
+      win.document.write(html); 
+      win.document.close(); 
+      setTimeout(() => {
+        win.focus();
+        win.print();
+      }, 800);
+    } else {
+      toast.error("Pop-up blocked! Please allow pop-ups for this site.");
+    }
   };
 
   const downloadSaleReceipt = async (sale: any, format: "png" | "jpeg" | "pdf") => {
@@ -903,9 +924,9 @@ export default function Sales() {
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
-                          <Button variant="ghost" size="sm" className="h-8 rounded-lg hover:bg-foreground/20" onClick={() => printReceipt(s)}>
-                            <Receipt className="h-4 w-4 mr-1.5" /> Receipt
-                          </Button>
+                            <Button variant="ghost" size="sm" className="h-8 rounded-lg hover:bg-foreground/20" onClick={() => handlePrintReceipt(s)}>
+                              <Receipt className="h-4 w-4 mr-1.5" /> Receipt
+                            </Button>
                           <Button variant="ghost" size="sm" className="h-8 rounded-lg hover:bg-violet-500/10 hover:text-violet-500" onClick={() => navigate(`/invoices?action=create&customer_id=${s.customer_id}&sale_id=${s.id}&type=sale`)}>
                             <FileOutput className="h-4 w-4 mr-1.5" /> Invoice
                           </Button>
