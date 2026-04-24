@@ -204,6 +204,27 @@ export default function VehicleDetail() {
           </CardContent>
         </Card>
 
+        {vehicle.inventory_type === 'resale' && (
+          <Card className="border-emerald-500/20 bg-emerald-500/5">
+            <CardHeader>
+              <CardTitle className="text-emerald-500 flex items-center gap-2 font-bold uppercase tracking-widest text-sm">Resale Acceptance Information</CardTitle>
+            </CardHeader>
+            <CardContent className="grid grid-cols-2 gap-6">
+              {info("Accepted By", vehicle.accepted_by_name)}
+              {info("Acceptance Date", vehicle.accepted_date ? new Date(vehicle.accepted_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : null)}
+              
+              {vehicle.accepted_signature && (
+                <div className="col-span-2 space-y-2 border-t border-emerald-500/10 pt-4">
+                  <p className="text-sm text-muted-foreground uppercase font-bold tracking-wider">Receiver's Digital Signature</p>
+                  <div className="bg-white/80 p-4 rounded-xl border border-emerald-500/10 inline-block">
+                    <img src={vehicle.accepted_signature} alt="Signature" className="max-h-[100px] object-contain mix-blend-multiply" />
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         {vehicle.description && (
           <Card>
             <CardHeader>
