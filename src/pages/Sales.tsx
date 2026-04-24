@@ -298,13 +298,82 @@ export default function Sales() {
     ]);
   };
 
-  const printReceipt = (sale: any) => {
+  const printReceipt = (sale: any, isBulk = false) => {
     const cust = customerObjMap[sale.customer_id];
     const totalAmount = Number(sale.sale_price) || 0;
     const saleItems = sale.sale_vehicles?.length > 0 
       ? sale.sale_vehicles.map((sv: any) => vehicleMap[sv.vehicle_id] || "Unknown Vehicle")
       : [vehicleMap[sale.vehicle_id] || "Unknown Vehicle"];
 
+    return `
+    <div class="receipt-page" style="${isBulk ? 'page-break-after: always; padding: 40px 0;' : ''}">
+      <div class="date-section">RECEIPT NO: ${sale.id.slice(0, 8).toUpperCase()}<br/>DATE: ${new Date(sale.sale_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
+
+      <div class="bill-to">
+        <p style="font-weight: 900;">CUSTOMER:</p>
+        <p><strong>${cust?.name || "—"}</strong></p>
+        ${cust?.phone ? `<p>Tel: ${cust.phone}</p>` : ""}
+      </div>
+
+      <div class="main-container">
+        ${getPrintWatermarkHTML()}
+        <div class="content-wrapper">
+          <h2 class="bill-title">SALES RECEIPT</h2>
+          
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>VEHICLE DESCRIPTION</th>
+                <th style="text-align: right;">AMOUNT (₦)</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${saleItems.map((v: string, i: number) => `
+                <tr>
+                  <td>${i + 1}.</td>
+                  <td>${v}</td>
+                  <td style="text-align: right;">₦${(totalAmount / saleItems.length).toLocaleString()}</td>
+                </tr>
+              `).join("")}
+              <tr class="total-row">
+                <td colspan="2" style="text-align: right;">TOTAL PAID</td>
+                <td style="text-align: right;">₦${totalAmount.toLocaleString()}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="amount-words">
+            AMOUNT IN WORDS: ${numberToWords(totalAmount)}
+          </div>
+
+          <div class="refund-note">
+            NOTICE: NO REFUND AFTER PAYMENT
+          </div>
+
+          <div class="bank-details">
+            <h4>BANK DETAILS:</h4>
+            <p>Account name: <strong>BEE TEE AUTOMOBILE -SERVICES</strong></p>
+            <p>Account Number: <strong>1229785752</strong></p>
+            <p>Bank: <strong>ZENITH BANK</strong></p>
+          </div>
+
+          <div class="signature-area">
+            <div class="sig-box">
+              ${sale.buyer_signature ? `<img src="${sale.buyer_signature}" class="signature-img" />` : '<div style="height:50px"></div>'}
+              <p style="border-top: 1px solid #1a1a1a; padding-top: 5px;"><strong>CUSTOMER SIGNATURE</strong></p>
+            </div>
+            <div class="sig-box">
+               ${sale.rep_signature ? `<img src="${sale.rep_signature}" class="signature-img" />` : '<div style="height:50px"></div>'}
+              <p style="border-top: 1px solid #1a1a1a; padding-top: 5px;"><strong>FOR: BEE TEE AUTOMOBILE</strong></p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  };
+
+  const handlePrintReceipt = (sale: any) => {
     const html = `<html><head><title>Receipt - ${sale.id.slice(0, 8).toUpperCase()}</title>
     <style>
       @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap');
@@ -339,72 +408,61 @@ export default function Sales() {
       .signature-img { max-height: 50px; display: block; margin: 0 auto 5px; }
     </style></head><body>
     ${getPrintHeaderHTML()}
-    
-    <div class="date-section">RECEIPT NO: ${sale.id.slice(0, 8).toUpperCase()}<br/>DATE: ${new Date(sale.sale_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
-
-    <div class="bill-to">
-      <p style="font-weight: 900;">CUSTOMER:</p>
-      <p><strong>${cust?.name || "—"}</strong></p>
-      ${cust?.phone ? `<p>Tel: ${cust.phone}</p>` : ""}
-    </div>
-
-    <div class="main-container">
-      ${getPrintWatermarkHTML()}
-      <div class="content-wrapper">
-        <h2 class="bill-title">SALES RECEIPT</h2>
-        
-        <table>
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>VEHICLE DESCRIPTION</th>
-              <th style="text-align: right;">AMOUNT (₦)</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${saleItems.map((v: string, i: number) => `
-              <tr>
-                <td>${i + 1}.</td>
-                <td>${v}</td>
-                <td style="text-align: right;">₦${(totalAmount / saleItems.length).toLocaleString()}</td>
-              </tr>
-            `).join("")}
-            <tr class="total-row">
-              <td colspan="2" style="text-align: right;">TOTAL PAID</td>
-              <td style="text-align: right;">₦${totalAmount.toLocaleString()}</td>
-            </tr>
-          </tbody>
-        </table>
-
-        <div class="amount-words">
-          AMOUNT IN WORDS: ${numberToWords(totalAmount)}
-        </div>
-
-        <div class="refund-note">
-          NOTICE: NO REFUND AFTER PAYMENT
-        </div>
-
-        <div class="bank-details">
-          <h4>BANK DETAILS:</h4>
-          <p>Account name: <strong>BEE TEE AUTOMOBILE -SERVICES</strong></p>
-          <p>Account Number: <strong>1229785752</strong></p>
-          <p>Bank: <strong>ZENITH BANK</strong></p>
-        </div>
-
-        <div class="signature-area">
-          <div class="sig-box">
-            ${sale.buyer_signature ? `<img src="${sale.buyer_signature}" class="signature-img" />` : '<div style="height:50px"></div>'}
-            <p style="border-top: 1px solid #1a1a1a; padding-top: 5px;"><strong>CUSTOMER SIGNATURE</strong></p>
-          </div>
-          <div class="sig-box">
-             ${sale.rep_signature ? `<img src="${sale.rep_signature}" class="signature-img" />` : '<div style="height:50px"></div>'}
-            <p style="border-top: 1px solid #1a1a1a; padding-top: 5px;"><strong>FOR: BEE TEE AUTOMOBILE</strong></p>
-          </div>
-        </div>
-      </div>
-    </div>
+    ${printReceipt(sale)}
     ${getPrintFooterHTML()}
     </body></html>`;
+    const win = window.open("", "_blank");
+    if (win) { win.document.write(html); win.document.close(); win.print(); }
+  };
+
+  const handleBulkPrintReceipts = () => {
+    if (filtered.length === 0) { toast.error("No sales to print"); return; }
+    
+    const html = `<html><head><title>Bulk Sales Receipts</title>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap');
+      body { font-family: 'Roboto', 'Arial', sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; color: #1a1a1a; line-height: 1.4; }
+      .date-section { text-align: right; font-weight: 800; font-size: 14px; margin-bottom: 20px; text-transform: uppercase; }
+      .bill-to { margin-bottom: 30px; }
+      .bill-to p { margin: 2px 0; font-size: 14px; }
+      .main-container {
+        background-color: #cbd5e1;
+        border-radius: 40px;
+        padding: 40px;
+        min-height: 600px;
+        position: relative;
+        border: 1px solid #94a3b8;
+      }
+      .content-wrapper { position: relative; z-index: 1; }
+      .bill-title { text-align: center; text-decoration: underline; font-weight: 900; font-size: 22px; margin-bottom: 30px; color: #1e293b; text-transform: uppercase; }
+      
+      table { width: 100%; border-collapse: collapse; background: transparent; margin-bottom: 30px; }
+      th, td { border: 1px solid #475569; padding: 12px; text-align: left; font-size: 14px; font-weight: 600; }
+      th { background: transparent; text-transform: uppercase; }
+      td:first-child { width: 40px; text-align: center; }
+      
+      .total-row td { border-top: 3px solid #1e293b; font-weight: 900; font-size: 18px; }
+      .amount-words { font-weight: 900; margin-bottom: 30px; font-size: 15px; text-transform: uppercase; }
+      .refund-note { margin-top: 20px; padding: 15px; background: #fee2e2; border: 2px solid #ef4444; border-radius: 12px; color: #b91c1c; font-weight: 900; font-size: 14px; text-align: center; margin-bottom: 30px; }
+      .bank-details { margin-top: 20px; font-size: 13px; }
+      .bank-details h4 { margin: 0 0 5px 0; font-weight: 900; text-transform: uppercase; }
+      .bank-details p { margin: 2px 0; font-weight: 500; }
+      .signature-area { display: flex; justify-content: space-between; margin-top: 40px; border-top: 2px solid #94a3b8; padding-top: 20px; }
+      .sig-box { width: 45%; text-align: center; font-size: 12px; }
+      .signature-img { max-height: 50px; display: block; margin: 0 auto 5px; }
+      @media print {
+        .receipt-page { page-break-after: always; }
+      }
+    </style></head><body>
+    ${filtered.map(sale => `
+      <div class="receipt-page">
+        ${getPrintHeaderHTML()}
+        ${printReceipt(sale)}
+        ${getPrintFooterHTML()}
+      </div>
+    `).join("")}
+    </body></html>`;
+    
     const win = window.open("", "_blank");
     if (win) { win.document.write(html); win.document.close(); win.print(); }
   };
@@ -634,7 +692,8 @@ export default function Sales() {
             <DropdownMenuContent className="rounded-xl glass-panel p-2 shadow-2xl border-white/10" align="end">
               <DropdownMenuItem onClick={handleExportExcel} className="rounded-lg cursor-pointer"><FileText className="mr-2 h-4 w-4" /> Export to Excel</DropdownMenuItem>
               <DropdownMenuItem onClick={handleExportJSON} className="rounded-lg cursor-pointer"><FileText className="mr-2 h-4 w-4" /> Export to JSON</DropdownMenuItem>
-              <DropdownMenuItem onClick={handlePrint} className="rounded-lg cursor-pointer text-violet-500"><Printer className="mr-2 h-4 w-4" /> Print / PDF</DropdownMenuItem>
+              <DropdownMenuItem onClick={handlePrint} className="rounded-lg cursor-pointer text-violet-500"><Printer className="mr-2 h-4 w-4" /> Print Sales List</DropdownMenuItem>
+              <DropdownMenuItem onClick={handleBulkPrintReceipts} className="rounded-lg cursor-pointer text-violet-500 border-t border-white/5 mt-1 pt-2"><Receipt className="mr-2 h-4 w-4" /> Print All Receipts (PDF)</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
           <Button onClick={() => { setForm(emptyForm); setEditId(null); setDialogOpen(true); }} size="lg" className="rounded-2xl shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40 transition-all bg-violet-500 hover:bg-violet-600 text-white">
