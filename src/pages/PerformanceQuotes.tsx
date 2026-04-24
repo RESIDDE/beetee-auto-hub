@@ -60,7 +60,7 @@ export default function PerformanceQuotes() {
     queryKey: ["performance_quotes"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("performance_quotes")
+        .from("performance_quotes" as any)
         .select(`
           *,
           customers (*),
@@ -76,10 +76,19 @@ export default function PerformanceQuotes() {
     queryKey: ["vehicles"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("vehicles")
+        .from("vehicles" as any)
         .select("id, make, model, year, trim, color, vin, price")
         .eq("status", "Available")
         .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: customers = [] } = useQuery({
+    queryKey: ["customers"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("customers").select("*").order("name");
       if (error) throw error;
       return data;
     },
@@ -118,7 +127,7 @@ export default function PerformanceQuotes() {
 
       // Create Quote
       const { data: quote, error: quoteErr } = await supabase
-        .from("performance_quotes")
+        .from("performance_quotes" as any)
         .insert({
           customer_id: finalCustomerId,
           total_amount: totalAmount,
@@ -137,7 +146,7 @@ export default function PerformanceQuotes() {
         duty_price: Number(v.duty_price) || 0,
       }));
 
-      const { error: itemsErr } = await supabase.from("performance_quote_items").insert(items);
+      const { error: itemsErr } = await supabase.from("performance_quote_items" as any).insert(items);
       if (itemsErr) throw itemsErr;
     },
     onSuccess: () => {
@@ -154,7 +163,7 @@ export default function PerformanceQuotes() {
 
   const deleteQuoteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("performance_quotes").delete().eq("id", id);
+      const { error } = await supabase.from("performance_quotes" as any).delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -203,107 +212,127 @@ export default function PerformanceQuotes() {
     toast.info("Preparing quote document...");
     const html = `<html><head><title>Performance Quote - ${quote.id.slice(0,8).toUpperCase()}</title>
     <style>
-      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-      body { font-family: 'Inter', sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; color: #1e293b; line-height: 1.5; }
-      .quote-header { text-align: center; margin: 30px 0; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; }
-      .quote-title { font-size: 24px; font-weight: 800; letter-spacing: 1px; color: #0f172a; margin: 0 0 5px 0; text-transform: uppercase; }
-      .quote-meta { display: flex; justify-content: space-between; font-size: 14px; color: #64748b; font-weight: 500; }
+      @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap');
+      body { font-family: 'Roboto', 'Arial', sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; color: #1a1a1a; line-height: 1.4; }
+      .date-section { text-align: right; font-weight: 800; font-size: 14px; margin-bottom: 20px; text-transform: uppercase; }
+      .bill-to { margin-bottom: 30px; }
+      .bill-to p { margin: 2px 0; font-size: 14px; }
+      .main-container {
+        background-color: transparent;
+        border-radius: 40px;
+        padding: 40px;
+        min-height: 600px;
+        position: relative;
+        border: none;
+      }
+      .content-wrapper { position: relative; z-index: 1; }
+      .bill-title { text-align: center; text-decoration: underline; font-weight: 900; font-size: 22px; margin-bottom: 30px; color: #1e293b; text-transform: uppercase; }
       
-      .customer-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin-bottom: 30px; }
-      .customer-box h3 { margin: 0 0 10px 0; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #94a3b8; }
-      .customer-box p { margin: 2px 0; font-weight: 600; font-size: 15px; }
-
-      .vehicle-card { border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin-bottom: 20px; }
-      .vehicle-header { font-size: 16px; font-weight: 800; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px dashed #cbd5e1; }
+      table { width: 100%; border-collapse: collapse; background: transparent; margin-bottom: 30px; }
+      th, td { border: 1px solid #475569; padding: 12px; text-align: left; font-size: 14px; font-weight: 600; }
+      th { background: transparent; text-transform: uppercase; }
+      td:first-child { width: 40px; text-align: center; }
       
-      .price-grid { display: grid; grid-template-columns: 1fr auto; gap: 10px; font-size: 14px; }
-      .price-row { display: contents; }
-      .price-label { color: #64748b; font-weight: 500; }
-      .price-val { font-weight: 700; text-align: right; }
-      .price-subtotal { grid-column: span 2; display: flex; justify-content: space-between; margin-top: 10px; padding-top: 10px; border-top: 1px solid #e2e8f0; font-weight: 800; font-size: 16px; }
-
-      .grand-total { background: #0f172a; color: white; border-radius: 12px; padding: 20px; margin: 30px 0; display: flex; justify-content: space-between; align-items: center; }
-      .grand-total-label { font-size: 14px; text-transform: uppercase; letter-spacing: 1px; opacity: 0.8; }
-      .grand-total-val { font-size: 24px; font-weight: 800; }
-      
-      .notes-box { font-size: 13px; color: #475569; background: #f1f5f9; padding: 15px; border-radius: 8px; margin-bottom: 30px; }
-      
-      .signatures { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 50px; text-align: center; }
-      .sig-line { border-top: 1px solid #cbd5e1; padding-top: 10px; font-size: 12px; font-weight: 600; color: #64748b; margin-top: 60px; }
+      .total-row td { border-top: 3px solid #1e293b; font-weight: 900; font-size: 18px; }
+      .amount-words { font-weight: 900; margin-bottom: 30px; font-size: 15px; text-transform: uppercase; }
+      .bank-details { margin-top: 20px; font-size: 13px; }
+      .bank-details h4 { margin: 0 0 5px 0; font-weight: 900; text-transform: uppercase; }
+      .bank-details p { margin: 2px 0; font-weight: 500; }
+      .notes-box { font-size: 13px; color: #475569; background: #f1f5f9; padding: 15px; border-radius: 8px; margin-bottom: 30px; border: 1px solid #e2e8f0; }
+      .signature-area { display: flex; justify-content: space-between; margin-top: 40px; border-top: 2px solid #94a3b8; padding-top: 20px; }
+      .sig-box { width: 45%; text-align: center; font-size: 12px; }
+      .signature-img { max-height: 50px; display: block; margin: 0 auto 5px; }
     </style></head><body>
     ${getPrintHeaderHTML()}
     
-    <div class="quote-header">
-      <h2 class="quote-title">Performance Quote</h2>
-      <div class="quote-meta">
-        <span>Quote ID: PQ-${quote.id.slice(0,8).toUpperCase()}</span>
-        <span>Date: ${new Date(quote.quote_date).toLocaleDateString('en-GB')}</span>
-      </div>
+    <div class="date-section">DATE: ${new Date(quote.quote_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}<br/>QUOTE NO: PQ-${quote.id.slice(0,8).toUpperCase()}</div>
+
+    <div class="bill-to">
+      <p style="font-weight: 900;">PREPARED FOR:</p>
+      <p><strong>${quote.customers?.name || "—"}</strong></p>
+      ${quote.customers?.phone ? `<p>Tel: ${quote.customers.phone}</p>` : ''}
     </div>
 
-    <div class="customer-box">
-      <h3>Prepared For</h3>
-      <p>${quote.customers?.name || "—"}</p>
-      ${quote.customers?.phone ? `<p>${quote.customers.phone}</p>` : ''}
-      ${quote.customers?.email ? `<p>${quote.customers.email}</p>` : ''}
-    </div>
+    <div class="main-container">
+      ${getPrintWatermarkHTML()}
+      <div class="content-wrapper">
+        <h2 class="bill-title">PERFORMANCE QUOTE</h2>
+        
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 40px; text-align: center;">#</th>
+              <th>VEHICLE DESCRIPTION</th>
+              <th style="width: 60px; text-align: center;">QTY</th>
+              <th style="width: 120px;">UNIT PRICE</th>
+              <th style="width: 120px; text-align: right;">AMOUNT (₦)</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${(() => {
+              let rowsHtml = '';
+              let rowCounter = 1;
 
-    ${quote.performance_quote_items?.map((item: any) => {
-      const v = item.vehicles;
-      const basePrice = Number(item.base_price) || 0;
-      const dutyPrice = item.has_duty ? (Number(item.duty_price) || 0) : 0;
-      const subtotal = basePrice + dutyPrice;
+              quote.performance_quote_items?.forEach((item: any) => {
+                const v = item.vehicles;
+                const basePrice = Number(item.base_price) || 0;
+                const vehicleDesc = `${v?.year || ''} ${v?.make || ''} ${v?.model || ''} ${v?.trim || ''} ${v?.vin ? `(VIN: ${v.vin})` : ''}`.trim();
 
-      return `
-      <div class="vehicle-card">
-        <div class="vehicle-header">
-          ${v?.year || ''} ${v?.make || ''} ${v?.model || ''}
-          <div style="font-size: 12px; font-weight: 500; color: #64748b; margin-top: 4px; font-family: monospace;">
-            VIN: ${v?.vin || 'N/A'}
+                rowsHtml += `
+                <tr>
+                  <td>${rowCounter++}.</td>
+                  <td>${vehicleDesc.toUpperCase()}</td>
+                  <td style="text-align: center;">1</td>
+                  <td>₦${basePrice.toLocaleString()}</td>
+                  <td style="text-align: right;">₦${basePrice.toLocaleString()}</td>
+                </tr>
+                `;
+
+                if (item.has_duty) {
+                  const dutyPrice = Number(item.duty_price) || 0;
+                  rowsHtml += `
+                  <tr>
+                    <td>${rowCounter++}.</td>
+                    <td>CUSTOMS DUTY & CLEARANCE - ${vehicleDesc.toUpperCase()}</td>
+                    <td style="text-align: center;">1</td>
+                    <td>₦${dutyPrice.toLocaleString()}</td>
+                    <td style="text-align: right;">₦${dutyPrice.toLocaleString()}</td>
+                  </tr>
+                  `;
+                }
+              });
+
+              return rowsHtml;
+            })()}
+            
+            <tr class="total-row">
+              <td colspan="4" style="text-align: right;">GRAND TOTAL</td>
+              <td style="text-align: right;">₦${(Number(quote.total_amount) || 0).toLocaleString()}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="amount-words">
+          AMOUNT IN WORDS: ${numberToWords(Number(quote.total_amount) || 0)}
+        </div>
+
+        ${quote.notes ? `
+        <div class="notes-box">
+          <strong>NOTES / TERMS:</strong><br/>
+          ${quote.notes.replace(/\n/g, '<br/>')}
+        </div>
+        ` : ''}
+
+        <div class="signature-area">
+          <div class="sig-box">
+            <div style="height:50px"></div>
+            <p style="border-top: 1px solid #1a1a1a; padding-top: 5px;"><strong>CUSTOMER SIGNATURE</strong></p>
+          </div>
+          <div class="sig-box">
+            <div style="height:50px"></div>
+            <p style="border-top: 1px solid #1a1a1a; padding-top: 5px;"><strong>FOR: BEE TEE AUTOMOBILE</strong></p>
           </div>
         </div>
-        <div class="price-grid">
-          <div class="price-row">
-            <span class="price-label">Vehicle Base Price</span>
-            <span class="price-val">₦${basePrice.toLocaleString()}</span>
-          </div>
-          ${item.has_duty ? `
-          <div class="price-row">
-            <span class="price-label">Customs Duty & Clearance</span>
-            <span class="price-val">₦${dutyPrice.toLocaleString()}</span>
-          </div>
-          ` : ''}
-          <div class="price-subtotal">
-            <span>Vehicle Subtotal</span>
-            <span>₦${subtotal.toLocaleString()}</span>
-          </div>
-        </div>
-      </div>
-      `;
-    }).join("")}
-
-    <div class="grand-total">
-      <span class="grand-total-label">Grand Total</span>
-      <span class="grand-total-val">₦${(Number(quote.total_amount) || 0).toLocaleString()}</span>
-    </div>
-    
-    <div style="margin-bottom: 30px; font-size: 13px; font-weight: 600; color: #0f172a; text-transform: uppercase;">
-      Amount in words: ${numberToWords(Number(quote.total_amount) || 0)}
-    </div>
-
-    ${quote.notes ? `
-    <div class="notes-box">
-      <strong>Notes / Terms:</strong><br/>
-      ${quote.notes.replace(/\n/g, '<br/>')}
-    </div>
-    ` : ''}
-
-    <div class="signatures">
-      <div>
-        <div class="sig-line">Prepared By (Beetee Autos)</div>
-      </div>
-      <div>
-        <div class="sig-line">Customer Acceptance</div>
       </div>
     </div>
 
@@ -469,7 +498,7 @@ export default function PerformanceQuotes() {
 
               {customerMode === "existing" ? (
                 <div className="w-full">
-                  <CustomerSelect value={customerId} onChange={setCustomerId} />
+                  <CustomerSelect customers={customers} value={customerId} onValueChange={setCustomerId} />
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 border border-white/10 rounded-xl bg-black/20">
