@@ -322,12 +322,12 @@ export default function Sales() {
       <div class="main-container">
         ${getPrintWatermarkHTML()}
         <div class="content-wrapper">
-          <h2 class="bill-title">VEHICLE SALES RECEIPT</h2>
+          <h2 class="bill-title" style="margin-bottom: 15px;">VEHICLE SALES RECEIPT</h2>
           
-          <div style="margin-bottom: 40px;">
+          <div style="margin-bottom: 20px;">
             ${saleVehicleObjects.map((v: any) => `
-              <div style="margin-bottom: 30px; border-bottom: 1px solid #e2e8f0; padding-bottom: 20px;">
-                <h3 style="font-size: 18px; font-weight: 900; margin-bottom: 15px; color: #0f172a; text-transform: uppercase;">Vehicle Specification</h3>
+              <div style="margin-bottom: 15px; border-bottom: 1px solid #e2e8f0; padding-bottom: 15px;">
+                <h3 style="font-size: 16px; font-weight: 900; margin-bottom: 10px; color: #0f172a; text-transform: uppercase;">Vehicle Specification</h3>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                   <div>
                     <p style="font-size: 11px; color: #64748b; font-weight: 800; margin: 0; text-transform: uppercase;">Make</p>
@@ -358,12 +358,12 @@ export default function Sales() {
             `).join("")}
           </div>
 
-          <div style="background: #f8fafc; padding: 25px; border-radius: 20px; border: 1px solid #e2e8f0; margin-bottom: 30px;">
+          <div style="background: #f8fafc; padding: 15px 20px; border-radius: 15px; border: 1px solid #e2e8f0; margin-bottom: 15px;">
             <div style="display: flex; justify-content: space-between; align-items: center;">
               <span style="font-size: 16px; font-weight: 800; color: #64748b;">TOTAL AMOUNT PAID</span>
               <span style="font-size: 24px; font-weight: 900; color: #0f172a;">₦${totalAmount.toLocaleString()}</span>
             </div>
-            <div style="margin-top: 15px; padding-top: 15px; border-top: 1px dashed #cbd5e1;">
+            <div style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed #cbd5e1;">
               <p style="font-size: 12px; font-weight: 800; color: #64748b; margin: 0; text-transform: uppercase;">Amount in Words</p>
               <p style="font-size: 14px; font-weight: 700; color: #0f172a; margin: 5px 0 0 0; line-height: 1.4;">${numberToWords(totalAmount).toUpperCase()}</p>
             </div>
@@ -393,35 +393,24 @@ export default function Sales() {
     const html = `<html><head><title>Receipt - ${sale.id.slice(0, 8).toUpperCase()}</title>
     <style>
       @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap');
-      body { font-family: 'Roboto', 'Arial', sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; color: #1a1a1a; line-height: 1.4; }
-      .date-section { text-align: right; font-weight: 800; font-size: 14px; margin-bottom: 20px; text-transform: uppercase; }
-      .bill-to { margin-bottom: 30px; }
-      .bill-to p { margin: 2px 0; font-size: 14px; }
+      body { font-family: 'Roboto', 'Arial', sans-serif; padding: 15px; max-width: 800px; margin: 0 auto; color: #1a1a1a; line-height: 1.3; }
+      .date-section { text-align: right; font-weight: 800; font-size: 13px; margin-bottom: 10px; text-transform: uppercase; }
+      .bill-to { margin-bottom: 15px; }
+      .bill-to p { margin: 2px 0; font-size: 13px; }
       .main-container {
         background-color: transparent;
-        border-radius: 40px;
-        padding: 40px;
-        min-height: 600px;
+        border-radius: 20px;
+        padding: 20px;
+        min-height: auto;
         position: relative;
         border: none;
       }
       .content-wrapper { position: relative; z-index: 1; }
-      .bill-title { text-align: center; text-decoration: underline; font-weight: 900; font-size: 22px; margin-bottom: 30px; color: #1e293b; text-transform: uppercase; }
-      
-      table { width: 100%; border-collapse: collapse; background: transparent; margin-bottom: 30px; }
-      th, td { border: 1px solid #475569; padding: 12px; text-align: left; font-size: 14px; font-weight: 600; }
-      th { background: transparent; text-transform: uppercase; }
-      td:first-child { width: 40px; text-align: center; }
-      
-      .total-row td { border-top: 3px solid #1e293b; font-weight: 900; font-size: 18px; }
-      .amount-words { font-weight: 900; margin-bottom: 30px; font-size: 15px; text-transform: uppercase; }
-      .refund-note { margin-top: 20px; padding: 15px; background: #fee2e2; border: 2px solid #ef4444; border-radius: 12px; color: #b91c1c; font-weight: 900; font-size: 14px; text-align: center; margin-bottom: 30px; }
-      .bank-details { margin-top: 20px; font-size: 13px; }
-      .bank-details h4 { margin: 0 0 5px 0; font-weight: 900; text-transform: uppercase; }
-      .bank-details p { margin: 2px 0; font-weight: 500; }
-      .signature-area { display: flex; justify-content: space-between; margin-top: 40px; border-top: 2px solid #94a3b8; padding-top: 20px; }
+      .bill-title { text-align: center; text-decoration: underline; font-weight: 900; font-size: 18px; margin-bottom: 15px; color: #1e293b; text-transform: uppercase; }
+      .refund-note { margin-top: 10px; padding: 10px; background: #fee2e2; border: 2px solid #ef4444; border-radius: 10px; color: #b91c1c; font-weight: 900; font-size: 13px; text-align: center; margin-bottom: 15px; }
+      .signature-area { display: flex; justify-content: space-between; margin-top: 20px; border-top: 2px solid #94a3b8; padding-top: 15px; }
       .sig-box { width: 45%; text-align: center; font-size: 12px; }
-      .signature-img { max-height: 50px; display: block; margin: 0 auto 5px; }
+      .signature-img { max-height: 40px; display: block; margin: 0 auto 5px; }
     </style></head><body>
     ${getPrintHeaderHTML()}
     ${printReceipt(sale)}
@@ -448,35 +437,24 @@ export default function Sales() {
     const html = `<html><head><title>Bulk Sales Receipts</title>
     <style>
       @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap');
-      body { font-family: 'Roboto', 'Arial', sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; color: #1a1a1a; line-height: 1.4; }
-      .date-section { text-align: right; font-weight: 800; font-size: 14px; margin-bottom: 20px; text-transform: uppercase; }
-      .bill-to { margin-bottom: 30px; }
-      .bill-to p { margin: 2px 0; font-size: 14px; }
+      body { font-family: 'Roboto', 'Arial', sans-serif; padding: 15px; max-width: 800px; margin: 0 auto; color: #1a1a1a; line-height: 1.3; }
+      .date-section { text-align: right; font-weight: 800; font-size: 13px; margin-bottom: 10px; text-transform: uppercase; }
+      .bill-to { margin-bottom: 15px; }
+      .bill-to p { margin: 2px 0; font-size: 13px; }
       .main-container {
         background-color: transparent;
-        border-radius: 40px;
-        padding: 40px;
-        min-height: 600px;
+        border-radius: 20px;
+        padding: 20px;
+        min-height: auto;
         position: relative;
         border: none;
       }
       .content-wrapper { position: relative; z-index: 1; }
-      .bill-title { text-align: center; text-decoration: underline; font-weight: 900; font-size: 22px; margin-bottom: 30px; color: #1e293b; text-transform: uppercase; }
-      
-      table { width: 100%; border-collapse: collapse; background: transparent; margin-bottom: 30px; }
-      th, td { border: 1px solid #475569; padding: 12px; text-align: left; font-size: 14px; font-weight: 600; }
-      th { background: transparent; text-transform: uppercase; }
-      td:first-child { width: 40px; text-align: center; }
-      
-      .total-row td { border-top: 3px solid #1e293b; font-weight: 900; font-size: 18px; }
-      .amount-words { font-weight: 900; margin-bottom: 30px; font-size: 15px; text-transform: uppercase; }
-      .refund-note { margin-top: 20px; padding: 15px; background: #fee2e2; border: 2px solid #ef4444; border-radius: 12px; color: #b91c1c; font-weight: 900; font-size: 14px; text-align: center; margin-bottom: 30px; }
-      .bank-details { margin-top: 20px; font-size: 13px; }
-      .bank-details h4 { margin: 0 0 5px 0; font-weight: 900; text-transform: uppercase; }
-      .bank-details p { margin: 2px 0; font-weight: 500; }
-      .signature-area { display: flex; justify-content: space-between; margin-top: 40px; border-top: 2px solid #94a3b8; padding-top: 20px; }
+      .bill-title { text-align: center; text-decoration: underline; font-weight: 900; font-size: 18px; margin-bottom: 15px; color: #1e293b; text-transform: uppercase; }
+      .refund-note { margin-top: 10px; padding: 10px; background: #fee2e2; border: 2px solid #ef4444; border-radius: 10px; color: #b91c1c; font-weight: 900; font-size: 13px; text-align: center; margin-bottom: 15px; }
+      .signature-area { display: flex; justify-content: space-between; margin-top: 20px; border-top: 2px solid #94a3b8; padding-top: 15px; }
       .sig-box { width: 45%; text-align: center; font-size: 12px; }
-      .signature-img { max-height: 50px; display: block; margin: 0 auto 5px; }
+      .signature-img { max-height: 40px; display: block; margin: 0 auto 5px; }
       @media print {
         .receipt-page { page-break-after: always; }
       }
