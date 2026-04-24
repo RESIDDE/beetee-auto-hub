@@ -273,8 +273,7 @@ export default function PerformanceQuotes() {
               <th style="width: 120px;">UNIT PRICE</th>
               <th style="width: 120px; text-align: right;">AMOUNT (₦)</th>
             </tr>
-          </thead>
-          <tbody>
+          </the          <tbody>
             ${(() => {
               let rowsHtml = '';
               let rowCounter = 1;
@@ -283,17 +282,17 @@ export default function PerformanceQuotes() {
                 const v = item.vehicles;
                 const basePrice = Number(item.base_price) || 0;
                 const qty = Number(item.quantity) || 1;
-                const vehicleDesc = \`\${v?.year || ''} \${v?.make || ''} \${v?.model || ''} \${v?.trim || ''} \${v?.vin ? \`(VIN: \${v.vin})\` : ''}\`.trim();
+                const vehicleDesc = `${v?.year || ''} ${v?.make || ''} ${v?.model || ''} ${v?.trim || ''} ${v?.vin ? `(VIN: ${v.vin})` : ''}`.trim();
 
-                rowsHtml += \`
+                rowsHtml += `
                 <tr>
-                  <td>\${rowCounter++}.</td>
-                  <td>\${vehicleDesc.toUpperCase()}</td>
-                  <td style="text-align: center;">\${qty}</td>
-                  <td>₦\${basePrice.toLocaleString()}</td>
-                  <td style="text-align: right;">₦\${(basePrice * qty).toLocaleString()}</td>
+                  <td>${rowCounter++}.</td>
+                  <td>${vehicleDesc.toUpperCase()}</td>
+                  <td style="text-align: center;">${qty}</td>
+                  <td>₦${basePrice.toLocaleString()}</td>
+                  <td style="text-align: right;">₦${(basePrice * qty).toLocaleString()}</td>
                 </tr>
-                \`;
+                `;
               });
 
               return rowsHtml;
@@ -301,7 +300,7 @@ export default function PerformanceQuotes() {
           </tbody>
         </table>
 
-        \${quote.performance_quote_items?.some((item: any) => item.has_duty) ? \`
+        ${quote.performance_quote_items?.some((item: any) => item.has_duty) ? `
         <h3 style="margin-top: 30px; margin-bottom: 15px; font-weight: 800; text-transform: uppercase; font-size: 16px; color: #1e293b;">CUSTOMS DUTY & CLEARANCE</h3>
         <table>
           <thead>
@@ -314,7 +313,7 @@ export default function PerformanceQuotes() {
             </tr>
           </thead>
           <tbody>
-            \${(() => {
+            ${(() => {
               let rowsHtml = '';
               let dutyCounter = 1;
               quote.performance_quote_items?.forEach((item: any) => {
@@ -322,28 +321,28 @@ export default function PerformanceQuotes() {
                   const v = item.vehicles;
                   const dutyPrice = Number(item.duty_price) || 0;
                   const qty = Number(item.quantity) || 1;
-                  const vehicleDesc = \`\${v?.year || ''} \${v?.make || ''} \${v?.model || ''}\`.trim();
+                  const vehicleDesc = `${v?.year || ''} ${v?.make || ''} ${v?.model || ''}`.trim();
 
-                  rowsHtml += \`
+                  rowsHtml += `
                   <tr>
-                    <td style="text-align: center;">\${dutyCounter++}.</td>
-                    <td>DUTY & CLEARANCE - \${vehicleDesc.toUpperCase()}</td>
-                    <td style="text-align: center;">\${qty}</td>
-                    <td>₦\${dutyPrice.toLocaleString()}</td>
-                    <td style="text-align: right;">₦\${(dutyPrice * qty).toLocaleString()}</td>
+                    <td style="text-align: center;">${dutyCounter++}.</td>
+                    <td>DUTY & CLEARANCE - ${vehicleDesc.toUpperCase()}</td>
+                    <td style="text-align: center;">${qty}</td>
+                    <td>₦${dutyPrice.toLocaleString()}</td>
+                    <td style="text-align: right;">₦${(dutyPrice * qty).toLocaleString()}</td>
                   </tr>
-                  \`;
+                  `;
                 }
               });
               return rowsHtml;
             })()}
           </tbody>
         </table>
-        \` : ''}
+        ` : ''}
 
         <div style="display: flex; justify-content: flex-end; margin-top: 20px; border-top: 3px solid #1e293b; padding-top: 15px;">
           <div style="font-weight: 900; font-size: 18px; margin-right: 40px;">GRAND TOTAL</div>
-          <div style="font-weight: 900; font-size: 18px; text-align: right; width: 144px;">₦\${(Number(quote.total_amount) || 0).toLocaleString()}</div>
+          <div style="font-weight: 900; font-size: 18px; text-align: right; width: 144px;">₦${(Number(quote.total_amount) || 0).toLocaleString()}</div>
         </div>
 
         <div class="amount-words">
