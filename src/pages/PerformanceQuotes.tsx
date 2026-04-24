@@ -22,7 +22,7 @@ import {
   PlusCircle, Search, Printer, Trash2, FileText, FileSignature, Car, 
   BarChart3, Package, Settings, ExternalLink, X
 } from "lucide-react";
-import { getPrintHeaderHTML } from "@/components/PrintHeader";
+import { getPrintHeaderHTML, getPrintWatermarkHTML } from "@/components/PrintHeader";
 import { getPrintFooterHTML } from "@/components/PrintFooter";
 import { numberToWords } from "@/lib/numberToWords";
 import {
@@ -81,7 +81,7 @@ export default function PerformanceQuotes() {
         .eq("status", "Available")
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data;
+      return data as any[];
     },
   });
 
@@ -134,7 +134,7 @@ export default function PerformanceQuotes() {
           notes: notes.trim() || null,
         })
         .select()
-        .single();
+        .single()) as any;
       if (quoteErr) throw quoteErr;
 
       // Create Quote Items
