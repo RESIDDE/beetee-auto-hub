@@ -64,7 +64,7 @@ export default function VehicleDetail() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["vehicles"] });
       toast.success("Vehicle deleted");
-      navigate("/vehicles");
+      navigate(vehicle?.inventory_type === 'resale' ? "/resale-vehicles" : "/vehicles");
     },
     onError: () => toast.error("Failed to delete"),
   });
@@ -84,7 +84,7 @@ export default function VehicleDetail() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" asChild>
-            <Link to="/vehicles">
+            <Link to={vehicle?.inventory_type === 'resale' ? "/resale-vehicles" : "/vehicles"}>
               <ArrowLeft className="h-4 w-4" />
             </Link>
           </Button>
