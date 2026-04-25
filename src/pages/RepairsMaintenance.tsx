@@ -513,29 +513,28 @@ export default function RepairsMaintenance() {
     const html = `<html><head><title>Service Bill - ${vehicleLabel}</title>
     <style>
       @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap');
-      body { font-family: 'Roboto', 'Arial', sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; color: #1a1a1a; line-height: 1.4; }
-      .date-section { text-align: right; font-weight: 800; font-size: 14px; margin-bottom: 20px; text-transform: uppercase; }
-      .bill-to { margin-bottom: 30px; }
-      .bill-to p { margin: 2px 0; font-size: 14px; }
+      body { font-family: 'Roboto', 'Arial', sans-serif; padding: 15px; max-width: 800px; margin: 0 auto; color: #1a1a1a; line-height: 1.3; }
+      .date-section { text-align: right; font-weight: 800; font-size: 13px; margin-bottom: 15px; text-transform: uppercase; }
+      .bill-to { margin-bottom: 20px; }
+      .bill-to p { margin: 2px 0; font-size: 13px; }
       .main-container {
         background-color: transparent;
         border-radius: 40px;
-        padding: 40px;
-        min-height: 600px;
+        padding: 20px;
         position: relative;
         border: none;
       }
       .content-wrapper { position: relative; z-index: 1; }
-      .bill-title { text-align: center; text-decoration: underline; font-weight: 900; font-size: 22px; margin-bottom: 30px; color: #1e293b; text-transform: uppercase; }
+      .bill-title { text-align: center; text-decoration: underline; font-weight: 900; font-size: 20px; margin-bottom: 20px; color: #1e293b; text-transform: uppercase; }
       
-      table { width: 100%; border-collapse: collapse; background: transparent; margin-bottom: 30px; }
-      th, td { border: 1px solid #475569; padding: 12px; text-align: left; font-size: 14px; font-weight: 600; }
+      table { width: 100%; border-collapse: collapse; background: transparent; margin-bottom: 20px; }
+      th, td { border: 1px solid #475569; padding: 8px 10px; text-align: left; font-size: 13px; font-weight: 600; }
       th { background: transparent; text-transform: uppercase; }
       td:first-child { width: 40px; text-align: center; }
       
-      .total-row td { border-top: 3px solid #1e293b; font-weight: 900; font-size: 18px; }
-      .amount-words { font-weight: 900; margin-bottom: 30px; font-size: 15px; text-transform: uppercase; }
-      .bank-details { margin-top: 20px; font-size: 13px; }
+      .total-row td { border-top: 3px solid #1e293b; font-weight: 900; font-size: 16px; }
+      .amount-words { font-weight: 900; margin-bottom: 20px; font-size: 14px; text-transform: uppercase; }
+      .bank-details { margin-top: 15px; font-size: 12px; }
       .bank-details h4 { margin: 0 0 5px 0; font-weight: 900; text-transform: uppercase; }
       .bank-details p { margin: 2px 0; font-weight: 500; }
     </style></head><body>
@@ -655,18 +654,18 @@ export default function RepairsMaintenance() {
     const html = `<html><head><title>Job Card - ${r.job_card_no || r.id}</title>
     <style>
       @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
-      body { font-family: 'Inter', sans-serif; padding: 20px; max-width: 850px; margin: 0 auto; color: #1a1a1a; line-height: 1.3; }
-      .job-header { text-align: center; font-weight: 800; font-size: 24px; text-transform: uppercase; margin: 20px 0; letter-spacing: 2px; }
-      .section { border: 1.5px solid #000; margin-bottom: 12px; border-radius: 4px; overflow: hidden; }
-      .section-title { background: transparent; padding: 6px 12px; font-size: 12px; font-weight: 800; border-bottom: 1.5px solid #000; text-transform: uppercase; display: flex; justify-content: space-between; }
-      .section-content { padding: 10px 12px; font-size: 11px; }
-      .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-      .grid-3 { display: grid; grid-template-columns: 1.5fr 1fr 1fr; gap: 10px; }
-      .field { margin: 4px 0; border-bottom: 1px dashed #ccc; padding-bottom: 2px; min-height: 18px; }
+      body { font-family: 'Inter', sans-serif; padding: 10px; max-width: 850px; margin: 0 auto; color: #1a1a1a; line-height: 1.3; }
+      .job-header { text-align: center; font-weight: 800; font-size: 20px; text-transform: uppercase; margin: 10px 0; letter-spacing: 2px; }
+      .section { border: 1.5px solid #000; margin-bottom: 10px; border-radius: 4px; overflow: hidden; }
+      .section-title { background: transparent; padding: 4px 10px; font-size: 11px; font-weight: 800; border-bottom: 1.5px solid #000; text-transform: uppercase; display: flex; justify-content: space-between; }
+      .section-content { padding: 8px 10px; font-size: 10px; }
+      .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+      .grid-3 { display: grid; grid-template-columns: 1.5fr 1fr 1fr; gap: 8px; }
+      .field { margin: 3px 0; border-bottom: 1px dashed #ccc; padding-bottom: 2px; min-height: 16px; }
       .field-label { font-weight: 600; color: #555; margin-right: 5px; min-width: 120px; display: inline-block; }
-      .checkbox-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 8px; }
-      .footer-note { font-size: 10px; text-align: center; margin-top: 20px; font-weight: 600; font-style: italic; }
-      .sig-line { border-bottom: 1.5px solid #000; min-width: 150px; display: inline-block; margin: 0 5px; height: 30px; }
+      .checkbox-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin-top: 6px; }
+      .footer-note { font-size: 9px; text-align: center; margin-top: 15px; font-weight: 600; font-style: italic; }
+      .sig-line { border-bottom: 1.5px solid #000; min-width: 130px; display: inline-block; margin: 0 5px; height: 25px; }
       @media print { body { padding: 0; } .section { page-break-inside: avoid; } }
     </style></head><body>
     ${getPrintWatermarkHTML()}

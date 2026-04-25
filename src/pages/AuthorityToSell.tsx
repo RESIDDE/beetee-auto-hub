@@ -259,20 +259,20 @@ export default function AuthorityToSell() {
         <div
           ref={documentRef}
           className="bg-white text-black rounded-3xl shadow-2xl border border-gray-100 print:shadow-none print:border-none print:rounded-none"
-          style={{ minHeight: "1056px", padding: "48px 56px" }}
+          style={{ minHeight: "auto", padding: "24px 32px" }}
         >
           <PrintWatermark />
           <PrintHeader />
 
           {/* Title */}
-          <div className="text-center my-6">
+          <div className="text-center my-4">
             <h1 className="text-xl font-black text-black uppercase tracking-widest underline underline-offset-4">
               Authority to Sell Vehicle
             </h1>
           </div>
 
           {/* Date */}
-          <div className="flex items-baseline gap-2 mb-8 border-b border-gray-300 pb-1">
+          <div className="flex items-baseline gap-2 mb-4 border-b border-gray-300 pb-1">
             <span className="font-bold text-sm">Date:</span>
             <span className="text-sm font-medium flex-1">
               {formData.agreementDate
@@ -282,7 +282,7 @@ export default function AuthorityToSell() {
           </div>
 
           {/* Owner's Information */}
-          <section className="mb-8">
+          <section className="mb-4">
             <h2 className="font-black text-sm uppercase tracking-wide mb-1">Owner's Information</h2>
             <div className="space-y-1">
               <Field label="Full Name" value={formData.customerName} />
@@ -293,7 +293,7 @@ export default function AuthorityToSell() {
           </section>
 
           {/* Vehicle Information */}
-          <section className="mb-8">
+          <section className="mb-4">
             <h2 className="font-black text-sm uppercase tracking-wide mb-1">Vehicle Information</h2>
             <div className="space-y-1">
               <Field label="Make/Brand" value={formData.vehicleMake} />
@@ -305,8 +305,8 @@ export default function AuthorityToSell() {
           </section>
 
           {/* Authority Given */}
-          <section className="mb-8">
-            <h2 className="font-black text-sm uppercase tracking-wide mb-3">Authority Given</h2>
+          <section className="mb-4">
+            <h2 className="font-black text-sm uppercase tracking-wide mb-2">Authority Given</h2>
             <p className="text-sm leading-[2.2] text-gray-800">
               I,{" "}
               <span className="inline-block min-w-[220px] border-b border-gray-800 text-center font-bold">
@@ -328,9 +328,9 @@ export default function AuthorityToSell() {
           </section>
 
           {/* Note */}
-          <section className="mb-6">
-            <h2 className="font-black text-sm uppercase tracking-wide mb-2">Note:</h2>
-            <p className="text-sm text-gray-800 leading-relaxed min-h-[40px] border-b border-gray-300 pb-2">
+          <section className="mb-4">
+            <h2 className="font-black text-sm uppercase tracking-wide mb-1">Note:</h2>
+            <p className="text-sm text-gray-800 leading-relaxed min-h-[30px] border-b border-gray-300 pb-2">
               {formData.note}
             </p>
           </section>
@@ -338,14 +338,14 @@ export default function AuthorityToSell() {
 
           {/* Signatures */}
           <section>
-            <h2 className="font-black text-sm uppercase tracking-wide mb-6">Signatures</h2>
+            <h2 className="font-black text-sm uppercase tracking-wide mb-4">Signatures</h2>
             <div className="grid grid-cols-2 gap-16">
               {/* Owner */}
               <div>
                 <p className="text-xs font-bold text-gray-600 mb-1">Owner's Signature:</p>
-                <div className="h-20 border-b border-gray-800 mb-2 flex items-end">
+                <div className="h-16 border-b border-gray-800 mb-2 flex items-end">
                   {signature && (
-                    <img src={signature} alt="Owner Signature" className="max-h-16 object-contain" />
+                    <img src={signature} alt="Owner Signature" className="max-h-12 object-contain" />
                   )}
                 </div>
                 <div className="flex items-baseline gap-2 border-b border-gray-400 pb-1 mb-2">
@@ -365,9 +365,9 @@ export default function AuthorityToSell() {
               {/* BEE TEE Rep */}
               <div>
                 <p className="text-xs font-bold text-gray-600 mb-1">BEE TEE Representatives Signature:</p>
-                <div className="h-20 border-b border-gray-800 mb-2 flex items-end">
+                <div className="h-16 border-b border-gray-800 mb-2 flex items-end">
                   {repSignature && (
-                    <img src={repSignature} alt="Rep Signature" className="max-h-16 object-contain" />
+                    <img src={repSignature} alt="Rep Signature" className="max-h-12 object-contain" />
                   )}
                 </div>
                 <div className="flex items-baseline gap-2 border-b border-gray-400 pb-1 mb-2">
