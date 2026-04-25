@@ -27,6 +27,7 @@ import {
 import { PlusCircle, FileText, Printer, Trash2, Receipt, Search } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { canEdit } from "@/lib/permissions";
+import { logAction } from "@/lib/logger";
 
 export default function Invoices() {
   const { role } = useAuth();
@@ -156,9 +157,10 @@ export default function Invoices() {
 
       return inv;
     },
-    onSuccess: () => {
+    onSuccess: (inv) => {
       queryClient.invalidateQueries({ queryKey: ["invoices"] });
       queryClient.invalidateQueries({ queryKey: ["invoice-repair-links"] });
+      logAction("CREATE", "Invoice", inv?.id);
       toast.success("Invoice created");
       setDialogOpen(false);
       setForm({ customer_id: "", sale_id: "", invoice_type: "sale", notes: "", due_date: "", selectedRepairs: [] });
@@ -171,8 +173,9 @@ export default function Invoices() {
       const { error } = await supabase.from("invoices").delete().eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: ["invoices"] });
+      logAction("DELETE", "Invoice", id);
       toast.success("Invoice deleted");
     },
     onError: () => toast.error("Failed to delete invoice"),

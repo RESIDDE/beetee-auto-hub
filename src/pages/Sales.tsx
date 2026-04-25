@@ -44,6 +44,7 @@ import { canEdit } from "@/lib/permissions";
 import { getPrintHeaderHTML, getPrintWatermarkHTML } from "@/components/PrintHeader";
 import { getPrintFooterHTML } from "@/components/PrintFooter";
 import { numberToWords } from "@/lib/numberToWords";
+import { logAction } from "@/lib/logger";
 
 import { Checkbox } from "@/components/ui/checkbox";
 import { SignaturePad } from "@/components/SignaturePad";
@@ -218,9 +219,11 @@ export default function Sales() {
         if (error) throw error;
       }
     },
-    onSuccess: () => {
+    onSuccess: (_, variables: any) => {
       queryClient.invalidateQueries({ queryKey: ["sales"] });
       queryClient.invalidateQueries({ queryKey: ["customers"] });
+      const action = editId ? "UPDATE" : "CREATE";
+      logAction(action, "Sales", editId ?? undefined);
       toast.success(editId ? "Sale updated" : "Sale recorded");
       closeDialog();
     },
@@ -232,8 +235,9 @@ export default function Sales() {
       const { error } = await supabase.from("sales").delete().eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_,id) => {
       queryClient.invalidateQueries({ queryKey: ["sales"] });
+      logAction("DELETE", "Sales", id);
       toast.success("Sale deleted");
     },
     onError: () => toast.error("Failed to delete sale"),

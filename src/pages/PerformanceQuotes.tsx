@@ -25,6 +25,7 @@ import {
 import { getPrintHeaderHTML, getPrintWatermarkHTML } from "@/components/PrintHeader";
 import { getPrintFooterHTML } from "@/components/PrintFooter";
 import { numberToWords } from "@/lib/numberToWords";
+import { logAction } from "@/lib/logger";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -157,6 +158,7 @@ export default function PerformanceQuotes() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["performance_quotes"] });
       queryClient.invalidateQueries({ queryKey: ["customers"] });
+      logAction("CREATE", "Performance Quote");
       toast.success("Performance quote created successfully");
       closeDialog();
     },
@@ -171,8 +173,9 @@ export default function PerformanceQuotes() {
       const { error } = await supabase.from("performance_quotes" as any).delete().eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: ["performance_quotes"] });
+      logAction("DELETE", "Performance Quote", id);
       toast.success("Quote deleted successfully");
     },
     onError: () => toast.error("Failed to delete quote"),

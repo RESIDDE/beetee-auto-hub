@@ -21,6 +21,7 @@ import { SignaturePad } from "@/components/SignaturePad";
 import { QrSignDialog } from "@/lib/qrHelpers";
 import { useAuth } from "@/hooks/useAuth";
 import { canEdit } from "@/lib/permissions";
+import { logAction } from "@/lib/logger";
 
 type Customer = {
   id: string;
@@ -86,6 +87,7 @@ export default function Customers() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["customers"] });
+      logAction(editId ? "UPDATE" : "CREATE", "Customer", editId ?? undefined, { name: form.name });
       toast.success(editId ? "Customer updated" : "Customer added");
       closeDialog();
     },
@@ -97,8 +99,9 @@ export default function Customers() {
       const { error } = await supabase.from("customers").delete().eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: ["customers"] });
+      logAction("DELETE", "Customer", id);
       toast.success("Customer deleted");
     },
     onError: () => toast.error("Failed to delete customer"),

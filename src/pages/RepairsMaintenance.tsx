@@ -39,6 +39,7 @@ import { QrSignDialog } from "@/lib/qrHelpers";
 import { CurrencyInput } from "@/components/CurrencyInput";
 import { numberToWords } from "@/lib/numberToWords";
 import { CustomerSelect } from "@/components/CustomerSelect";
+import { logAction } from "@/lib/logger";
 
 type Repair = {
   id: string;
@@ -404,6 +405,7 @@ export default function RepairsMaintenance() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["repairs"] });
       queryClient.invalidateQueries({ queryKey: ["customers-list"] });
+      logAction(editId ? "UPDATE" : "CREATE", "Repair", editId ?? undefined);
       toast.success(editId ? "Repair updated" : "Repair added");
       closeDialog();
     },
@@ -415,8 +417,9 @@ export default function RepairsMaintenance() {
       const { error } = await supabase.from("repairs").delete().eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: ["repairs"] });
+      logAction("DELETE", "Repair", id);
       toast.success("Repair deleted");
     },
     onError: (e: any) => toast.error(e.message),
