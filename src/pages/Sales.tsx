@@ -1177,7 +1177,7 @@ export default function Sales() {
           </div>
           <div className="p-6 border-t border-white/5 bg-foreground/5 flex justify-end gap-3">
             <Button variant="outline" onClick={closeDialog} className="rounded-xl border-white/10 hover:bg-white/5">Cancel</Button>
-            <Button onClick={() => upsertMutation.mutate()} disabled={!canSubmit} className="rounded-xl bg-violet-500 hover:bg-violet-600 text-white border-0 shadow-lg shadow-violet-500/20">
+            <Button onClick={() => upsertMutation.mutate(undefined)} disabled={!canSubmit} className="rounded-xl bg-violet-500 hover:bg-violet-600 text-white border-0 shadow-lg shadow-violet-500/20">
               {editId ? "Update Sale" : "Record Sale"}
             </Button>
           </div>
