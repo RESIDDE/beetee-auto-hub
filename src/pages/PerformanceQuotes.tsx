@@ -219,35 +219,34 @@ export default function PerformanceQuotes() {
     const html = `<html><head><title>Performance Quote - ${quote.id.slice(0,8).toUpperCase()}</title>
     <style>
       @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap');
-      body { font-family: 'Roboto', 'Arial', sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; color: #1a1a1a; line-height: 1.4; }
-      .date-section { text-align: right; font-weight: 800; font-size: 14px; margin-bottom: 20px; text-transform: uppercase; }
-      .bill-to { margin-bottom: 30px; }
-      .bill-to p { margin: 2px 0; font-size: 14px; }
+      body { font-family: 'Roboto', 'Arial', sans-serif; padding: 15px; max-width: 800px; margin: 0 auto; color: #1a1a1a; line-height: 1.3; }
+      .date-section { text-align: right; font-weight: 800; font-size: 13px; margin-bottom: 15px; text-transform: uppercase; }
+      .bill-to { margin-bottom: 20px; }
+      .bill-to p { margin: 2px 0; font-size: 13px; }
       .main-container {
         background-color: transparent;
         border-radius: 40px;
-        padding: 40px;
-        min-height: 600px;
+        padding: 20px;
         position: relative;
         border: none;
       }
       .content-wrapper { position: relative; z-index: 1; }
-      .bill-title { text-align: center; text-decoration: underline; font-weight: 900; font-size: 22px; margin-bottom: 30px; color: #1e293b; text-transform: uppercase; }
+      .bill-title { text-align: center; text-decoration: underline; font-weight: 900; font-size: 20px; margin-bottom: 20px; color: #1e293b; text-transform: uppercase; }
       
-      table { width: 100%; border-collapse: collapse; background: transparent; margin-bottom: 30px; }
-      th, td { border: 1px solid #475569; padding: 12px; text-align: left; font-size: 14px; font-weight: 600; }
+      table { width: 100%; border-collapse: collapse; background: transparent; margin-bottom: 20px; }
+      th, td { border: 1px solid #475569; padding: 8px 10px; text-align: left; font-size: 13px; font-weight: 600; }
       th { background: transparent; text-transform: uppercase; }
       td:first-child { width: 40px; text-align: center; }
       
-      .total-row td { border-top: 3px solid #1e293b; font-weight: 900; font-size: 18px; }
-      .amount-words { font-weight: 900; margin-bottom: 30px; font-size: 15px; text-transform: uppercase; }
-      .bank-details { margin-top: 20px; font-size: 13px; }
+      .total-row td { border-top: 3px solid #1e293b; font-weight: 900; font-size: 16px; }
+      .amount-words { font-weight: 900; margin-bottom: 20px; font-size: 14px; text-transform: uppercase; }
+      .bank-details { margin-top: 15px; font-size: 12px; }
       .bank-details h4 { margin: 0 0 5px 0; font-weight: 900; text-transform: uppercase; }
       .bank-details p { margin: 2px 0; font-weight: 500; }
-      .notes-box { font-size: 13px; color: #475569; background: #f1f5f9; padding: 15px; border-radius: 8px; margin-bottom: 30px; border: 1px solid #e2e8f0; }
-      .signature-area { display: flex; justify-content: space-between; margin-top: 40px; border-top: 2px solid #94a3b8; padding-top: 20px; }
+      .notes-box { font-size: 12px; color: #475569; background: #f1f5f9; padding: 12px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #e2e8f0; }
+      .signature-area { display: flex; justify-content: space-between; margin-top: 30px; border-top: 2px solid #94a3b8; padding-top: 15px; }
       .sig-box { width: 45%; text-align: center; font-size: 12px; }
-      .signature-img { max-height: 50px; display: block; margin: 0 auto 5px; }
+      .signature-img { max-height: 40px; display: block; margin: 0 auto 5px; }
     </style></head><body>
     ${getPrintHeaderHTML()}
     
