@@ -377,7 +377,7 @@ export default function Settings() {
                 const isSelf = u.user_id === user?.id;
                 const rc = ROLE_CONFIG[u.role] ?? ROLE_CONFIG.mechanic;
                 return (
-                  <div key={u.id} className={`flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-2xl border transition-all ${isSelf ? "bg-amber-500/5 border-amber-500/20" : "bg-background/40 border-white/5 hover:border-white/10"}`}>
+                  <div key={u.user_id} className={`flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-2xl border transition-all ${isSelf ? "bg-amber-500/5 border-amber-500/20" : "bg-background/40 border-white/5 hover:border-white/10"}`}>
                     <div className="flex items-center gap-4">
                       <div className={`h-12 w-12 rounded-full flex items-center justify-center font-bold text-lg shrink-0 ${isSelf ? "bg-amber-500 text-white" : "bg-foreground/10 text-foreground"}`}>
                         {profile?.display_name?.charAt(0)?.toUpperCase() || "?"}
