@@ -56,7 +56,16 @@ export default function Dashboard() {
   const { data: vehicles = [], isLoading: loadingV } = useQuery({
     queryKey: ["dash-vehicles"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("vehicles").select("*");
+      const { data, error } = await supabase.from("vehicles").select("*").eq("inventory_type", "beetee");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: resaleVehicles = [] } = useQuery({
+    queryKey: ["dash-resale-vehicles"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("vehicles").select("id, status, created_at").eq("inventory_type", "resale");
       if (error) throw error;
       return data;
     },
@@ -149,7 +158,7 @@ export default function Dashboard() {
 
   // 4. Inventory Aging
   const inventoryAging = useMemo(() => {
-     const unsold = vehicles.filter(v => v.status !== 'sold');
+     const unsold = vehicles.filter(v => v.status !== 'sold'); // only beetee stock
      const aging = { "0-30 days": 0, "31-60 days": 0, "61-90 days": 0, "90+ days": 0 };
      unsold.forEach(v => {
        const days = differenceInDays(new Date(), new Date(v.created_at));
@@ -381,7 +390,12 @@ export default function Dashboard() {
               <Link to="/vehicles" className="bento-card p-5 group flex flex-col">
                 <div className="p-2.5 bg-sky-500/10 w-fit rounded-xl group-hover:bg-sky-500/20 transition-colors mb-3"><Car className="h-5 w-5 text-sky-500" /></div>
                 <h3 className="text-2xl font-bold">{vehicles.length}</h3>
-                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider mt-0.5">Vehicles</p>
+                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider mt-0.5">Beetee Stock</p>
+              </Link>
+              <Link to="/resale-vehicles" className="bento-card p-5 group flex flex-col">
+                <div className="p-2.5 bg-orange-500/10 w-fit rounded-xl group-hover:bg-orange-500/20 transition-colors mb-3"><Car className="h-5 w-5 text-orange-500" /></div>
+                <h3 className="text-2xl font-bold">{resaleVehicles.length}</h3>
+                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider mt-0.5">Resale Stock</p>
               </Link>
               <Link to="/customers" className="bento-card p-5 group flex flex-col">
                 <div className="p-2.5 bg-violet-500/10 w-fit rounded-xl group-hover:bg-violet-500/20 transition-colors mb-3"><Users className="h-5 w-5 text-violet-500" /></div>
@@ -393,12 +407,13 @@ export default function Dashboard() {
                 <h3 className="text-2xl font-bold">{sales.length}</h3>
                 <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider mt-0.5">Sales</p>
               </Link>
-              <Link to="/repairs" className="bento-card p-5 group flex flex-col">
+              <Link to="/repairs" className="bento-card p-5 group flex flex-col col-span-2">
                 <div className="p-2.5 bg-amber-500/10 w-fit rounded-xl group-hover:bg-amber-500/20 transition-colors mb-3"><Wrench className="h-5 w-5 text-amber-500" /></div>
                 <h3 className="text-2xl font-bold">{repairs.filter((r: any) => r.payment_status !== 'paid_in_full').length}</h3>
-                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider mt-0.5">Open Jobs</p>
+                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider mt-0.5">Open Repair Jobs</p>
               </Link>
             </div>
+
 
             {/* Recent Inventory List */}
             <div className="glass-panel p-0 flex flex-col overflow-hidden bg-card/20 border-white/10 flex-1">
