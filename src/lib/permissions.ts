@@ -32,13 +32,13 @@ export const SUPER_ADMIN_PAGES: PageKey[] = ALL_PAGES.map((p) => p.key);
 
 export const DEFAULT_PERMISSIONS: PermissionsMap = {
   admin:    { view: ALL_PAGES.map((p) => p.key), edit: ALL_PAGES.map((p) => p.key) },
-  sales:    { view: ["dashboard", "vehicles", "customers", "sales", "invoices", "inquiries", "performance-quotes"], edit: ["vehicles", "customers", "sales", "invoices", "inquiries", "performance-quotes"] },
+  sales:    { view: ["dashboard", "vehicles", "customers", "sales", "invoices", "inquiries", "performance-quotes", "authority-to-sell"], edit: ["vehicles", "customers", "sales", "invoices", "inquiries", "performance-quotes", "authority-to-sell"] },
   mechanic: { view: ["dashboard", "vehicles", "repairs", "inspections"], edit: ["vehicles", "repairs", "inspections"] },
 };
 
 // ─── localStorage persistence ────────────────────────────────────────────────
 
-const STORAGE_KEY = "beetee_permissions_v1";
+const STORAGE_KEY = "beetee_permissions_v2";
 
 type PermissionsMap = Record<Exclude<AppRole, "super_admin">, { view: PageKey[], edit: PageKey[] }>;
 
