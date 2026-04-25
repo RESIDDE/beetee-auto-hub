@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { 
   Car, Users, DollarSign, Wrench, PlusCircle, Search, ChevronRight, 
-  TrendingUp, Calendar, ArrowUpRight, BarChart3, Clock, PieChart as PieChartIcon
+  TrendingUp, Calendar, ArrowUpRight, BarChart3, Clock, PieChart as PieChartIcon,
+  FileSignature, FileText
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import {
@@ -87,6 +88,17 @@ export default function Dashboard() {
       return data;
     },
   });
+
+  const { data: performanceQuotes = [] } = useQuery({
+    queryKey: ["dash-perf-quotes"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).from("performance_quotes").select("id, total_amount, created_at");
+      if (error) throw error;
+      return data as any[];
+    },
+  });
+
+  const totalQuotesValue = performanceQuotes.reduce((sum, q) => sum + Number(q.total_amount || 0), 0);
 
   const totalSalesRevenue = sales.reduce((sum, s) => sum + Number(s.sale_price || 0), 0);
   const totalRepairsRevenue = repairs.reduce((sum, r) => sum + Number(r.repair_cost || 0), 0);
@@ -247,6 +259,17 @@ export default function Dashboard() {
                </div>
             </Link>
 
+            <Link to="/performance-quotes" className="md:col-span-1 group">
+               <div className="bento-card p-5 sm:p-6 flex flex-col justify-between relative overflow-hidden h-full min-h-[160px]">
+                 <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 blur-2xl rounded-full pointer-events-none transition-colors duration-500 group-hover:bg-emerald-500/20" />
+                 <div className="p-2 sm:p-3 bg-emerald-500/10 w-fit rounded-xl sm:rounded-2xl mb-2 sm:mb-4 group-hover:bg-emerald-500/20"><FileSignature className="h-5 w-5 sm:h-6 sm:w-6 text-emerald-500" /></div>
+                 <div className="z-10 relative">
+                    <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-foreground">{performanceQuotes.length}</h2>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wider mt-1 sm:mt-2 font-semibold line-clamp-1">Perf. Quotes</p>
+                 </div>
+               </div>
+            </Link>
+
             <div className="md:col-span-1 bento-card p-5 sm:p-6 flex flex-col justify-between relative overflow-hidden group h-full min-h-[160px]">
                <div className="absolute top-0 right-0 w-32 h-32 bg-sky-500/10 blur-2xl rounded-full pointer-events-none transition-colors duration-500 group-hover:bg-sky-500/20" />
                <div className="p-2 sm:p-3 bg-sky-500/10 w-fit rounded-xl sm:rounded-2xl mb-2 sm:mb-4 group-hover:bg-sky-500/20"><Clock className="h-5 w-5 sm:h-6 sm:w-6 text-sky-500" /></div>
@@ -364,6 +387,16 @@ export default function Dashboard() {
                 <div className="p-2.5 bg-violet-500/10 w-fit rounded-xl group-hover:bg-violet-500/20 transition-colors mb-3"><Users className="h-5 w-5 text-violet-500" /></div>
                 <h3 className="text-2xl font-bold">{customers.length}</h3>
                 <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider mt-0.5">Customers</p>
+              </Link>
+              <Link to="/sales" className="bento-card p-5 group flex flex-col">
+                <div className="p-2.5 bg-emerald-500/10 w-fit rounded-xl group-hover:bg-emerald-500/20 transition-colors mb-3"><DollarSign className="h-5 w-5 text-emerald-500" /></div>
+                <h3 className="text-2xl font-bold">{sales.length}</h3>
+                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider mt-0.5">Sales</p>
+              </Link>
+              <Link to="/repairs" className="bento-card p-5 group flex flex-col">
+                <div className="p-2.5 bg-amber-500/10 w-fit rounded-xl group-hover:bg-amber-500/20 transition-colors mb-3"><Wrench className="h-5 w-5 text-amber-500" /></div>
+                <h3 className="text-2xl font-bold">{repairs.filter((r: any) => r.payment_status !== 'paid_in_full').length}</h3>
+                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider mt-0.5">Open Jobs</p>
               </Link>
             </div>
 
