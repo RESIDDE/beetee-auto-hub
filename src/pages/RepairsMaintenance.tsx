@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import logoAsset from "@/assets/logo.png";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,9 +14,12 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { 
-  ChevronRight, ArrowRight, Receipt, ClipboardCheck, Wrench, PlusCircle, Clock, DollarSign, PieChart as PieChartIcon, Search, Car, Pencil, QrCode, FileOutput, Trash2, History as HistoryIcon, Check, ChevronsUpDown 
+  ChevronRight, ArrowRight, Receipt, ClipboardCheck, Wrench, PlusCircle, Clock, DollarSign, PieChart as PieChartIcon, Search, Car, Pencil, QrCode, FileOutput, Trash2, History as HistoryIcon, Check, ChevronsUpDown, Mail, Printer 
 } from "lucide-react";
 import {
   Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList
@@ -309,6 +313,7 @@ export default function RepairsMaintenance() {
 
   const totalPages = useMemo(() => Math.ceil(filteredRepairs.length / PAGE_SIZE), [filteredRepairs]);
   const pagedRepairs = useMemo(() => filteredRepairs.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE), [filteredRepairs, page]);
+  console.log("RepairsMaintenance loaded with pagination support", { page, totalResults: filteredRepairs.length, totalPages });
 
 
   const customerHistory = useMemo(() => {
@@ -508,12 +513,23 @@ export default function RepairsMaintenance() {
     return null;
   };
 
-  const printBill = (r: Repair) => {
+  const renderCheckboxesHTML = (items: string[], allOptions: string[]) => {
+    return allOptions.map(opt => `
+      <span style="display:inline-flex; align-items:center; margin-right: 15px; font-size: 11px;">
+        <span style="width:12px; height:12px; border:1.5px solid #333; display:inline-block; margin-right:5px; text-align:center; line-height:10px; font-weight:bold;">
+          ${items?.includes(opt) ? '✓' : ''}
+        </span>
+        ${opt}
+      </span>
+    `).join('');
+  };
+
+  const getBillHTML = (r: Repair, logoBase64?: string) => {
     const cust = customers.find(c => c.id === r.customer_id);
     const totalAmount = Number(r.repair_cost) || 0;
     const vehicleLabel = getVehicleLabel(r).toUpperCase();
 
-    const html = `<html><head><title>Service Bill - ${vehicleLabel}</title>
+    return `<html><head><title>Service Bill - ${vehicleLabel}</title>
     <style>
       @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap');
       body { font-family: 'Roboto', 'Arial', sans-serif; padding: 15px; max-width: 800px; margin: 0 auto; color: #1a1a1a; line-height: 1.3; }
@@ -541,7 +557,7 @@ export default function RepairsMaintenance() {
       .bank-details h4 { margin: 0 0 5px 0; font-weight: 900; text-transform: uppercase; }
       .bank-details p { margin: 2px 0; font-weight: 500; }
     </style></head><body>
-    ${getPrintHeaderHTML()}
+    ${getPrintHeaderHTML(logoBase64)}
     
     <div class="date-section">DATE: ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
 
@@ -552,7 +568,7 @@ export default function RepairsMaintenance() {
     </div>
 
     <div class="main-container">
-      ${getPrintWatermarkHTML()}
+      ${getPrintWatermarkHTML(logoBase64)}
       <div class="content-wrapper">
         <h2 class="bill-title">${vehicleLabel} SERVICE BILL</h2>
         
@@ -615,12 +631,6 @@ export default function RepairsMaintenance() {
           </tbody>
         </table>
         
-        ${r.parts_to_replace ? `
-        <div style="margin-bottom: 20px; background: transparent; padding: 15px; border-radius: 15px; border: 1px solid #94a3b8;">
-          <h4 style="margin: 0 0 8px 0; text-transform: uppercase; font-size: 13px; font-weight: 900;">Replacement Parts List:</h4>
-          <div style="font-size: 12px; font-weight: 500; white-space: pre-wrap;">${r.parts_to_replace}</div>
-        </div>
-        ` : ''}
 
         <div class="amount-words">
           AMOUNT IN WORDS: ${numberToWords(totalAmount)}
@@ -635,26 +645,11 @@ export default function RepairsMaintenance() {
       </div>
     </div>
     </body></html>`;
-    const win = window.open("", "_blank");
-    if (win) { win.document.write(html); win.document.close(); win.print(); }
   };
 
-  const printJobCard = (r: Repair) => {
+  const getJobCardHTML = (r: Repair, logoBase64?: string) => {
     const cust = customers.find(c => c.id === r.customer_id);
-    const balance = (Number(r.repair_cost) || 0) - (Number(r.deposit_amount) || 0);
-
-    const renderCheckboxes = (items: string[], allOptions: string[]) => {
-      return allOptions.map(opt => `
-        <span style="display:inline-flex; align-items:center; margin-right: 15px; font-size: 11px;">
-          <span style="width:12px; height:12px; border:1.5px solid #333; display:inline-block; margin-right:5px; text-align:center; line-height:10px; font-weight:bold;">
-            ${items?.includes(opt) ? '✓' : ''}
-          </span>
-          ${opt}
-        </span>
-      `).join('');
-    };
-
-    const html = `<html><head><title>Job Card - ${r.job_card_no || r.id}</title>
+    return `<html><head><title>Job Card - ${r.job_card_no || r.id}</title>
     <style>
       @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
       body { font-family: 'Inter', sans-serif; padding: 10px; max-width: 850px; margin: 0 auto; color: #1a1a1a; line-height: 1.3; }
@@ -671,8 +666,8 @@ export default function RepairsMaintenance() {
       .sig-line { border-bottom: 1.5px solid #000; min-width: 130px; display: inline-block; margin: 0 5px; height: 25px; }
       @media print { body { padding: 0; } .section { page-break-inside: avoid; } }
     </style></head><body>
-    ${getPrintWatermarkHTML()}
-    ${getPrintHeaderHTML()}
+    ${getPrintWatermarkHTML(logoBase64)}
+    ${getPrintHeaderHTML(logoBase64)}
     
     <div class="job-header">JOB CARD</div>
 
@@ -719,7 +714,7 @@ export default function RepairsMaintenance() {
         </div>
         <div class="field" style="margin-top: 5px;">
           <span class="field-label">Fuel Level:</span>
-          ${renderCheckboxes([r.fuel_level || ''], ['Empty', '1/4', '1/2', '3/4', 'Full'])}
+          ${renderCheckboxesHTML([r.fuel_level || ''], ['Empty', '1/4', '1/2', '3/4', 'Full'])}
         </div>
       </div>
     </div>
@@ -737,7 +732,7 @@ export default function RepairsMaintenance() {
       <div class="section-title">4. VEHICLE CONDITION CHECK (ON ARRIVAL)</div>
       <div class="section-content">
         <div class="checkbox-grid">
-          ${renderCheckboxes(r.condition_check || [], ['Scratches', 'Broken Lights', 'Interior Damage', 'Engine Noise', 'Warning Lights', 'Electrical Fault', 'AC Fault'])}
+          ${renderCheckboxesHTML(r.condition_check || [], ['Scratches', 'Broken Lights', 'Interior Damage', 'Engine Noise', 'Warning Lights', 'Electrical Fault', 'AC Fault'])}
         </div>
         <div style="margin-top: 10px; padding-top: 5px; border-top: 1px dashed #ccc;">
           <strong>Inspection Notes:</strong> ${r.inspection_notes || 'No damaged parts noted.'}
@@ -752,14 +747,14 @@ export default function RepairsMaintenance() {
         <div style="margin-bottom: 10px;">
           <strong style="font-size: 10px;">A. PAINTING & BODY WORK</strong><br/>
           <div class="checkbox-grid">
-            ${renderCheckboxes(r.painting_bodywork?.items || [], ['Full Body Respray', 'Panel Beating', 'Dent Removal', 'Scratch Removal', 'Color Change', 'Polishing & Buffing'])}
+            ${renderCheckboxesHTML(r.painting_bodywork?.items || [], ['Full Body Respray', 'Panel Beating', 'Dent Removal', 'Scratch Removal', 'Color Change', 'Polishing & Buffing'])}
           </div>
           <div style="font-size: 10px; margin-top: 4px; font-style: italic;">Details: ${r.painting_bodywork?.details || '—'}</div>
         </div>
         <div>
           <strong style="font-size: 10px;">B. MECHANICAL & GENERAL SERVICE</strong><br/>
           <div class="checkbox-grid">
-            ${renderCheckboxes(r.mechanical_service?.items || [], ['Engine Service', 'Oil Change', 'Brake Service', 'Suspension', 'Electricals', 'AC Service', 'Diagnostics', 'Wheel Balancing and Alignment'])}
+            ${renderCheckboxesHTML(r.mechanical_service?.items || [], ['Engine Service', 'Oil Change', 'Brake Service', 'Suspension', 'Electricals', 'AC Service', 'Diagnostics', 'Wheel Balancing and Alignment'])}
           </div>
           <div style="font-size: 10px; margin-top: 4px; font-style: italic;">Details: ${r.mechanical_service?.details || '—'}</div>
         </div>
@@ -830,8 +825,116 @@ export default function RepairsMaintenance() {
 
     <div class="footer-note">Thank you for choosing Bee Tee Autoshop. We appreciate your business!</div>
     </body></html>`;
+  };
+
+  const printBill = (r: Repair) => {
+    const html = getBillHTML(r);
     const win = window.open("", "_blank");
     if (win) { win.document.write(html); win.document.close(); win.print(); }
+  };
+
+  const printJobCard = (r: Repair) => {
+    const html = getJobCardHTML(r);
+    const win = window.open("", "_blank");
+    if (win) { win.document.write(html); win.document.close(); win.print(); }
+  };
+
+  const downloadRepairPDF = async (r: Repair, type: 'bill' | 'jobcard', isEmail = false) => {
+    const cust = customers.find(c => c.id === r.customer_id);
+    const filename = `${type}-${r.job_card_no || r.id}-${Date.now()}`;
+
+    try {
+      console.log(`Starting ${type} generation for Repair:`, r.id);
+      if (isEmail) toast.loading(`Preparing ${type} link for email...`, { id: "repair-dl" });
+      else toast.loading(`Preparing ${type} download...`, { id: "repair-dl" });
+
+      let logoBase64 = '';
+      try {
+        const response = await fetch(logoAsset);
+        const blob = await response.blob();
+        logoBase64 = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.readAsDataURL(blob);
+        });
+      } catch (e) { console.error("Logo load error:", e); }
+
+      const html = type === 'bill' ? getBillHTML(r, logoBase64) : getJobCardHTML(r, logoBase64);
+      
+      const iframe = document.createElement('iframe');
+      iframe.style.cssText = "position:fixed;left:-9999px;top:-9999px;width:800px;height:2000px;border:none;visibility:hidden;";
+      document.body.appendChild(iframe);
+      const iDoc = iframe.contentDocument!;
+      iDoc.open(); iDoc.write(html); iDoc.close();
+
+      // Wait for images to load
+      await new Promise<void>(res => {
+        const imgs = Array.from(iDoc.images);
+        if (imgs.length === 0) { setTimeout(res, 600); return; }
+        let loaded = 0;
+        const done = () => { if (++loaded >= imgs.length) setTimeout(res, 300); };
+        imgs.forEach(img => {
+          if (img.complete) done();
+          else { img.onload = done; img.onerror = done; }
+        });
+        setTimeout(res, 2000); // Max wait
+      });
+
+      const contentEl = iDoc.documentElement;
+      const fullHeight = contentEl.scrollHeight;
+      iframe.style.height = `${fullHeight}px`;
+
+      const { toPng } = await import("html-to-image");
+      const imgData = await toPng(contentEl, { 
+        pixelRatio: 2, 
+        backgroundColor: "#ffffff",
+        width: 800,
+        height: fullHeight
+      });
+      
+      if (!imgData || imgData.length < 100) {
+        throw new Error("Failed to capture a valid image of the document.");
+      }
+
+      const { jsPDF } = await import("jspdf");
+      const a4Width = 595;
+      const scale = a4Width / 800;
+      const pdfPageH = fullHeight * scale;
+      const pdf = new jsPDF({ orientation: "portrait", unit: "pt", format: [a4Width, pdfPageH] });
+      pdf.addImage(imgData, "PNG", 0, 0, a4Width, pdfPageH);
+      
+      document.body.removeChild(iframe);
+
+      if (isEmail) {
+        const pdfBlob = pdf.output('blob');
+        const storagePath = `${r.customer_id || 'unknown'}/${filename}.pdf`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from('documents')
+          .upload(storagePath, pdfBlob, { contentType: 'application/pdf', upsert: true });
+
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('documents')
+          .getPublicUrl(storagePath);
+
+        if (cust?.email) {
+          const subject = `${type === 'bill' ? 'Repair Bill' : 'Job Card'} - Beetee Autos`;
+          const body = `Hello ${cust.name || 'Customer'},\n\nPlease find your ${type === 'bill' ? 'repair bill' : 'job card'} attached below.\n\nYou can also download it directly here: ${publicUrl}\n\nThank you for choosing Beetee Autos!`;
+          window.location.href = `mailto:${cust.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+          toast.success("Link generated! Opening email client...", { id: "repair-dl" });
+        } else {
+          toast.error("Customer email not found.", { id: "repair-dl" });
+        }
+      } else {
+        pdf.save(`${filename}.pdf`);
+        toast.success(`${type === 'bill' ? 'Bill' : 'Job Card'} downloaded!`, { id: "repair-dl" });
+      }
+    } catch (error) {
+      console.error("Download error:", error);
+      toast.error(`Failed to generate ${type}`, { id: "repair-dl" });
+    }
   };
 
   return (
@@ -844,7 +947,7 @@ export default function RepairsMaintenance() {
             <span className="text-sm font-medium uppercase tracking-wider text-amber-500">Service Department</span>
           </div>
           <h1 className="text-4xl md:text-5xl font-heading font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-foreground via-foreground to-foreground/70 tracking-tight">
-            Repairs & Maintenance
+            Repairs & Maintenance <span className="text-[10px] opacity-30 font-mono">v2.2</span>
           </h1>
           <p className="text-base text-muted-foreground mt-2 max-w-xl">
              Manage service logs, parts replacements, and track vehicle repair history across your fleet.
@@ -979,6 +1082,11 @@ export default function RepairsMaintenance() {
             </SelectContent>
           </Select>
         </div>
+        <div className="sm:ml-auto z-10 flex items-center gap-2">
+           <span className="text-sm font-medium text-muted-foreground bg-background/50 px-3 py-1.5 rounded-lg border border-white/5">
+             {filteredRepairs.length} Results
+           </span>
+        </div>
       </div>
 
 
@@ -1026,12 +1134,38 @@ export default function RepairsMaintenance() {
                 </div>
 
                 <div className="flex flex-wrap gap-2 mt-6 pt-4 border-t border-white/5 justify-end">
-                  <Button variant="ghost" size="sm" className="h-8 rounded-lg hover:bg-emerald-500/10 hover:text-emerald-500 text-muted-foreground transition-all" onClick={() => printBill(r)}>
-                    <Receipt className="h-3.5 w-3.5 mr-1.5" /> Bill
-                  </Button>
-                  <Button variant="ghost" size="sm" className="h-8 rounded-lg hover:bg-sky-500/10 hover:text-sky-500 text-muted-foreground transition-all" onClick={() => printJobCard(r)}>
-                    <ClipboardCheck className="h-3.5 w-3.5 mr-1.5" /> Job Card
-                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="sm" className="h-8 rounded-lg hover:bg-amber-500/10 hover:text-amber-500 text-muted-foreground transition-all">
+                        <Receipt className="h-3.5 w-3.5 mr-1.5" /> Bill <ChevronRight className="h-3 w-3 ml-1" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="glass-panel border-white/10 rounded-xl p-1">
+                      <DropdownMenuItem onClick={() => printBill(r)} className="rounded-lg cursor-pointer gap-2">
+                        <Printer className="h-4 w-4 text-amber-500" /> Print Bill
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => downloadRepairPDF(r, 'bill', true)} className="rounded-lg cursor-pointer gap-2">
+                        <Mail className="h-4 w-4 text-sky-500" /> Email to Customer
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="sm" className="h-8 rounded-lg hover:bg-emerald-500/10 hover:text-emerald-500 text-muted-foreground transition-all">
+                        <ClipboardCheck className="h-3.5 w-3.5 mr-1.5" /> Job Card <ChevronRight className="h-3 w-3 ml-1" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="glass-panel border-white/10 rounded-xl p-1">
+                      <DropdownMenuItem onClick={() => printJobCard(r)} className="rounded-lg cursor-pointer gap-2">
+                        <Printer className="h-4 w-4 text-emerald-500" /> Print Job Card
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => downloadRepairPDF(r, 'jobcard', true)} className="rounded-lg cursor-pointer gap-2">
+                        <Mail className="h-4 w-4 text-sky-500" /> Email to Customer
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+
                   <Button variant="ghost" size="sm" className="h-8 rounded-lg hover:bg-foreground/10 hover:text-foreground text-muted-foreground transition-all" onClick={() => openEdit(r)}>
                     <Pencil className="h-3.5 w-3.5 mr-1.5" /> Edit
                   </Button>

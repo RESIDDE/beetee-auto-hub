@@ -41,7 +41,7 @@ export default function Customers() {
 
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
-  const PAGE_SIZE = 9; // 3x3 grid looks good
+  const PAGE_SIZE = 50; // Increased to allow more scrolling
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -167,7 +167,8 @@ export default function Customers() {
         </div>
       ) : (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="max-h-[65vh] overflow-y-auto pr-2 custom-scrollbar transition-all">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pb-4">
             {paged.map((c) => (
               <div key={c.id} className="bento-card p-6 flex flex-col justify-between group">
                 <div>
@@ -222,6 +223,7 @@ export default function Customers() {
               </div>
             ))}
           </div>
+        </div>
 
           {/* Pagination */}
           {totalPages > 1 && (

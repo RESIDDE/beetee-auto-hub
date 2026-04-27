@@ -62,7 +62,7 @@ const emptyForm: FormData = {
   cost_price: "0",
   mileage: "0",
   fuel_type: "Petrol",
-  transmission: "Manual",
+  transmission: "Automatic",
   status: "Available",
   description: "",
   date_arrived: "",
@@ -145,7 +145,7 @@ export default function VehicleForm() {
         cost_price: v.cost_price?.toString() || "0",
         mileage: v.mileage?.toString() || "0",
         fuel_type: v.fuel_type || "Petrol",
-        transmission: v.transmission || "Manual",
+        transmission: v.transmission || "Automatic",
         status: v.status || "Available",
         description: v.description || "",
         date_arrived: v.date_arrived || "",
@@ -350,7 +350,24 @@ export default function VehicleForm() {
               errors={{ make: errors.make, model: errors.model, year: errors.year }}
               required={{ make: true, model: true, year: true }}
             />
-            {field("vin", "Chassis Number (VIN)")}
+            <div className="space-y-1">
+              <div className="flex justify-between items-center">
+                <Label htmlFor="vin">Chassis Number (VIN)</Label>
+                <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${form.vin.length > 17 ? 'bg-destructive/10 text-destructive' : 'bg-muted text-muted-foreground'}`}>
+                  {form.vin.length}/17
+                </span>
+              </div>
+              <Input
+                id="vin"
+                value={form.vin}
+                onChange={(e) => setForm({ ...form, vin: e.target.value.toUpperCase() })}
+                placeholder="Enter 17-digit VIN"
+                className={form.vin.length > 17 ? 'border-destructive focus-visible:ring-destructive' : ''}
+              />
+              {errors.vin && (
+                <p className="text-sm text-destructive">{errors.vin}</p>
+              )}
+            </div>
             {field("trim", "Trim (e.g. LE, Sport)")}
             {field("color", "Color")}
             {field("mileage", "Mileage", "number")}

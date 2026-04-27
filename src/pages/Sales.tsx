@@ -30,7 +30,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { 
   PlusCircle, Pencil, Trash2, Receipt, Download, FileText, Printer, FileOutput, 
   DollarSign, Calendar, Search, Car, Users, QrCode, CheckCircle, Image, FileDown,
-  TrendingUp, TrendingDown, ShoppingBag, Target, ArrowUpRight, BarChart3, PieChart as PieChartIcon
+  TrendingUp, TrendingDown, ShoppingBag, Target, ArrowUpRight, BarChart3, PieChart as PieChartIcon,
+  Mail
 } from "lucide-react";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
@@ -217,6 +218,13 @@ export default function Sales() {
         }));
         const { error } = await supabase.from("sale_vehicles").insert(links);
         if (error) throw error;
+
+        // Mark vehicles as sold
+        const { error: vError } = await supabase
+          .from("vehicles")
+          .update({ status: "Sold" })
+          .in("id", form.selected_vehicle_ids);
+        if (vError) throw vError;
       }
     },
     onSuccess: (_, variables: any) => {
@@ -302,7 +310,7 @@ export default function Sales() {
     ]);
   };
 
-  const printReceipt = (sale: any, isBulk = false) => {
+  const printReceipt = (sale: any, isBulk = false, logoBase64?: string) => {
     const cust = customerObjMap[sale.customer_id];
     const totalAmount = Number(sale.sale_price) || 0;
     
@@ -324,7 +332,7 @@ export default function Sales() {
       </div>
 
       <div class="main-container">
-        ${getPrintWatermarkHTML()}
+        ${getPrintWatermarkHTML(logoBase64)}
         <div class="content-wrapper">
           <h2 class="bill-title" style="margin-bottom: 15px;">VEHICLE SALES RECEIPT</h2>
           
@@ -434,6 +442,132 @@ export default function Sales() {
     }
   };
 
+  const downloadSaleReceipt = async (sale: any, type: 'pdf' | 'png' | 'jpeg', isEmail = false) => {
+    const cust = customerObjMap[sale.customer_id];
+    const filename = `receipt-${sale.id.slice(0, 8)}`;
+
+    try {
+      console.log("Starting document generation for:", filename, "Format:", type);
+      if (isEmail) toast.loading("Preparing link for email...", { id: "sale-dl" });
+      else toast.loading(`Preparing ${type.toUpperCase()} download...`, { id: "sale-dl" });
+
+      console.log("Fetching logo asset...");
+      const logoBase64 = await fetch(logoAsset)
+        .then(r => r.blob())
+        .then(blob => new Promise<string>((res, rej) => {
+          const reader = new FileReader();
+          reader.onload = () => res(reader.result as string);
+          reader.onerror = rej;
+          reader.readAsDataURL(blob);
+        }));
+
+      const html = `<!DOCTYPE html><html><head><title>Receipt - ${sale.id}</title>
+        <style>
+          @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap');
+          body { font-family: 'Roboto', 'Arial', sans-serif; padding: 40px; width: 750px; background: #fff; color: #1a1a1a; line-height: 1.4; }
+          .date-section { text-align: right; font-weight: 800; font-size: 14px; margin-bottom: 20px; text-transform: uppercase; }
+          .bill-to { margin-bottom: 30px; }
+          .bill-to p { margin: 2px 0; font-size: 14px; }
+          .main-container { border-radius: 40px; padding: 40px; min-height: 600px; position: relative; border: 1px solid #94a3b8; }
+          .content-wrapper { position: relative; z-index: 1; }
+          .bill-title { text-align: center; text-decoration: underline; font-weight: 900; font-size: 22px; margin-bottom: 30px; color: #1e293b; text-transform: uppercase; }
+          .refund-note { text-align: center; font-weight: 900; font-size: 14px; color: #dc2626; border: 2px solid #dc2626; padding: 10px; margin: 20px 0; border-radius: 12px; }
+          .signature-area { display: flex; justify-content: space-between; margin-top: 40px; }
+          .sig-box { text-align: center; width: 250px; }
+          .signature-img { max-height: 60px; margin-bottom: 5px; }
+        </style></head><body>
+        ${getPrintHeaderHTML(logoBase64)}
+        ${printReceipt(sale, false, logoBase64)}
+        ${getPrintFooterHTML()}
+        </body></html>`;
+
+      const iframe = document.createElement("iframe");
+      iframe.style.cssText = "position:fixed;left:-9999px;top:-9999px;width:750px;height:2000px;border:none;visibility:hidden;";
+      document.body.appendChild(iframe);
+      const iDoc = iframe.contentDocument!;
+      iDoc.open(); iDoc.write(html); iDoc.close();
+
+      await new Promise<void>(res => {
+        const imgs = Array.from(iDoc.images);
+        if (imgs.length === 0) { setTimeout(res, 400); return; }
+        let loaded = 0;
+        const done = () => { if (++loaded >= imgs.length) setTimeout(res, 200); };
+        imgs.forEach(img => {
+          if (img.complete) done();
+          else { img.onload = done; img.onerror = done; }
+        });
+        setTimeout(res, 1200);
+      });
+
+      const contentEl = iDoc.documentElement;
+      const fullHeight = contentEl.scrollHeight;
+      iframe.style.height = `${fullHeight}px`;
+      await new Promise<void>(res => setTimeout(res, 100));
+
+      const { toPng, toJpeg } = await import("html-to-image");
+      let fileBlob: Blob;
+      let fileExt = type;
+
+      if (type === 'png') {
+        const dataUrl = await toPng(contentEl, { pixelRatio: 2, backgroundColor: "#ffffff" });
+        fileBlob = await fetch(dataUrl).then(r => r.blob());
+      } else if (type === 'jpeg') {
+        const dataUrl = await toJpeg(contentEl, { pixelRatio: 2, backgroundColor: "#ffffff", quality: 0.95 });
+        fileBlob = await fetch(dataUrl).then(r => r.blob());
+      } else {
+        const dataUrl = await toPng(contentEl, { pixelRatio: 2, backgroundColor: "#ffffff" });
+        const { default: jsPDF } = await import("jspdf");
+        const a4Width = 595;
+        const scale = a4Width / 750;
+        const pdfPageH = fullHeight * scale;
+        const pdf = new jsPDF({ orientation: "portrait", unit: "pt", format: [a4Width, pdfPageH] });
+        pdf.addImage(dataUrl, "PNG", 0, 0, a4Width, pdfPageH);
+        fileBlob = pdf.output('blob');
+        fileExt = 'pdf';
+      }
+
+      if (isEmail) {
+        const filePath = `${sale.id}/${filename}-${Date.now()}.${fileExt}`;
+        console.log("Uploading to storage:", filePath);
+        const { data, error: uploadErr } = await supabase.storage
+          .from('documents')
+          .upload(filePath, fileBlob, { contentType: `application/${fileExt === 'pdf' ? 'pdf' : 'image/' + fileExt}` });
+        
+        if (uploadErr) {
+          console.error("Supabase Storage Upload Error:", uploadErr);
+          throw uploadErr;
+        }
+
+        console.log("Upload successful, getting public URL...");
+        const { data: { publicUrl } } = supabase.storage.from('documents').getPublicUrl(filePath);
+        console.log("Public URL generated:", publicUrl);
+
+        if (cust?.email) {
+          const subject = `Sales Receipt - Beetee Autos`;
+          const body = `Hello ${cust.name || 'Customer'},\n\nPlease find your sales receipt attached below.\n\nYou can also download it directly here: ${publicUrl}\n\nThank you for choosing Beetee Autos!`;
+          window.location.href = `mailto:${cust.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+          toast.success("Link generated! Opening email client...", { id: "sale-dl" });
+        } else {
+          toast.error("Customer email not found.", { id: "sale-dl" });
+        }
+        document.body.removeChild(iframe);
+      } else {
+        console.log("Triggering browser download...");
+        const url = URL.createObjectURL(fileBlob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${filename}.${fileExt}`;
+        a.click();
+        URL.revokeObjectURL(url);
+        document.body.removeChild(iframe);
+        toast.success("Download complete", { id: "sale-dl" });
+      }
+    } catch (err) {
+      console.error("Download error:", err);
+      toast.error("Failed to generate document", { id: "sale-dl" });
+    }
+  };
+
   const handleBulkPrintReceipts = () => {
     if (filtered.length === 0) { toast.error("No sales to print"); return; }
     toast.info("Preparing bulk receipts...");
@@ -482,196 +616,6 @@ export default function Sales() {
       }, 800);
     } else {
       toast.error("Pop-up blocked! Please allow pop-ups for this site.");
-    }
-  };
-
-  const downloadSaleReceipt = async (sale: any, format: "png" | "jpeg" | "pdf") => {
-    const cust = customerObjMap[sale.customer_id];
-    const saleItems = sale.sale_vehicles?.length > 0
-      ? sale.sale_vehicles.map((sv: any) => vehicleMap[sv.vehicle_id] || "Unknown Vehicle")
-      : [vehicleMap[sale.vehicle_id] || "Unknown Vehicle"];
-    const totalAmount = Number(sale.sale_price) || 0;
-
-    const receiptNo = sale.id.slice(0, 8).toUpperCase();
-    const filename = `sale-receipt-${receiptNo}`;
-
-    try {
-      toast.loading("Preparing download...", { id: "receipt-dl" });
-
-      // Convert logo to base64 so it renders inside the sandboxed iframe
-      const logoBase64 = await fetch(logoAsset)
-        .then(r => r.blob())
-        .then(blob => new Promise<string>((res, rej) => {
-          const reader = new FileReader();
-          reader.onload = () => res(reader.result as string);
-          reader.onerror = rej;
-          reader.readAsDataURL(blob);
-        }));
-
-      const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Sales Receipt</title>
-      <style>
-        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap');
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: 'Roboto', 'Arial', sans-serif; padding: 40px; width: 750px; background: #fff; color: #1a1a1a; line-height: 1.4; }
-        .date-section { text-align: right; font-weight: 800; font-size: 14px; margin-bottom: 20px; text-transform: uppercase; }
-        .bill-to { margin-bottom: 30px; }
-        .bill-to p { margin: 2px 0; font-size: 14px; }
-        .main-container {
-          background-color: #cbd5e1;
-          border-radius: 40px;
-          padding: 40px;
-          min-height: 600px;
-          position: relative;
-          border: 1px solid #94a3b8;
-          width: 100%;
-        }
-        .content-wrapper { position: relative; z-index: 1; }
-        .bill-title { text-align: center; text-decoration: underline; font-weight: 900; font-size: 22px; margin-bottom: 30px; color: #1e293b; text-transform: uppercase; }
-        
-        table { width: 100%; border-collapse: collapse; background: rgba(255, 255, 255, 0.4); margin-bottom: 30px; }
-        th, td { border: 1px solid #475569; padding: 12px; text-align: left; font-size: 14px; font-weight: 600; }
-        th { background: rgba(255, 255, 255, 0.3); text-transform: uppercase; }
-        td:first-child { width: 40px; text-align: center; }
-        
-        .total-row td { border-top: 3px solid #1e293b; font-weight: 900; font-size: 18px; }
-        .amount-words { font-weight: 900; margin-bottom: 30px; font-size: 15px; text-transform: uppercase; }
-        .refund-note { margin-top: 20px; padding: 15px; background: #fee2e2; border: 2px solid #ef4444; border-radius: 12px; color: #b91c1c; font-weight: 900; font-size: 14px; text-align: center; margin-bottom: 30px; }
-        .bank-details { margin-top: 20px; font-size: 13px; }
-        .bank-details h4 { margin: 0 0 5px 0; font-weight: 900; text-transform: uppercase; }
-        .bank-details p { margin: 2px 0; font-weight: 500; }
-        .signature-area { display: flex; justify-content: space-between; margin-top: 40px; border-top: 2px solid #94a3b8; padding-top: 20px; }
-        .sig-box { width: 45%; text-align: center; font-size: 12px; }
-        .signature-img { max-height: 50px; display: block; margin: 0 auto 5px; }
-      </style>
-      </head><body>
-
-      ${getPrintHeaderHTML(logoBase64)}
-      
-      <div class="date-section">RECEIPT NO: ${receiptNo}<br/>DATE: ${new Date(sale.sale_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
-
-      <div class="bill-to">
-        <p style="font-weight: 900;">CUSTOMER:</p>
-        <p><strong>${cust?.name || "—"}</strong></p>
-        ${cust?.phone ? `<p>Tel: ${cust.phone}</p>` : ""}
-      </div>
-
-      <div class="main-container">
-        ${getPrintWatermarkHTML(logoBase64)}
-        <div class="content-wrapper">
-          <h2 class="bill-title">SALES RECEIPT</h2>
-          
-          <table>
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>VEHICLE DESCRIPTION</th>
-                <th style="text-align: right;">AMOUNT (₦)</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${saleItems.map((v: string, i: number) => `
-                <tr>
-                  <td>${i + 1}.</td>
-                  <td>${v}</td>
-                  <td style="text-align: right;">₦${(totalAmount / saleItems.length).toLocaleString()}</td>
-                </tr>
-              `).join("")}
-              <tr class="total-row">
-                <td colspan="2" style="text-align: right;">TOTAL PAID</td>
-                <td style="text-align: right;">₦${totalAmount.toLocaleString()}</td>
-              </tr>
-            </tbody>
-          </table>
-
-          <div class="amount-words">
-            AMOUNT IN WORDS: ${numberToWords(totalAmount)}
-          </div>
-
-          <div class="refund-note">
-            NOTICE: NO REFUND AFTER PAYMENT
-          </div>
-
-          <div class="bank-details">
-            <h4>BANK DETAILS:</h4>
-            <p>Account name: <strong>BEE TEE AUTOMOBILE -SERVICES</strong></p>
-            <p>Account Number: <strong>1229785752</strong></p>
-            <p>Bank: <strong>ZENITH BANK</strong></p>
-          </div>
-
-          <div class="signature-area">
-            <div class="sig-box">
-              ${sale.buyer_signature ? `<img src="${sale.buyer_signature}" class="signature-img" />` : '<div style="height:50px"></div>'}
-              <p style="border-top: 1px solid #1a1a1a; padding-top: 5px;"><strong>CUSTOMER SIGNATURE</strong></p>
-            </div>
-            <div class="sig-box">
-              ${sale.rep_signature ? `<img src="${sale.rep_signature}" class="signature-img" />` : '<div style="height:50px"></div>'}
-              <p style="border-top: 1px solid #1a1a1a; padding-top: 5px;"><strong>FOR: BEE TEE AUTOMOBILE</strong></p>
-            </div>
-          </div>
-        </div>
-      </div>
-      </body></html>`;
-
-      // Render HTML in a hidden iframe sized wide enough for the layout
-      const iframe = document.createElement("iframe");
-      iframe.style.cssText = "position:fixed;left:-9999px;top:-9999px;width:700px;height:2400px;border:none;visibility:hidden;";
-      document.body.appendChild(iframe);
-      const iDoc = iframe.contentDocument!;
-      iDoc.open(); iDoc.write(html); iDoc.close();
-
-      // Wait for images (logo, signatures) to load
-      await new Promise<void>(res => {
-        const imgs = Array.from(iDoc.images);
-        if (imgs.length === 0) { setTimeout(res, 400); return; }
-        let loaded = 0;
-        const done = () => { if (++loaded >= imgs.length) setTimeout(res, 200); };
-        imgs.forEach(img => {
-          if (img.complete) done();
-          else { img.onload = done; img.onerror = done; }
-        });
-        setTimeout(res, 1200); // Safety timeout
-      });
-
-      // Measure the full content height
-      const contentEl = iDoc.documentElement;
-      const fullHeight = contentEl.scrollHeight;
-      // Resize iframe to exactly match content so nothing is clipped
-      iframe.style.height = `${fullHeight}px`;
-      await new Promise<void>(res => setTimeout(res, 100));
-
-      const { toPng, toJpeg } = await import("html-to-image");
-      const captureOptions = {
-        pixelRatio: 2,
-        backgroundColor: "#ffffff",
-        width: 700,
-        height: fullHeight,
-      };
-
-      if (format === "pdf") {
-        const { default: jsPDF } = await import("jspdf");
-        const imgData = await toPng(contentEl, captureOptions);
-        // Calculate PDF page height proportionally to A4 width (595px)
-        const a4Width = 595;
-        const scale = a4Width / (700 * 2); // pixelRatio: 2
-        const pdfPageH = fullHeight * 2 * scale; // height in PDF points
-        const pdf = new jsPDF({ orientation: "portrait", unit: "pt", format: [a4Width, pdfPageH] });
-        pdf.addImage(imgData, "PNG", 0, 0, a4Width, pdfPageH);
-        pdf.save(`${filename}.pdf`);
-      } else if (format === "jpeg") {
-        const dataUrl = await toJpeg(contentEl, { ...captureOptions, quality: 0.95 });
-        const a = document.createElement("a");
-        a.href = dataUrl; a.download = `${filename}.jpg`; a.click();
-      } else {
-        const dataUrl = await toPng(contentEl, captureOptions);
-        const a = document.createElement("a");
-        a.href = dataUrl; a.download = `${filename}.png`; a.click();
-      }
-
-      document.body.removeChild(iframe);
-      toast.success(`Receipt downloaded as ${format.toUpperCase()}`, { id: "receipt-dl" });
-    } catch (err) {
-      console.error("Download error:", err);
-      toast.error("Failed to generate download", { id: "receipt-dl" });
     }
   };
 
@@ -921,9 +865,21 @@ export default function Sales() {
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
-                            <Button variant="ghost" size="sm" className="h-8 rounded-lg hover:bg-foreground/20" onClick={() => handlePrintReceipt(s)}>
-                              <Receipt className="h-4 w-4 mr-1.5" /> Receipt
-                            </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm" className="h-8 rounded-lg hover:bg-foreground/20 text-emerald-500">
+                                <Receipt className="h-4 w-4 mr-1.5" /> Receipt
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent className="rounded-xl glass-panel p-2 shadow-2xl border-white/10" align="end">
+                              <DropdownMenuItem onClick={() => handlePrintReceipt(s)} className="rounded-lg cursor-pointer gap-2">
+                                <Printer className="h-4 w-4 text-emerald-500" /> Print Receipt
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => downloadSaleReceipt(s, "pdf", true)} className="rounded-lg cursor-pointer gap-2">
+                                <Mail className="h-4 w-4 text-indigo-500" /> Email to Customer
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                           <Button variant="ghost" size="sm" className="h-8 rounded-lg hover:bg-violet-500/10 hover:text-violet-500" onClick={() => navigate(`/invoices?action=create&customer_id=${s.customer_id}&sale_id=${s.id}&type=sale`)}>
                             <FileOutput className="h-4 w-4 mr-1.5" /> Invoice
                           </Button>

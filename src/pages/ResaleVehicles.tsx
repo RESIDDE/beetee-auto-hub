@@ -59,11 +59,14 @@ const PAGE_SIZE = 20;
 export default function ResaleVehicles() {
   const { role } = useAuth();
   const hasEdit = canEdit(role, "vehicles");
+  console.log("ResaleVehicles loaded with statusFilter support", { role, hasEdit });
 
   const [search, setSearch] = useState("");
   const [conditionFilter, setConditionFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [page, setPage] = useState(0);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [showDeleteSoldDialog, setShowDeleteSoldDialog] = useState(false);
   const [showAnalytics, setShowAnalytics] = useState(true);
   const queryClient = useQueryClient();
 
@@ -89,25 +92,46 @@ export default function ResaleVehicles() {
     onError: () => toast.error("Failed to delete vehicle"),
   });
 
+  const deleteSoldMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from("vehicles")
+        .delete()
+        .eq("inventory_type", "resale")
+        .eq("status", "Sold");
+      if (error) throw error;
+      await logAction("DELETE", "Bulk Resale Vehicles", "All Sold");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["vehicles"] });
+      toast.success("All sold resale vehicles deleted successfully");
+      setShowDeleteSoldDialog(false);
+    },
+    onError: () => toast.error("Failed to delete sold vehicles"),
+  });
+
   const filtered = vehicles.filter((v) => {
     // Hide customer cars from the main sales fleet view
     if (v.status === "Customer Car") return false;
 
     const q = search.toLowerCase();
-    const matchesSearch = !q || v.make.toLowerCase().includes(q) || v.model.toLowerCase().includes(q) || (v.vin && v.vin.toLowerCase().includes(q)) || ((v as any).source_company && (v as any).source_company.toLowerCase().includes(q));
-    const matchesCondition = conditionFilter === "all" || (v as any).condition === conditionFilter;
-    return matchesSearch && matchesCondition;
+    const matchesSearch = !q || v.make.toLowerCase().includes(q) || v.model.toLowerCase().includes(q) || (v.vin && v.vin.toLowerCase().includes(q)) || (v.source_company && v.source_company.toLowerCase().includes(q));
+    const matchesCondition = conditionFilter === "all" || v.condition === conditionFilter;
+    const matchesStatus = statusFilter === "all" || v.status === statusFilter;
+    return matchesSearch && matchesCondition && matchesStatus;
   });
+
+  const soldCount = vehicles.filter(v => v.status === "Sold").length;
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   const paged = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   const handleExportExcel = () => {
     const rows = filtered.map((v) => ({
-      Make: v.make, Model: v.model, Year: v.year, VIN: v.vin || "", Color: (v as any).color || "",
-      Price: v.price, "Cost Price": (v as any).cost_price || "", Status: v.status, Condition: (v as any).condition || "",
-      "Source Company": (v as any).source_company || "", "Date Arrived": (v as any).date_arrived || "",
-      "Accepted By": (v as any).accepted_by_name || "", "Accepted Date": (v as any).accepted_date || "",
+      Make: v.make, Model: v.model, Year: v.year, VIN: v.vin || "", Color: v.color || "",
+      Price: v.price, "Cost Price": v.cost_price || "", Status: v.status, Condition: v.condition || "",
+      "Source Company": v.source_company || "", "Date Arrived": v.date_arrived || "",
+      "Accepted By": v.accepted_by_name || "", "Accepted Date": v.accepted_date || "",
     }));
     exportToExcel(rows, "resale_vehicles_export");
   };
@@ -117,7 +141,7 @@ export default function ResaleVehicles() {
   const handlePrint = () => {
     const rows = filtered.map((v) => ({
       vehicle: `${v.year} ${v.make} ${v.model}`, vin: v.vin || "—", price: `₦${Number(v.price).toLocaleString()}`,
-      status: v.status, accepted_by: (v as any).accepted_by_name || "—", accepted_date: (v as any).accepted_date || "—",
+      status: v.status, accepted_by: v.accepted_by_name || "—", accepted_date: v.accepted_date || "—",
     }));
     printTable("Resale Vehicles Inventory — Beetee Autos", rows, [
       { key: "vehicle", label: "Vehicle" }, { key: "vin", label: "VIN" },
@@ -136,7 +160,7 @@ export default function ResaleVehicles() {
             <span className="text-sm font-medium uppercase tracking-wider text-emerald-500">Fleet Management</span>
           </div>
           <h1 className="text-4xl md:text-5xl font-heading font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-foreground via-foreground to-foreground/70 tracking-tight">
-            Resale Vehicles
+            Resale Vehicles <span className="text-[10px] opacity-30 font-mono">v2.1</span>
           </h1>
           <p className="text-base text-muted-foreground mt-2 max-w-xl">
             Manage your resale inventory cars.
@@ -232,7 +256,7 @@ export default function ResaleVehicles() {
         <div className="relative z-10 w-full sm:w-auto flex items-center gap-2">
           <ListFilter className="h-4 w-4 text-muted-foreground hidden sm:block" />
           <Select value={conditionFilter} onValueChange={(v) => { setConditionFilter(v); setPage(0); }}>
-            <SelectTrigger className="w-full sm:w-[180px] h-10 rounded-xl bg-background/50 border-white/10">
+            <SelectTrigger className="w-full sm:w-[150px] h-10 rounded-xl bg-background/50 border-white/10">
               <SelectValue placeholder="Condition" />
             </SelectTrigger>
             <SelectContent className="glass-panel rounded-xl">
@@ -242,7 +266,32 @@ export default function ResaleVehicles() {
               <SelectItem value="Damaged">Damaged</SelectItem>
             </SelectContent>
           </Select>
+
+          <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(0); }}>
+            <SelectTrigger className="w-full sm:w-[150px] h-10 rounded-xl bg-background/50 border-white/10">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent className="glass-panel rounded-xl">
+              <SelectItem value="all">All Statuses</SelectItem>
+              <SelectItem value="Available">Available</SelectItem>
+              <SelectItem value="Sold">Sold</SelectItem>
+              <SelectItem value="Reserved">Reserved</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
+        
+        {hasEdit && soldCount > 0 && (
+          <div className="z-10">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => setShowDeleteSoldDialog(true)}
+              className="h-10 rounded-xl text-destructive hover:bg-destructive/10 hover:text-destructive border border-destructive/20 bg-destructive/5 px-4"
+            >
+              <Trash2 className="h-4 w-4 mr-2" /> Delete All Sold ({soldCount})
+            </Button>
+          </div>
+        )}
         <div className="sm:ml-auto z-10">
            <span className="text-sm font-medium text-muted-foreground bg-background/50 px-3 py-1.5 rounded-lg border border-white/5">
              {filtered.length} Results
@@ -293,12 +342,12 @@ export default function ResaleVehicles() {
                       </div>
                     </TableCell>
                     <TableCell className="text-sm font-medium">{v.year}</TableCell>
-                    <TableCell className="text-sm">{(v as any).trim || "—"}</TableCell>
+                    <TableCell className="text-sm">{v.trim || "—"}</TableCell>
                     <TableCell>
                       {v.vin ? <span className="font-mono text-xs bg-foreground/5 px-2 py-1 rounded-md">{v.vin}</span> : <span className="opacity-50">—</span>}
                     </TableCell>
-                    <TableCell className="text-sm font-medium">{(v as any).accepted_by_name || "—"}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{(v as any).accepted_date ? new Date((v as any).accepted_date).toLocaleDateString() : "—"}</TableCell>
+                    <TableCell className="text-sm font-medium">{v.accepted_by_name || "—"}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{v.accepted_date ? new Date(v.accepted_date).toLocaleDateString() : "—"}</TableCell>
                     <TableCell>
                       <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider ${
                         v.status?.toLowerCase() === 'available' ? 'bg-emerald-500/10 text-emerald-500' : 
@@ -334,7 +383,7 @@ export default function ResaleVehicles() {
                        <Car className="h-5 w-5 text-emerald-500" />
                      </div>
                      <div>
-                       <p className="font-semibold text-foreground text-sm">{v.year} {v.make} {v.model} {(v as any).trim && <span className="font-normal opacity-60">({(v as any).trim})</span>}</p>
+                       <p className="font-semibold text-foreground text-sm">{v.year} {v.make} {v.model} {v.trim && <span className="font-normal opacity-60">({v.trim})</span>}</p>
                        {v.vin && <p className="text-xs text-muted-foreground font-mono mt-1 w-full overflow-hidden text-ellipsis">VIN: {v.vin}</p>}
                      </div>
                   </div>
@@ -346,7 +395,7 @@ export default function ResaleVehicles() {
                   </span>
                 </div>
                 <div className="flex gap-2 pt-2 border-t border-border/10 justify-between items-center">
-                  <span className="text-xs text-muted-foreground font-medium">{(v as any).condition || "Unknown Cond."}</span>
+                  <span className="text-xs text-muted-foreground font-medium">{v.condition || "Unknown Cond."}</span>
                   <div className="flex gap-1.5">
                     <Button variant="outline" size="sm" asChild className="h-8 text-xs rounded-lg border-white/10"><Link to={`/vehicles/${v.id}`}>View</Link></Button>
                     {hasEdit && (
@@ -414,6 +463,32 @@ export default function ResaleVehicles() {
             <AlertDialogCancel className="rounded-xl border-white/10 text-foreground hover:bg-white/5 sm:mt-0">Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={() => { if (deleteId) deleteMutation.mutate(deleteId); setDeleteId(null); }} className="rounded-xl bg-destructive text-destructive-foreground hover:bg-destructive/90 shadow-lg shadow-destructive/20 border-none">
               Delete Vehicle
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete All Sold Confirmation */}
+      <AlertDialog open={showDeleteSoldDialog} onOpenChange={setShowDeleteSoldDialog}>
+        <AlertDialogContent className="glass-panel border-white/10 rounded-3xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-xl font-bold flex items-center gap-2 text-destructive">
+              <AlertTriangle className="h-6 w-6" /> Delete All Sold Resale Vehicles?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-base">
+              You are about to permanently delete <strong>{soldCount}</strong> resale vehicles marked as "Sold". 
+              <br/><br/>
+              This action <strong>cannot be undone</strong>. Are you absolutely sure?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-3">
+            <AlertDialogCancel className="rounded-xl border-white/10">Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => deleteSoldMutation.mutate()} 
+              className="bg-destructive hover:bg-destructive/90 rounded-xl px-6"
+              disabled={deleteSoldMutation.isPending}
+            >
+              {deleteSoldMutation.isPending ? "Deleting..." : "Yes, Delete All Sold"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

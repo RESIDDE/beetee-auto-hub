@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import logoAsset from "@/assets/logo.png";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,6 +13,9 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { 
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { getPrintHeaderHTML, getPrintWatermarkHTML } from "@/components/PrintHeader";
@@ -24,7 +28,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { PlusCircle, FileText, Printer, Trash2, Receipt, Search } from "lucide-react";
+import { PlusCircle, FileText, Printer, Trash2, Receipt, Search, Mail } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { canEdit } from "@/lib/permissions";
 import { logAction } from "@/lib/logger";
@@ -187,7 +191,7 @@ export default function Invoices() {
     return "Repair";
   };
 
-  const printInvoice = (inv: any) => {
+  const getInvoiceHTML = (inv: any, logoBase64?: string) => {
     const cust = customerMap[inv.customer_id];
     const sale = sales.find((s) => s.id === inv.sale_id);
     const linkedRepairIds = invoiceRepairLinks.filter((l) => l.invoice_id === inv.id).map((l) => l.repair_id);
@@ -198,7 +202,7 @@ export default function Invoices() {
       ? `${(sale as any).vehicles?.year || ""} ${(sale as any).vehicles?.make || ""} ${(sale as any).vehicles?.model || ""}`.trim()
       : "";
 
-    const html = `<html><head><title>Invoice ${inv.invoice_number}</title>
+    return `<html><head><title>Invoice ${inv.invoice_number}</title>
     <style>
       @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap');
       body { font-family: 'Roboto', 'Arial', sans-serif; padding: 15px; max-width: 800px; margin: 0 auto; color: #1a1a1a; line-height: 1.3; }
@@ -225,7 +229,7 @@ export default function Invoices() {
       .bank-details h4 { margin: 0 0 5px 0; font-weight: 900; text-transform: uppercase; }
       .bank-details p { margin: 2px 0; font-weight: 500; }
     </style></head><body>
-    ${getPrintHeaderHTML()}
+    ${getPrintHeaderHTML(logoBase64)}
     
     <div class="date-section">INVOICE NO: ${inv.invoice_number}<br/>DATE: ${new Date(inv.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
 
@@ -237,7 +241,7 @@ export default function Invoices() {
     </div>
 
     <div class="main-container">
-      ${getPrintWatermarkHTML()}
+      ${getPrintWatermarkHTML(logoBase64)}
       <div class="content-wrapper">
         <h2 class="bill-title">OFFICIAL INVOICE</h2>
         
@@ -326,8 +330,106 @@ export default function Invoices() {
     </div>
     ${getPrintFooterHTML()}
     </body></html>`;
+  };
+
+  const printInvoice = (inv: any) => {
+    const html = getInvoiceHTML(inv);
     const win = window.open("", "_blank");
     if (win) { win.document.write(html); win.document.close(); win.print(); }
+  };
+
+  const downloadInvoicePDF = async (inv: any, isEmail = false) => {
+    const cust = customerMap[inv.customer_id];
+    const filename = `invoice-${inv.invoice_number}`;
+
+    try {
+      console.log("Starting invoice generation for:", filename);
+      if (isEmail) toast.loading("Preparing link for email...", { id: "invoice-dl" });
+      else toast.loading("Preparing invoice download...", { id: "invoice-dl" });
+
+      console.log("Fetching logo asset...");
+      const logoBase64 = await fetch(logoAsset)
+        .then(r => r.blob())
+        .then(blob => new Promise<string>((res, rej) => {
+          const reader = new FileReader();
+          reader.onload = () => res(reader.result as string);
+          reader.onerror = rej;
+          reader.readAsDataURL(blob);
+        }));
+
+      const html = getInvoiceHTML(inv, logoBase64);
+
+      const iframe = document.createElement("iframe");
+      iframe.style.cssText = "position:fixed;left:-9999px;top:-9999px;width:750px;height:2000px;border:none;visibility:hidden;";
+      document.body.appendChild(iframe);
+      const iDoc = iframe.contentDocument!;
+      iDoc.open(); iDoc.write(html); iDoc.close();
+
+      await new Promise<void>(res => {
+        const imgs = Array.from(iDoc.images);
+        if (imgs.length === 0) { setTimeout(res, 400); return; }
+        let loaded = 0;
+        const done = () => { if (++loaded >= imgs.length) setTimeout(res, 200); };
+        imgs.forEach(img => {
+          if (img.complete) done();
+          else { img.onload = done; img.onerror = done; }
+        });
+        setTimeout(res, 1200);
+      });
+
+      const contentEl = iDoc.documentElement;
+      const fullHeight = contentEl.scrollHeight;
+      iframe.style.height = `${fullHeight}px`;
+      await new Promise<void>(res => setTimeout(res, 100));
+
+      const { toPng } = await import("html-to-image");
+      const imgData = await toPng(contentEl, { pixelRatio: 2, backgroundColor: "#ffffff", width: 750, height: fullHeight });
+      
+      const { default: jsPDF } = await import("jspdf");
+      const a4Width = 595;
+      const scale = a4Width / 750;
+      const pdfPageH = fullHeight * scale;
+      const pdf = new jsPDF({ orientation: "portrait", unit: "pt", format: [a4Width, pdfPageH] });
+      pdf.addImage(imgData, "PNG", 0, 0, a4Width, pdfPageH);
+      const fileBlob = pdf.output('blob');
+
+      if (isEmail) {
+        const filePath = `${inv.id}/${filename}-${Date.now()}.pdf`;
+        console.log("Uploading to storage:", filePath);
+        const { data, error: uploadErr } = await supabase.storage
+          .from('documents')
+          .upload(filePath, fileBlob, { contentType: 'application/pdf' });
+        
+        if (uploadErr) {
+          console.error("Supabase Storage Upload Error:", uploadErr);
+          throw uploadErr;
+        }
+
+        console.log("Upload successful, getting public URL...");
+        const { data: { publicUrl } } = supabase.storage.from('documents').getPublicUrl(filePath);
+        console.log("Public URL generated:", publicUrl);
+        document.body.removeChild(iframe);
+        
+        if (cust?.email) {
+          const subject = `Invoice ${inv.invoice_number} - Beetee Autos`;
+          const body = `Hello ${cust.name || 'Customer'},\n\nPlease find your invoice attached below.\n\nYou can also download it directly here: ${publicUrl}\n\nThank you for choosing Beetee Autos!`;
+          window.location.href = `mailto:${cust.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+          toast.success("Link generated! Opening email client...", { id: "invoice-dl" });
+        } else {
+          toast.error("Customer email not found.", { id: "invoice-dl" });
+        }
+        document.body.removeChild(iframe);
+        return publicUrl;
+      } else {
+        console.log("Triggering browser download...");
+        pdf.save(`${filename}.pdf`);
+        document.body.removeChild(iframe);
+        toast.success("Invoice downloaded", { id: "invoice-dl" });
+      }
+    } catch (err) {
+      console.error("Download error:", err);
+      toast.error("Failed to generate download", { id: "invoice-dl" });
+    }
   };
 
   const customerSales = form.customer_id ? sales.filter((s) => s.customer_id === form.customer_id) : [];
@@ -422,9 +524,21 @@ export default function Invoices() {
                   </div>
 
                   <div className="flex gap-2 mt-6 pt-4 border-t border-white/5 justify-end">
-                    <Button variant="ghost" size="sm" className="h-8 rounded-lg hover:bg-cyan-500/10 hover:text-cyan-500 text-muted-foreground transition-all" onClick={() => printInvoice(inv)}>
-                      <Printer className="h-3.5 w-3.5 mr-1.5" /> Print
-                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm" className="h-8 rounded-lg hover:bg-cyan-500/10 hover:text-cyan-500 text-muted-foreground transition-all">
+                          <Printer className="h-3.5 w-3.5 mr-1.5" /> Print
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent className="rounded-xl glass-panel p-2 shadow-2xl border-white/10" align="end">
+                        <DropdownMenuItem onClick={() => printInvoice(inv)} className="rounded-lg cursor-pointer gap-2">
+                          <Printer className="h-4 w-4 text-cyan-500" /> Print Invoice
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => downloadInvoicePDF(inv, true)} className="rounded-lg cursor-pointer gap-2">
+                          <Mail className="h-4 w-4 text-indigo-500" /> Email to Customer
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                     {hasEdit && (
                       <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-all" onClick={() => setDeleteId(inv.id)}>
                         <Trash2 className="h-3.5 w-3.5" />

@@ -40,7 +40,7 @@ export default function VehicleDetail() {
         .eq("id", id!)
         .single();
       if (error) throw error;
-      return data as any;
+      return data;
     },
   });
 

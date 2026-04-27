@@ -670,6 +670,11 @@ export type Database = {
           updated_at: string
           vin: string | null
           year: number
+          inventory_type: string
+          trim: string | null
+          accepted_by_name: string | null
+          accepted_date: string | null
+          accepted_signature: string | null
         }
         Insert: {
           color?: string | null
@@ -694,6 +699,11 @@ export type Database = {
           updated_at?: string
           vin?: string | null
           year: number
+          inventory_type?: string | null
+          trim?: string | null
+          accepted_by_name?: string | null
+          accepted_date?: string | null
+          accepted_signature?: string | null
         }
         Update: {
           color?: string | null
@@ -718,6 +728,11 @@ export type Database = {
           updated_at?: string
           vin?: string | null
           year?: number
+          inventory_type?: string | null
+          trim?: string | null
+          accepted_by_name?: string | null
+          accepted_date?: string | null
+          accepted_signature?: string | null
         }
         Relationships: []
       }
