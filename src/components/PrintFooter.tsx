@@ -16,7 +16,7 @@ export function PrintFooter() {
 
 export function getPrintFooterHTML() {
   return `
-    <div style="margin-top: 40px; padding-top: 12px; border-top: 1px solid #e2e8f0; text-align: center; opacity: 0.8;">
+    <div style="margin-top: 20px; padding-top: 10px; border-top: 1px solid #e2e8f0; text-align: center; opacity: 0.8;">
       <p style="font-family: Arial, sans-serif; font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; color: #1D3557; margin: 0;">
         BEE TEE AUTOMOBILE — Sales • Services • Maintenance • Modification • Logistics
       </p>

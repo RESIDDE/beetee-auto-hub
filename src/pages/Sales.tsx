@@ -370,7 +370,7 @@ export default function Sales() {
             `).join("")}
           </div>
 
-          <div style="background: transparent; padding: 15px 20px; border-radius: 15px; border: 2px solid #e2e8f0; margin-bottom: 15px;">
+          <div style="background: transparent; padding: 10px 20px; border-radius: 15px; border: 2px solid #e2e8f0; margin-bottom: 10px;">
             <div style="display: flex; justify-content: space-between; align-items: center;">
               <span style="font-size: 16px; font-weight: 800; color: #64748b;">TOTAL AMOUNT PAID</span>
               <span style="font-size: 24px; font-weight: 900; color: #0f172a;">₦${totalAmount.toLocaleString()}</span>
@@ -405,24 +405,24 @@ export default function Sales() {
     const html = `<html><head><title>Receipt - ${sale.id.slice(0, 8).toUpperCase()}</title>
     <style>
       @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap');
-      body { font-family: 'Roboto', 'Arial', sans-serif; padding: 15px; max-width: 800px; margin: 0 auto; color: #1a1a1a; line-height: 1.3; }
-      .date-section { text-align: right; font-weight: 800; font-size: 13px; margin-bottom: 10px; text-transform: uppercase; }
-      .bill-to { margin-bottom: 15px; }
-      .bill-to p { margin: 2px 0; font-size: 13px; }
+      body { font-family: 'Roboto', 'Arial', sans-serif; padding: 10px; max-width: 800px; margin: 0 auto; color: #1a1a1a; line-height: 1.2; }
+      .date-section { text-align: right; font-weight: 800; font-size: 13px; margin-bottom: 5px; text-transform: uppercase; }
+      .bill-to { margin-bottom: 10px; }
+      .bill-to p { margin: 1px 0; font-size: 13px; }
       .main-container {
         background-color: transparent;
         border-radius: 20px;
-        padding: 20px;
+        padding: 0px 20px;
         min-height: auto;
         position: relative;
         border: none;
       }
       .content-wrapper { position: relative; z-index: 1; }
-      .bill-title { text-align: center; text-decoration: underline; font-weight: 900; font-size: 18px; margin-bottom: 15px; color: #1e293b; text-transform: uppercase; }
-      .refund-note { margin-top: 10px; padding: 10px; background: rgba(254, 226, 226, 0.4); border: 2px solid #ef4444; border-radius: 10px; color: #b91c1c; font-weight: 900; font-size: 13px; text-align: center; margin-bottom: 15px; }
-      .signature-area { display: flex; justify-content: space-between; margin-top: 20px; border-top: 2px solid #94a3b8; padding-top: 15px; }
+      .bill-title { text-align: center; text-decoration: underline; font-weight: 900; font-size: 18px; margin-bottom: 10px; color: #1e293b; text-transform: uppercase; }
+      .refund-note { margin-top: 5px; padding: 5px; background: rgba(254, 226, 226, 0.4); border: 2px solid #ef4444; border-radius: 10px; color: #b91c1c; font-weight: 900; font-size: 13px; text-align: center; margin-bottom: 10px; }
+      .signature-area { display: flex; justify-content: space-between; margin-top: 10px; border-top: 2px solid #94a3b8; padding-top: 10px; }
       .sig-box { width: 45%; text-align: center; font-size: 12px; }
-      .signature-img { max-height: 40px; display: block; margin: 0 auto 5px; }
+      .signature-img { max-height: 35px; display: block; margin: 0 auto 5px; }
     </style></head><body>
     ${getPrintHeaderHTML()}
     ${printReceipt(sale)}
