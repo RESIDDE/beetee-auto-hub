@@ -921,7 +921,7 @@ export default function RepairsMaintenance() {
 
         // Save URL to database
         const updateData = type === 'bill' ? { bill_url: publicUrl } : { job_card_url: publicUrl };
-        await supabase.from("repairs").update(updateData).eq("id", r.id);
+        await supabase.from("repairs" as any).update(updateData).eq("id", r.id);
 
         if (cust?.email) {
           const subject = `${type === 'bill' ? 'Repair Bill' : 'Job Card'} - Beetee Autos`;

@@ -412,6 +412,8 @@ export type Database = {
           unit: string | null
           updated_at: string
           vehicle_id: string | null
+          bill_url: string | null
+          job_card_url: string | null
         }
         Insert: {
           brought_in_by?: string | null
@@ -506,6 +508,7 @@ export type Database = {
           salesperson_id: string | null
           updated_at: string
           vehicle_id: string | null
+          receipt_url: string | null
         }
         Insert: {
           buyer_signature?: string | null

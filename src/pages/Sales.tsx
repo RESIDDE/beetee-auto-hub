@@ -543,7 +543,7 @@ export default function Sales() {
         console.log("Public URL generated:", publicUrl);
 
         // Update database with receipt URL
-        await supabase.from("sales").update({ receipt_url: publicUrl }).eq("id", sale.id);
+        await supabase.from("sales" as any).update({ receipt_url: publicUrl }).eq("id", sale.id);
 
         if (cust?.email) {
           const subject = `Sales Receipt - Beetee Autos`;
