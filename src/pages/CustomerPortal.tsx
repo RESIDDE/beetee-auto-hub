@@ -2,7 +2,7 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Car, Wrench, FileText, Loader2, Phone } from "lucide-react";
+import { Search, Car, Wrench, FileText, Loader2, Phone, Download, LayoutDashboard, Quote } from "lucide-react";
 import { toast } from "sonner";
 import logo from "@/assets/logo.png";
 
@@ -86,6 +86,25 @@ export default function CustomerPortal() {
                     </div>
                     {r.condition && <div className="text-sm text-muted-foreground">Condition: {r.condition}</div>}
                     {r.unit && <div className="text-sm text-foreground bg-white/5 inline-block px-2 py-1 rounded-md mt-1">{r.unit}</div>}
+                    
+                    {(r.bill_url || r.job_card_url) && (
+                      <div className="flex flex-wrap gap-2 pt-2">
+                        {r.bill_url && (
+                          <Button variant="outline" size="sm" asChild className="rounded-xl h-8 bg-amber-500/10 border-amber-500/20 text-amber-500 hover:bg-amber-500 hover:text-white transition-all group">
+                            <a href={r.bill_url} target="_blank" rel="noopener noreferrer">
+                              <Download className="h-3 w-3 mr-1.5 opacity-60 group-hover:opacity-100" /> Bill
+                            </a>
+                          </Button>
+                        )}
+                        {r.job_card_url && (
+                          <Button variant="outline" size="sm" asChild className="rounded-xl h-8 bg-emerald-500/10 border-emerald-500/20 text-emerald-500 hover:bg-emerald-500 hover:text-white transition-all group">
+                            <a href={r.job_card_url} target="_blank" rel="noopener noreferrer">
+                              <Download className="h-3 w-3 mr-1.5 opacity-60 group-hover:opacity-100" /> Job Card
+                            </a>
+                          </Button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -107,6 +126,33 @@ export default function CustomerPortal() {
                 ))}
               </div>
             </div>
+
+            {/* Performance Quotes */}
+            {data.quotes && data.quotes.length > 0 && (
+              <div className="space-y-4 pt-4">
+                <h4 className="font-bold flex items-center gap-2 text-lg"><Quote className="h-5 w-5 text-violet-500" /> Performance Quotes</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {data.quotes.map((q: any) => (
+                    <div key={q.id} className="glass-panel p-5 rounded-2xl border border-white/5 flex justify-between items-center group">
+                      <div>
+                        <div className="font-bold text-violet-500 tracking-wider">PQ-{q.id.slice(0,8).toUpperCase()}</div>
+                        <div className="text-sm text-muted-foreground">{new Date(q.quote_date).toLocaleDateString()}</div>
+                      </div>
+                      <div className="flex flex-col items-end gap-2">
+                        <div className="font-bold">₦{Number(q.total_amount).toLocaleString()}</div>
+                        {q.quote_url && (
+                          <Button variant="outline" size="sm" asChild className="rounded-xl h-8 bg-violet-500/10 border-violet-500/20 text-violet-500 hover:bg-violet-500 hover:text-white transition-all group">
+                            <a href={q.quote_url} target="_blank" rel="noopener noreferrer">
+                              <Download className="h-3 w-3 mr-1.5 opacity-60 group-hover:opacity-100" /> Download
+                            </a>
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </main>

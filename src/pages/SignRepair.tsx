@@ -1,17 +1,26 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { SignaturePad } from "@/components/SignaturePad";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { CheckCircle } from "lucide-react";
+import { CheckCircle, Download, FileText } from "lucide-react";
 
 export default function SignRepair() {
   const { id } = useParams<{ id: string }>();
   const [submitted, setSubmitted] = useState(false);
   const [signature, setSignature] = useState("");
   const [saving, setSaving] = useState(false);
+  const [repairData, setRepairData] = useState<any>(null);
+
+  useEffect(() => {
+    if (id) {
+      supabase.from("repairs").select("*").eq("id", id).single().then(({ data }) => {
+        if (data) setRepairData(data);
+      });
+    }
+  }, [id]);
 
   const handleSubmit = async () => {
     if (!signature || !id) return;
@@ -47,6 +56,27 @@ export default function SignRepair() {
           <p className="text-sm text-muted-foreground text-center">Please sign below to confirm</p>
         </CardHeader>
         <CardContent className="space-y-4">
+          {repairData && (repairData.bill_url || repairData.job_card_url) && (
+            <div className="flex flex-col gap-2 mb-4 p-4 bg-muted rounded-xl border border-white/5">
+              <p className="text-xs font-bold uppercase tracking-widest opacity-60 mb-2">Available Documents</p>
+              {repairData.bill_url && (
+                <Button variant="outline" asChild className="w-full justify-between h-12 rounded-xl group">
+                  <a href={repairData.bill_url} target="_blank" rel="noopener noreferrer">
+                    <span className="flex items-center gap-2"><FileText className="h-4 w-4 text-amber-500" /> Repair Bill</span>
+                    <Download className="h-4 w-4 opacity-40 group-hover:opacity-100 transition-opacity" />
+                  </a>
+                </Button>
+              )}
+              {repairData.job_card_url && (
+                <Button variant="outline" asChild className="w-full justify-between h-12 rounded-xl group">
+                  <a href={repairData.job_card_url} target="_blank" rel="noopener noreferrer">
+                    <span className="flex items-center gap-2"><FileText className="h-4 w-4 text-emerald-500" /> Job Card</span>
+                    <Download className="h-4 w-4 opacity-40 group-hover:opacity-100 transition-opacity" />
+                  </a>
+                </Button>
+              )}
+            </div>
+          )}
           <SignaturePad value={signature} onChange={setSignature} />
           <Button onClick={handleSubmit} disabled={!signature || saving} className="w-full rounded-xl">
             {saving ? "Submitting..." : "Submit Signature"}

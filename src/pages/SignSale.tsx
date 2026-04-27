@@ -6,7 +6,7 @@ import { SignaturePad } from "@/components/SignaturePad";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { CheckCircle, DollarSign, Car, User, Calendar, ShieldCheck, AlertCircle } from "lucide-react";
+import { CheckCircle, DollarSign, Car, User, Calendar, ShieldCheck, AlertCircle, Download, FileText } from "lucide-react";
 
 export default function SignSale() {
   const { id } = useParams<{ id: string }>();
@@ -179,6 +179,18 @@ export default function SignSale() {
                       )}
                    </div>
                 </div>
+
+                {sale.receipt_url && (
+                  <div className="mx-6 mb-6 p-4 bg-violet-500/10 border border-violet-500/20 rounded-2xl flex flex-col gap-2">
+                    <p className="text-[10px] font-bold text-violet-500 uppercase tracking-widest mb-1">Available Document</p>
+                    <Button variant="outline" asChild className="w-full justify-between h-12 rounded-xl group border-violet-500/20 bg-background/50 hover:bg-violet-500/10 transition-all">
+                      <a href={sale.receipt_url} target="_blank" rel="noopener noreferrer">
+                        <span className="flex items-center gap-2 font-bold text-violet-500"><FileText className="h-4 w-4" /> Official Sales Receipt</span>
+                        <Download className="h-4 w-4 text-violet-500 opacity-40 group-hover:opacity-100 transition-opacity" />
+                      </a>
+                    </Button>
+                  </div>
+                )}
 
                 {/* Financial Summary */}
                 <div className="pt-4 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-4">

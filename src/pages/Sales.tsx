@@ -542,6 +542,9 @@ export default function Sales() {
         const { data: { publicUrl } } = supabase.storage.from('documents').getPublicUrl(filePath);
         console.log("Public URL generated:", publicUrl);
 
+        // Update database with receipt URL
+        await supabase.from("sales").update({ receipt_url: publicUrl }).eq("id", sale.id);
+
         if (cust?.email) {
           const subject = `Sales Receipt - Beetee Autos`;
           const body = `Hello ${cust.name || 'Customer'},\n\nPlease find your sales receipt attached below.\n\nYou can also download it directly here: ${publicUrl}\n\nThank you for choosing Beetee Autos!`;

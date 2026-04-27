@@ -27,8 +27,12 @@ import { getPrintFooterHTML } from "@/components/PrintFooter";
 import { numberToWords } from "@/lib/numberToWords";
 import { logAction } from "@/lib/logger";
 import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { Download, Mail } from "lucide-react";
 
 export default function PerformanceQuotes() {
   const { role } = useAuth();
@@ -217,6 +221,151 @@ export default function PerformanceQuotes() {
     ));
   };
 
+  const downloadQuotePDF = async (quote: any, isEmail = false) => {
+    const filename = `quote-${quote.id.slice(0,8)}-${Date.now()}`;
+    try {
+      if (isEmail) toast.loading("Preparing quote link for email...", { id: "quote-dl" });
+      else toast.loading("Preparing quote download...", { id: "quote-dl" });
+
+      let logoBase64 = '';
+      try {
+        const response = await fetch(logoAsset);
+        const blob = await response.blob();
+        logoBase64 = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.readAsDataURL(blob);
+        });
+      } catch (e) { console.error("Logo load error:", e); }
+
+      // Reuse the existing HTML generation logic but wrapped in a function or just copied here for now
+      // (Ideally we should refactor getQuoteHTML but I'll implement it here for speed)
+      const html = `<html><head><title>Performance Quote - ${quote.id.slice(0,8).toUpperCase()}</title>
+      <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap');
+        body { font-family: 'Roboto', 'Arial', sans-serif; padding: 15px; max-width: 800px; margin: 0 auto; color: #1a1a1a; line-height: 1.3; }
+        .date-section { text-align: right; font-weight: 800; font-size: 13px; margin-bottom: 15px; text-transform: uppercase; }
+        .bill-to { margin-bottom: 20px; }
+        .bill-to p { margin: 2px 0; font-size: 13px; }
+        .main-container { position: relative; padding: 20px; }
+        .content-wrapper { position: relative; z-index: 1; }
+        .bill-title { text-align: center; text-decoration: underline; font-weight: 900; font-size: 20px; margin-bottom: 20px; color: #1e293b; text-transform: uppercase; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        th, td { border: 1px solid #475569; padding: 8px 10px; text-align: left; font-size: 13px; font-weight: 600; }
+        th { text-transform: uppercase; }
+        .total-row td { border-top: 3px solid #1e293b; font-weight: 900; font-size: 16px; }
+        .amount-words { font-weight: 900; margin-bottom: 20px; font-size: 14px; text-transform: uppercase; }
+        .notes-box { font-size: 12px; color: #475569; background: #f1f5f9; padding: 12px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #e2e8f0; }
+        .signature-area { display: flex; justify-content: space-between; margin-top: 30px; border-top: 2px solid #94a3b8; padding-top: 15px; }
+        .sig-box { width: 45%; text-align: center; font-size: 12px; }
+      </style></head><body>
+      ${getPrintHeaderHTML()}
+      <div class="date-section">DATE: ${new Date(quote.quote_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}<br/>QUOTE NO: PQ-${quote.id.slice(0,8).toUpperCase()}</div>
+      <div class="bill-to">
+        <p style="font-weight: 900;">PREPARED FOR:</p>
+        <p><strong>${quote.customers?.name || "—"}</strong></p>
+        ${quote.customers?.phone ? `<p>Tel: ${quote.customers.phone}</p>` : ''}
+      </div>
+      <div class="main-container">
+        ${getPrintWatermarkHTML()}
+        <div class="content-wrapper">
+          <h2 class="bill-title">PERFORMANCE QUOTE</h2>
+          <table>
+            <thead>
+              <tr><th style="width: 40px;">#</th><th>VEHICLE DESCRIPTION</th><th style="width: 60px;">QTY</th><th style="width: 120px;">UNIT PRICE</th><th style="width: 120px; text-align: right;">AMOUNT (₦)</th></tr>
+            </thead>
+            <tbody>
+              ${quote.performance_quote_items?.map((item: any, i: number) => `
+                <tr>
+                  <td>${i+1}.</td>
+                  <td>${(`${item.vehicles?.year || ''} ${item.vehicles?.make || ''} ${item.vehicles?.model || ''} ${item.vehicles?.trim || ''}`).trim().toUpperCase()}</td>
+                  <td style="text-align: center;">${item.quantity}</td>
+                  <td>₦${Number(item.base_price).toLocaleString()}</td>
+                  <td style="text-align: right;">₦${(Number(item.base_price) * Number(item.quantity)).toLocaleString()}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+
+          ${quote.performance_quote_items?.some((item: any) => item.has_duty) ? `
+          <h3 style="margin-top: 20px; font-weight: 800; text-transform: uppercase; font-size: 14px;">CUSTOM DUTY</h3>
+          <table>
+            <thead><tr><th style="width: 40px;">#</th><th>DESCRIPTION</th><th style="width: 60px;">QTY</th><th style="width: 120px;">UNIT PRICE</th><th style="width: 120px; text-align: right;">AMOUNT (₦)</th></tr></thead>
+            <tbody>
+              ${quote.performance_quote_items?.filter((item: any) => item.has_duty).map((item: any, i: number) => `
+                <tr>
+                  <td>${i+1}.</td>
+                  <td>CUSTOM DUTY - ${(`${item.vehicles?.make || ''} ${item.vehicles?.model || ''}`).trim().toUpperCase()}</td>
+                  <td style="text-align: center;">${item.quantity}</td>
+                  <td>₦${Number(item.duty_price).toLocaleString()}</td>
+                  <td style="text-align: right;">₦${(Number(item.duty_price) * Number(item.quantity)).toLocaleString()}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>` : ''}
+
+          <div style="display: flex; justify-content: flex-end; margin-top: 20px; border-top: 2px solid #1e293b; padding-top: 10px;">
+            <div style="font-weight: 900; font-size: 16px; margin-right: 40px;">GRAND TOTAL</div>
+            <div style="font-weight: 900; font-size: 16px; text-align: right; width: 140px;">₦${(Number(quote.total_amount) || 0).toLocaleString()}</div>
+          </div>
+          <div class="amount-words">AMOUNT IN WORDS: ${numberToWords(Number(quote.total_amount) || 0)}</div>
+          ${quote.notes ? `<div class="notes-box"><strong>NOTES:</strong><br/>${quote.notes}</div>` : ''}
+          <div class="signature-area"><div class="sig-box"><div style="height:40px"></div><p style="border-top: 1px solid #000;"><strong>CUSTOMER SIGNATURE</strong></p></div><div class="sig-box"><div style="height:40px"></div><p style="border-top: 1px solid #000;"><strong>FOR: BEE TEE AUTOMOBILE</strong></p></div></div>
+        </div>
+      </div>
+      ${getPrintFooterHTML()}
+      </body></html>`;
+
+      const iframe = document.createElement('iframe');
+      iframe.style.cssText = "position:fixed;left:-9999px;top:-9999px;width:800px;height:2000px;border:none;visibility:hidden;";
+      document.body.appendChild(iframe);
+      const iDoc = iframe.contentDocument!;
+      iDoc.open(); iDoc.write(html); iDoc.close();
+
+      await new Promise<void>(res => setTimeout(res, 1000)); // Wait for render
+
+      const contentEl = iDoc.documentElement;
+      const { toPng } = await import("html-to-image");
+      const imgData = await toPng(contentEl, { pixelRatio: 2, backgroundColor: "#ffffff" });
+      
+      const { jsPDF } = await import("jspdf");
+      const pdf = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" });
+      const imgProps = pdf.getImageProperties(imgData);
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+      pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+      
+      document.body.removeChild(iframe);
+
+      if (isEmail) {
+        const pdfBlob = pdf.output('blob');
+        const filePath = `quotes/${quote.id}/${filename}.pdf`;
+        const { error: uploadError } = await supabase.storage.from('documents').upload(filePath, pdfBlob);
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage.from('documents').getPublicUrl(filePath);
+        
+        // Update DB
+        await supabase.from("performance_quotes" as any).update({ quote_url: publicUrl }).eq("id", quote.id);
+
+        if (quote.customers?.email) {
+          const subject = `Performance Quote - Beetee Autos`;
+          const body = `Hello ${quote.customers.name},\n\nPlease find your performance quote attached.\n\nDownload here: ${publicUrl}\n\nThank you!`;
+          window.location.href = `mailto:${quote.customers.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+          toast.success("Quote generated and email ready!", { id: "quote-dl" });
+        } else {
+          toast.error("Customer email not found.", { id: "quote-dl" });
+        }
+      } else {
+        pdf.save(`${filename}.pdf`);
+        toast.success("Quote downloaded!", { id: "quote-dl" });
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to generate quote", { id: "quote-dl" });
+    }
+  };
+
   const handlePrint = (quote: any) => {
     toast.info("Preparing quote document...");
     const html = `<html><head><title>Performance Quote - ${quote.id.slice(0,8).toUpperCase()}</title>
@@ -303,7 +452,7 @@ export default function PerformanceQuotes() {
         </table>
 
         ${quote.performance_quote_items?.some((item: any) => item.has_duty) ? `
-        <h3 style="margin-top: 30px; margin-bottom: 15px; font-weight: 800; text-transform: uppercase; font-size: 16px; color: #1e293b;">CUSTOMS DUTY & CLEARANCE</h3>
+        <h3 style="margin-top: 30px; margin-bottom: 15px; font-weight: 800; text-transform: uppercase; font-size: 16px; color: #1e293b;">CUSTOM DUTY</h3>
         <table>
           <thead>
             <tr>
@@ -328,7 +477,7 @@ export default function PerformanceQuotes() {
                   rowsHtml += `
                   <tr>
                     <td style="text-align: center;">${dutyCounter++}.</td>
-                    <td>DUTY & CLEARANCE - ${vehicleDesc.toUpperCase()}</td>
+                    <td>CUSTOM DUTY - ${vehicleDesc.toUpperCase()}</td>
                     <td style="text-align: center;">${qty}</td>
                     <td>₦${dutyPrice.toLocaleString()}</td>
                     <td style="text-align: right;">₦${(dutyPrice * qty).toLocaleString()}</td>
@@ -492,9 +641,24 @@ export default function PerformanceQuotes() {
                     <TableCell className="text-right font-bold">₦{Number(q.total_amount).toLocaleString()}</TableCell>
                     <TableCell className="text-right px-6">
                       <div className="flex justify-end gap-1 opacity-50 group-hover:opacity-100 transition-opacity">
-                        <Button variant="ghost" size="icon" onClick={() => handlePrint(q)} className="h-8 w-8 rounded-lg hover:bg-emerald-500/20 hover:text-emerald-500">
-                          <Printer className="h-4 w-4" />
-                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-emerald-500/20 hover:text-emerald-500">
+                              <Printer className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="glass-panel border-white/10 rounded-xl p-1">
+                            <DropdownMenuItem onClick={() => handlePrint(q)} className="rounded-lg cursor-pointer gap-2">
+                              <Printer className="h-4 w-4 text-emerald-500" /> Print Quote
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => downloadQuotePDF(q, false)} className="rounded-lg cursor-pointer gap-2">
+                              <Download className="h-4 w-4 text-amber-500" /> Save as PDF
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => downloadQuotePDF(q, true)} className="rounded-lg cursor-pointer gap-2">
+                              <Mail className="h-4 w-4 text-sky-500" /> Email to Customer
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                         {hasEdit && (
                           <Button variant="ghost" size="icon" onClick={() => deleteQuoteMutation.mutate(q.id)} className="h-8 w-8 rounded-lg hover:bg-destructive/20 hover:text-destructive">
                             <Trash2 className="h-4 w-4" />
@@ -628,7 +792,7 @@ export default function PerformanceQuotes() {
                               checked={sv.has_duty} 
                               onCheckedChange={(c) => updateVehicleData(sv.id, "has_duty", c === true)} 
                             />
-                            <Label htmlFor={`duty-${sv.id}`} className="font-semibold text-amber-500 cursor-pointer">Include Duty / Clearance Price</Label>
+                            <Label htmlFor={`duty-${sv.id}`} className="font-semibold text-amber-500 cursor-pointer">Include Custom Duty Price</Label>
                           </div>
                           {sv.has_duty && (
                             <div className="space-y-1 animate-fade-down pt-2">

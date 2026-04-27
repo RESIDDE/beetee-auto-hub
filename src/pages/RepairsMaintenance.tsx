@@ -919,6 +919,10 @@ export default function RepairsMaintenance() {
           .from('documents')
           .getPublicUrl(storagePath);
 
+        // Save URL to database
+        const updateData = type === 'bill' ? { bill_url: publicUrl } : { job_card_url: publicUrl };
+        await supabase.from("repairs").update(updateData).eq("id", r.id);
+
         if (cust?.email) {
           const subject = `${type === 'bill' ? 'Repair Bill' : 'Job Card'} - Beetee Autos`;
           const body = `Hello ${cust.name || 'Customer'},\n\nPlease find your ${type === 'bill' ? 'repair bill' : 'job card'} attached below.\n\nYou can also download it directly here: ${publicUrl}\n\nThank you for choosing Beetee Autos!`;
