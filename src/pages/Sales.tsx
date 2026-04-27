@@ -370,7 +370,7 @@ export default function Sales() {
             `).join("")}
           </div>
 
-          <div style="background: #f8fafc; padding: 15px 20px; border-radius: 15px; border: 1px solid #e2e8f0; margin-bottom: 15px;">
+          <div style="background: transparent; padding: 15px 20px; border-radius: 15px; border: 2px solid #e2e8f0; margin-bottom: 15px;">
             <div style="display: flex; justify-content: space-between; align-items: center;">
               <span style="font-size: 16px; font-weight: 800; color: #64748b;">TOTAL AMOUNT PAID</span>
               <span style="font-size: 24px; font-weight: 900; color: #0f172a;">₦${totalAmount.toLocaleString()}</span>
@@ -419,7 +419,7 @@ export default function Sales() {
       }
       .content-wrapper { position: relative; z-index: 1; }
       .bill-title { text-align: center; text-decoration: underline; font-weight: 900; font-size: 18px; margin-bottom: 15px; color: #1e293b; text-transform: uppercase; }
-      .refund-note { margin-top: 10px; padding: 10px; background: #fee2e2; border: 2px solid #ef4444; border-radius: 10px; color: #b91c1c; font-weight: 900; font-size: 13px; text-align: center; margin-bottom: 15px; }
+      .refund-note { margin-top: 10px; padding: 10px; background: rgba(254, 226, 226, 0.4); border: 2px solid #ef4444; border-radius: 10px; color: #b91c1c; font-weight: 900; font-size: 13px; text-align: center; margin-bottom: 15px; }
       .signature-area { display: flex; justify-content: space-between; margin-top: 20px; border-top: 2px solid #94a3b8; padding-top: 15px; }
       .sig-box { width: 45%; text-align: center; font-size: 12px; }
       .signature-img { max-height: 40px; display: block; margin: 0 auto 5px; }

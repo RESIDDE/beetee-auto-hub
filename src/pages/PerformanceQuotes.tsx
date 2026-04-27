@@ -256,7 +256,7 @@ export default function PerformanceQuotes() {
         th { text-transform: uppercase; }
         .total-row td { border-top: 3px solid #1e293b; font-weight: 900; font-size: 16px; }
         .amount-words { font-weight: 900; margin-bottom: 20px; font-size: 14px; text-transform: uppercase; }
-        .notes-box { font-size: 12px; color: #475569; background: #f1f5f9; padding: 12px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #e2e8f0; }
+        .notes-box { font-size: 12px; color: #475569; background: transparent; padding: 12px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #e2e8f0; }
         .signature-area { display: flex; justify-content: space-between; margin-top: 30px; border-top: 2px solid #94a3b8; padding-top: 15px; }
         .sig-box { width: 45%; text-align: center; font-size: 12px; }
       </style></head><body>
@@ -396,7 +396,7 @@ export default function PerformanceQuotes() {
       .bank-details { margin-top: 15px; font-size: 12px; }
       .bank-details h4 { margin: 0 0 5px 0; font-weight: 900; text-transform: uppercase; }
       .bank-details p { margin: 2px 0; font-weight: 500; }
-      .notes-box { font-size: 12px; color: #475569; background: #f1f5f9; padding: 12px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #e2e8f0; }
+      .notes-box { font-size: 12px; color: #475569; background: transparent; padding: 12px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #e2e8f0; }
       .signature-area { display: flex; justify-content: space-between; margin-top: 30px; border-top: 2px solid #94a3b8; padding-top: 15px; }
       .sig-box { width: 45%; text-align: center; font-size: 12px; }
       .signature-img { max-height: 40px; display: block; margin: 0 auto 5px; }
