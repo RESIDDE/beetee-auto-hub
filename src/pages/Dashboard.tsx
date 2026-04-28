@@ -498,7 +498,9 @@ export default function Dashboard() {
                       filteredCompanyStats.map((s) => (
                         <TableRow key={s.name} className="border-white/5 hover:bg-white/5 transition-colors group">
                           <TableCell className="px-5 py-3">
-                            <span className="font-medium text-sm group-hover:text-primary transition-colors">{s.name}</span>
+                            <Link to={`/source-company/${encodeURIComponent(s.name)}`} className="font-medium text-sm text-primary hover:underline transition-colors">
+                              {s.name}
+                            </Link>
                           </TableCell>
                           <TableCell className="text-center">
                             <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 text-xs font-bold border border-emerald-500/20">

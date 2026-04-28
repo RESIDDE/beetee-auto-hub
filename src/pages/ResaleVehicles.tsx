@@ -64,6 +64,7 @@ export default function ResaleVehicles() {
   const [search, setSearch] = useState("");
   const [conditionFilter, setConditionFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [sourceCompanyFilter, setSourceCompanyFilter] = useState("all");
   const [page, setPage] = useState(0);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [showDeleteSoldDialog, setShowDeleteSoldDialog] = useState(false);
@@ -110,6 +111,14 @@ export default function ResaleVehicles() {
     onError: () => toast.error("Failed to delete sold vehicles"),
   });
 
+  const sourceCompanies = useMemo(() => {
+    const companies = new Set<string>();
+    vehicles.forEach(v => {
+      if (v.source_company) companies.add(v.source_company);
+    });
+    return Array.from(companies).sort();
+  }, [vehicles]);
+
   const filtered = vehicles.filter((v) => {
     // Hide customer cars from the main sales fleet view
     if (v.status === "Customer Car") return false;
@@ -118,7 +127,8 @@ export default function ResaleVehicles() {
     const matchesSearch = !q || v.make.toLowerCase().includes(q) || v.model.toLowerCase().includes(q) || (v.vin && v.vin.toLowerCase().includes(q)) || (v.source_company && v.source_company.toLowerCase().includes(q));
     const matchesCondition = conditionFilter === "all" || v.condition === conditionFilter;
     const matchesStatus = statusFilter === "all" || v.status === statusFilter;
-    return matchesSearch && matchesCondition && matchesStatus;
+    const matchesSource = sourceCompanyFilter === "all" || v.source_company === sourceCompanyFilter;
+    return matchesSearch && matchesCondition && matchesStatus && matchesSource;
   });
 
   const soldCount = vehicles.filter(v => v.status === "Sold").length;
@@ -276,6 +286,18 @@ export default function ResaleVehicles() {
               <SelectItem value="Available">Available</SelectItem>
               <SelectItem value="Sold">Sold</SelectItem>
               <SelectItem value="Reserved">Reserved</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={sourceCompanyFilter} onValueChange={(v) => { setSourceCompanyFilter(v); setPage(0); }}>
+            <SelectTrigger className="w-full sm:w-[180px] h-10 rounded-xl bg-background/50 border-white/10">
+              <SelectValue placeholder="Source Company" />
+            </SelectTrigger>
+            <SelectContent className="glass-panel rounded-xl">
+              <SelectItem value="all">All Sources</SelectItem>
+              {sourceCompanies.map(c => (
+                <SelectItem key={c} value={c}>{c}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>

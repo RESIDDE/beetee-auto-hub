@@ -28,6 +28,7 @@ import SignInspection from "./pages/SignInspection";
 import SignSale from "./pages/SignSale";
 import NotFound from "./pages/NotFound";
 import CustomerPortal from "./pages/CustomerPortal";
+import SourceCompanyDetails from "./pages/SourceCompanyDetails";
 import { Loader2 } from "lucide-react";
 
 const queryClient = new QueryClient({
@@ -88,6 +89,7 @@ function AppRoutes() {
               <Route path="/vehicles/new"      element={<RoleGuard page="vehicles"><VehicleForm /></RoleGuard>} />
               <Route path="/vehicles/:id"      element={<RoleGuard page="vehicles"><VehicleDetail /></RoleGuard>} />
               <Route path="/vehicles/:id/edit" element={<RoleGuard page="vehicles"><VehicleForm /></RoleGuard>} />
+              <Route path="/source-company/:name" element={<RoleGuard page="vehicles"><SourceCompanyDetails /></RoleGuard>} />
               <Route path="/customers"         element={<RoleGuard page="customers"><Customers /></RoleGuard>} />
               <Route path="/sales"             element={<RoleGuard page="sales"><Sales /></RoleGuard>} />
               <Route path="/invoices"          element={<RoleGuard page="invoices"><Invoices /></RoleGuard>} />
