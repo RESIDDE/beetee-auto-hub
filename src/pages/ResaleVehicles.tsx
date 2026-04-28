@@ -202,19 +202,19 @@ export default function ResaleVehicles() {
             Manage your resale inventory cars.
           </p>
         </div>
-        <div className="flex gap-2 shrink-0">
+        <div className="flex flex-row flex-wrap gap-2 shrink-0">
           <Button 
             variant="outline" 
-            size="lg" 
+            size="sm"
             onClick={() => setShowAnalytics(!showAnalytics)}
-            className={`rounded-2xl glass-panel border-white/10 transition-all ${showAnalytics ? 'bg-emerald-500/20 text-emerald-500 border-emerald-500/20' : 'hover:bg-white/5'}`}
+            className={`rounded-xl glass-panel border-white/10 transition-all text-xs ${showAnalytics ? 'bg-emerald-500/20 text-emerald-500 border-emerald-500/20' : 'hover:bg-white/5'}`}
           >
-            <BarChartIcon className="mr-2 h-4 w-4" /> {showAnalytics ? "Hide Analytics" : "Analytics"}
+            <BarChartIcon className="mr-1.5 h-3.5 w-3.5" /> {showAnalytics ? "Hide Analytics" : "Analytics"}
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="lg" className="rounded-2xl glass-panel border-white/10 hover:bg-white/5 transition-all">
-                <Download className="mr-2 h-4 w-4" /> Export
+              <Button variant="outline" size="sm" className="rounded-xl glass-panel border-white/10 hover:bg-white/5 transition-all text-xs">
+                <Download className="mr-1.5 h-3.5 w-3.5" /> Export
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="rounded-xl glass-panel p-2 shadow-2xl border-white/10" align="end">
@@ -226,9 +226,9 @@ export default function ResaleVehicles() {
               <DropdownMenuItem onClick={handlePrint} className="rounded-lg cursor-pointer text-primary font-bold"><Printer className="mr-2 h-4 w-4" /> Print View</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button asChild size="lg" className="rounded-2xl shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all bg-emerald-500 hover:bg-emerald-600">
+          <Button asChild size="sm" className="rounded-xl shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all bg-emerald-500 hover:bg-emerald-600 text-xs">
             <Link to="/vehicles/new?inventory_type=resale">
-              <PlusCircle className="mr-2 h-5 w-5" /> Add Resale Vehicle
+              <PlusCircle className="mr-1.5 h-4 w-4" /> Add Resale Vehicle
             </Link>
           </Button>
         </div>

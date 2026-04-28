@@ -35,7 +35,7 @@ const ALL_NAV_ITEMS: NavItem[] = [
 ];
 
 export function AppSidebar() {
-  const { state } = useSidebar();
+  const { state, setOpenMobile } = useSidebar();
   const collapsed = state === "collapsed";
   const { role } = useAuth();
 
@@ -46,6 +46,11 @@ export function AppSidebar() {
   const visibleItems = ALL_NAV_ITEMS.filter((item) =>
     accessible.includes(item.pageKey as PageKey)
   );
+
+  const handleNavClick = () => {
+    // Close sidebar on mobile when a link is clicked
+    setOpenMobile(false);
+  };
 
   return (
     <Sidebar collapsible="icon">
@@ -71,6 +76,7 @@ export function AppSidebar() {
                     <NavLink
                       to={item.url}
                       end={item.url === "/dashboard"}
+                      onClick={handleNavClick}
                       className="flex items-center gap-3 rounded-full px-4 py-2.5 text-sm font-medium transition-all duration-300 hover:bg-sidebar-accent/50 text-sidebar-foreground/70 hover:text-sidebar-foreground w-full"
                       activeClassName="bg-primary/10 text-primary font-semibold shadow-sm"
                     >
@@ -87,6 +93,7 @@ export function AppSidebar() {
                   <div className="py-1">
                     <NavLink
                       to="/settings"
+                      onClick={handleNavClick}
                       className="flex items-center gap-3 rounded-full px-4 py-2.5 text-sm font-medium transition-all duration-300 hover:bg-amber-500/10 text-amber-500/70 hover:text-amber-500 w-full"
                       activeClassName="bg-amber-500/10 text-amber-500 font-semibold"
                     >
