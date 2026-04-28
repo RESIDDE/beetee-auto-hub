@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useFormPersistence } from "@/hooks/useFormPersistence";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,7 +46,7 @@ export default function Customers() {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
-  const [form, setForm] = useState(emptyForm);
+  const [form, setForm, clearDraft] = useFormPersistence("customer", emptyForm, !!editId, editId || undefined);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [qrId, setQrId] = useState<string | null>(null);
   const queryClient = useQueryClient();
@@ -89,7 +90,10 @@ export default function Customers() {
       queryClient.invalidateQueries({ queryKey: ["customers"] });
       logAction(editId ? "UPDATE" : "CREATE", "Customer", editId ?? undefined, { name: form.name });
       toast.success(editId ? "Customer updated" : "Customer added");
-      closeDialog();
+      clearDraft();
+      setForm(emptyForm);
+      setEditId(null);
+      setDialogOpen(false);
     },
     onError: () => toast.error("Failed to save customer"),
   });
@@ -107,7 +111,7 @@ export default function Customers() {
     onError: () => toast.error("Failed to delete customer"),
   });
 
-  const closeDialog = () => { setDialogOpen(false); setEditId(null); setForm(emptyForm); };
+  const closeDialog = () => { setDialogOpen(false); setEditId(null); };
 
   const openEdit = (c: Customer) => {
     setEditId(c.id);
@@ -132,7 +136,7 @@ export default function Customers() {
           </p>
         </div>
         <div className="shrink-0">
-          <Button onClick={() => { setForm(emptyForm); setEditId(null); setDialogOpen(true); }} size="lg" className="rounded-2xl shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all bg-emerald-500 hover:bg-emerald-600 text-white">
+          <Button onClick={() => { setEditId(null); setDialogOpen(true); }} size="lg" className="rounded-2xl shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all bg-emerald-500 hover:bg-emerald-600 text-white">
             <PlusCircle className="mr-2 h-5 w-5" /> Add Customer
           </Button>
         </div>

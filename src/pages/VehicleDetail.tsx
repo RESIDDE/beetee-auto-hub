@@ -88,8 +88,8 @@ export default function VehicleDetail() {
               <ArrowLeft className="h-4 w-4" />
             </Link>
           </Button>
-          <h1 className="text-3xl font-bold text-foreground">
-            {vehicle.year} {vehicle.make} {vehicle.model} {vehicle.trim && <span className="opacity-60">{vehicle.trim}</span>}
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
+            {vehicle.year} {vehicle.make} {vehicle.model} {vehicle.trim && <span className="opacity-60 text-base sm:text-lg">{vehicle.trim}</span>}
           </h1>
         </div>
         <div className="flex gap-2">

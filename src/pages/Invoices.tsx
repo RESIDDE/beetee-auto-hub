@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import logoAsset from "@/assets/logo.png";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useFormPersistence } from "@/hooks/useFormPersistence";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -45,14 +46,14 @@ export default function Invoices() {
   const [page, setPage] = useState(0);
   const PAGE_SIZE = 12; // 3x4 grid
 
-  const [form, setForm] = useState({
+  const [form, setForm, clearDraft] = useFormPersistence("invoice", {
     customer_id: "",
     sale_id: "",
     invoice_type: "sale" as string,
     notes: "",
     due_date: "",
     selectedRepairs: [] as string[],
-  });
+  }, false);
 
   useEffect(() => {
     const action = searchParams.get("action");
@@ -166,11 +167,16 @@ export default function Invoices() {
       queryClient.invalidateQueries({ queryKey: ["invoice-repair-links"] });
       logAction("CREATE", "Invoice", inv?.id);
       toast.success("Invoice created");
-      setDialogOpen(false);
+      clearDraft();
       setForm({ customer_id: "", sale_id: "", invoice_type: "sale", notes: "", due_date: "", selectedRepairs: [] });
+      setDialogOpen(false);
     },
     onError: (e: any) => toast.error(e.message),
   });
+
+  const closeDialog = () => {
+    setDialogOpen(false);
+  };
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -608,7 +614,7 @@ export default function Invoices() {
       </AlertDialog>
 
       {/* Create Invoice Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={(v) => { if (!v) { setDialogOpen(false); setForm({ customer_id: "", sale_id: "", invoice_type: "sale", notes: "", due_date: "", selectedRepairs: [] }); } }}>
+      <Dialog open={dialogOpen} onOpenChange={(v) => { if (!v) closeDialog(); }}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto rounded-3xl glass-panel shadow-2xl border-white/10 p-0 bg-background/95 backdrop-blur-3xl">
           <div className="p-6 border-b border-white/5 bg-foreground/5 pointer-events-none">
             <DialogHeader><DialogTitle className="text-xl font-bold">Generate New Invoice</DialogTitle></DialogHeader>

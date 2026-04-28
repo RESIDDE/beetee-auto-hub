@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useFormPersistence } from "@/hooks/useFormPersistence";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -55,8 +56,8 @@ export default function Inspections() {
 
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState(emptyForm);
   const [editId, setEditId] = useState<string | null>(null);
+  const [form, setForm, clearDraft] = useFormPersistence("inspection", emptyForm, !!editId, editId || undefined);
   const [qrId, setQrId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
@@ -116,7 +117,10 @@ export default function Inspections() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["inspections"] });
       toast.success(editId ? "Inspection updated" : "Inspection added");
-      closeDialog();
+      clearDraft();
+      setForm(emptyForm);
+      setEditId(null);
+      setOpen(false);
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -133,7 +137,7 @@ export default function Inspections() {
     onError: (e: any) => toast.error(e.message),
   });
 
-  const closeDialog = () => { setOpen(false); setForm(emptyForm); setEditId(null); };
+  const closeDialog = () => { setOpen(false); setEditId(null); };
 
   const openEdit = (i: Inspection) => {
     setForm({

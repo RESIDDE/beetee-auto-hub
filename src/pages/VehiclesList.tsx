@@ -17,7 +17,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { Card, CardContent } from "@/components/ui/card";
 import { Link } from "react-router-dom";
@@ -31,7 +31,7 @@ import {
 } from "recharts";
 import { differenceInDays } from "date-fns";
 import { toast } from "sonner";
-import { exportToExcel, exportToJSON, printTable } from "@/lib/exportHelpers";
+import { exportToExcel, exportToJSON, printTable, exportToCSV, exportToPDF } from "@/lib/exportHelpers";
 import { useAuth } from "@/hooks/useAuth";
 import { canEdit } from "@/lib/permissions";
 import { logAction } from "@/lib/logger";
@@ -142,7 +142,33 @@ export default function VehiclesList() {
       Price: v.price, "Cost Price": v.cost_price || "", Status: v.status, Condition: v.condition || "",
       "Source Company": v.source_company || "", "Date Arrived": v.date_arrived || "",
     }));
-    exportToExcel(rows, "vehicles_export");
+    exportToExcel(rows, "beetee_vehicles_export");
+  };
+
+  const handleExportCSV = () => {
+    const rows = filtered.map((v) => ({
+      Make: v.make, Model: v.model, Year: v.year, VIN: v.vin || "", Color: v.color || "",
+      Price: v.price, Status: v.status, Condition: v.condition || "",
+      Source: v.source_company || "", Date: v.date_arrived || "",
+    }));
+    exportToCSV(rows, "beetee_vehicles_export");
+  };
+
+  const handleExportPDF = () => {
+    const rows = filtered.map((v) => ({
+      vehicle: `${v.year} ${v.make} ${v.model}`, 
+      vin: v.vin || "—", 
+      price: `₦${Number(v.price).toLocaleString()}`,
+      status: v.status, 
+      condition: v.condition || "—",
+    }));
+    exportToPDF("Beetee Vehicles Inventory", rows, [
+      { key: "vehicle", label: "Vehicle Description" }, 
+      { key: "vin", label: "VIN/Chassis" },
+      { key: "price", label: "Price" }, 
+      { key: "status", label: "Status" }, 
+      { key: "condition", label: "Condition" },
+    ]);
   };
 
   const handleExportJSON = () => exportToJSON(filtered, "vehicles_export");
@@ -190,9 +216,12 @@ export default function VehiclesList() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="rounded-xl glass-panel p-2 shadow-2xl border-white/10" align="end">
-              <DropdownMenuItem onClick={handleExportExcel} className="rounded-lg cursor-pointer"><FileText className="mr-2 h-4 w-4" /> Export to Excel</DropdownMenuItem>
-              <DropdownMenuItem onClick={handleExportJSON} className="rounded-lg cursor-pointer"><FileText className="mr-2 h-4 w-4" /> Export to JSON</DropdownMenuItem>
-              <DropdownMenuItem onClick={handlePrint} className="rounded-lg cursor-pointer text-primary"><Printer className="mr-2 h-4 w-4" /> Print / PDF</DropdownMenuItem>
+               <DropdownMenuItem onClick={handleExportCSV} className="rounded-lg cursor-pointer"><FileText className="mr-2 h-4 w-4" /> Export as CSV</DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportExcel} className="rounded-lg cursor-pointer"><FileText className="mr-2 h-4 w-4" /> Export as Excel / Document</DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportPDF} className="rounded-lg cursor-pointer"><FileText className="mr-2 h-4 w-4" /> Export as PDF</DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportJSON} className="rounded-lg cursor-pointer"><FileText className="mr-2 h-4 w-4" /> Export as JSON</DropdownMenuItem>
+              <DropdownMenuSeparator className="bg-white/5" />
+              <DropdownMenuItem onClick={handlePrint} className="rounded-lg cursor-pointer text-primary font-bold"><Printer className="mr-2 h-4 w-4" /> Print View</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
           <Button asChild size="lg" className="rounded-2xl shadow-lg shadow-sky-500/25 hover:shadow-sky-500/40 transition-all bg-sky-500 hover:bg-sky-600">

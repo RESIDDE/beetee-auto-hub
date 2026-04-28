@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useFormPersistence } from "@/hooks/useFormPersistence";
 import { supabase } from "@/integrations/supabase/client";
 import { createClient } from "@supabase/supabase-js";
 import { useAuth } from "@/hooks/useAuth";
@@ -66,7 +67,7 @@ export default function Settings() {
 
   // ── Invite User State ──────────────────────────────────────────────────────
   const [inviteOpen, setInviteOpen] = useState(false);
-  const [inviteForm, setInviteForm] = useState({ email: "", displayName: "", password: "", role: "mechanic" });
+  const [inviteForm, setInviteForm, clearInviteDraft] = useFormPersistence("invite-user", { email: "", displayName: "", password: "", role: "mechanic" }, false);
   const [inviting, setInviting] = useState(false);
 
   // ── Transfer Super Admin State ─────────────────────────────────────────────
@@ -233,6 +234,7 @@ export default function Settings() {
 
       queryClient.invalidateQueries({ queryKey: ["users-roles"] });
       toast.success(`✅ Account created for ${inviteForm.displayName}! They can now log in with the credentials you set.`);
+      clearInviteDraft();
       setInviteOpen(false);
       setInviteForm({ email: "", displayName: "", password: "", role: "mechanic" });
     } catch (err: any) {
@@ -456,7 +458,7 @@ export default function Settings() {
           <p className="text-sm text-muted-foreground mb-6">
             Click to cycle through: <span className="inline-flex items-center gap-1 mx-1 px-1.5 py-0.5 rounded-md bg-foreground/5 text-muted-foreground"><ToggleLeft className="w-3.5 h-3.5" /> None</span> → <span className="inline-flex items-center gap-1 mx-1 px-1.5 py-0.5 rounded-md bg-blue-500/20 text-blue-500"><Eye className="w-3.5 h-3.5" /> View/Add</span> → <span className="inline-flex items-center gap-1 mx-1 px-1.5 py-0.5 rounded-md bg-emerald-500/20 text-emerald-500"><Pencil className="w-3.5 h-3.5" /> View/Add/Edit</span>. <span className="text-amber-400 font-semibold ml-1">Super Admin</span> always has full access.
           </p>
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto table-container">
             <table className="w-full min-w-[480px]">
               <thead>
                 <tr>

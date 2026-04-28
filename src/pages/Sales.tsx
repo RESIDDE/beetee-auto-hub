@@ -251,7 +251,9 @@ export default function Sales() {
       logAction(action, "Sales", editId ?? undefined);
       toast.success(editId ? "Sale updated" : "Sale recorded");
       clearDraft();
-      closeDialog();
+      setForm(emptyForm);
+      setEditId(null);
+      setDialogOpen(false);
     },
     onError: () => toast.error("Failed to save sale"),
   });
@@ -269,7 +271,7 @@ export default function Sales() {
     onError: () => toast.error("Failed to delete sale"),
   });
 
-  const closeDialog = () => { setDialogOpen(false); setEditId(null); setForm(emptyForm); };
+  const closeDialog = () => { setDialogOpen(false); setEditId(null); };
 
   const openEdit = (s: any) => {
     setEditId(s.id);
@@ -679,7 +681,7 @@ export default function Sales() {
               <DropdownMenuItem onClick={handleBulkPrintReceipts} className="rounded-lg cursor-pointer text-violet-500 border-t border-white/5 mt-1 pt-2"><Receipt className="mr-2 h-4 w-4" /> Print All Receipts (PDF)</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button onClick={() => { setForm(emptyForm); setEditId(null); setDialogOpen(true); }} size="lg" className="rounded-2xl shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40 transition-all bg-violet-500 hover:bg-violet-600 text-white">
+          <Button onClick={() => { setEditId(null); setDialogOpen(true); }} size="lg" className="rounded-2xl shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40 transition-all bg-violet-500 hover:bg-violet-600 text-white">
             <PlusCircle className="mr-2 h-5 w-5" /> Record Sale
           </Button>
         </div>
@@ -847,99 +849,166 @@ export default function Sales() {
           <div className="bg-violet-500/10 p-5 rounded-full mb-4">
             <DollarSign className="h-10 w-10 text-violet-500" />
           </div>
-          <h2 className="text-xl font-bold mb-2">No sales recorded.</h2>
-          <p className="text-muted-foreground max-w-sm mb-6">Start tracking your dealership revenue by recording your first sale.</p>
-          <Button onClick={() => { setForm(emptyForm); setEditId(null); setDialogOpen(true); }} className="rounded-xl shadow-lg shadow-violet-500/20 bg-violet-500 hover:bg-violet-600 text-white">Record Sale</Button>
+          <h3 className="text-xl font-bold mb-2">No Sales Recorded</h3>
+          <p className="text-muted-foreground max-w-xs mx-auto mb-6">You haven't recorded any sales yet. Click "Record New Sale" to get started.</p>
+          <Button onClick={() => setDialogOpen(true)} className="rounded-2xl bg-violet-500 hover:bg-violet-600 shadow-lg shadow-violet-500/20">Record Your First Sale</Button>
         </div>
       ) : (
-        <div className="space-y-6">
-          <div className="bento-card overflow-hidden">
-            <div className="overflow-x-auto w-full">
-              <Table className="w-full">
-                <TableHeader className="bg-foreground/5 pointer-events-none">
-                  <TableRow className="border-border/50 hover:bg-transparent">
-                    <TableHead className="font-semibold px-6 py-4">Vehicle</TableHead>
-                    <TableHead className="font-semibold">Customer</TableHead>
-                    <TableHead className="font-semibold">Sale Price</TableHead>
-                    <TableHead className="font-semibold">Sale Date</TableHead>
-                    <TableHead className="text-right font-semibold px-6">Actions</TableHead>
+        <div className="bento-card overflow-hidden border-none shadow-2xl">
+          <div className="hidden md:block table-container">
+            <Table>
+              <TableHeader className="bg-foreground/5 pointer-events-none">
+                <TableRow className="border-border/50 hover:bg-transparent">
+                  <TableHead className="font-semibold px-6 py-4">Vehicle</TableHead>
+                  <TableHead className="font-semibold">Customer</TableHead>
+                  <TableHead className="font-semibold">Sale Price</TableHead>
+                  <TableHead className="font-semibold">Sale Date</TableHead>
+                  <TableHead className="text-right font-semibold px-6">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {paged.map((s) => (
+                  <TableRow key={s.id} className="border-border/10 hover:bg-white/5 transition-colors group">
+                    <TableCell className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        <Car className="h-4 w-4 text-muted-foreground" />
+                        <span className="font-semibold text-sm transition-colors group-hover:text-violet-500">{vehicleMap[s.vehicle_id] || "—"}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Users className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm">{customerMap[s.customer_id] || "—"}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="font-semibold">₦{Number(s.sale_price).toLocaleString()}</TableCell>
+                    <TableCell className="text-muted-foreground text-sm flex items-center gap-2"><Calendar className="h-3.5 w-3.5" /> {new Date(s.sale_date).toLocaleDateString()}</TableCell>
+                    <TableCell className="text-right px-6">
+                      <div className="flex justify-end gap-1 opacity-50 group-hover:opacity-100 transition-opacity">
+                        <Button variant="ghost" size="sm" className="h-8 rounded-lg hover:bg-foreground/20 text-amber-500" onClick={() => setQrId(s.id)}>
+                          <QrCode className="h-4 w-4 mr-1.5" /> Sign Link
+                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm" className="h-8 rounded-lg hover:bg-foreground/20 text-sky-500">
+                              <FileDown className="h-4 w-4 mr-1.5" /> Download
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent className="rounded-xl glass-panel p-2 shadow-2xl border-white/10" align="end">
+                            <DropdownMenuItem onClick={() => downloadSaleReceipt(s, "png")} className="rounded-lg cursor-pointer gap-2">
+                              <Image className="h-4 w-4 text-emerald-500" /> Save as PNG
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => downloadSaleReceipt(s, "jpeg")} className="rounded-lg cursor-pointer gap-2">
+                              <Image className="h-4 w-4 text-amber-500" /> Save as JPEG
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => downloadSaleReceipt(s, "pdf")} className="rounded-lg cursor-pointer gap-2">
+                              <FileDown className="h-4 w-4 text-violet-500" /> Save as PDF
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm" className="h-8 rounded-lg hover:bg-foreground/20 text-emerald-500">
+                              <Receipt className="h-4 w-4 mr-1.5" /> Receipt
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent className="rounded-xl glass-panel p-2 shadow-2xl border-white/10" align="end">
+                            <DropdownMenuItem onClick={() => handlePrintReceipt(s)} className="rounded-lg cursor-pointer gap-2">
+                              <Printer className="h-4 w-4 text-emerald-500" /> Print Receipt
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => downloadSaleReceipt(s, "pdf", true)} className="rounded-lg cursor-pointer gap-2">
+                              <Mail className="h-4 w-4 text-indigo-500" /> Email to Customer
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                        <Button variant="ghost" size="sm" className="h-8 rounded-lg hover:bg-violet-500/10 hover:text-violet-500" onClick={() => navigate(`/invoices?action=create&customer_id=${s.customer_id}&sale_id=${s.id}&type=sale`)}>
+                          <FileOutput className="h-4 w-4 mr-1.5" /> Invoice
+                        </Button>
+                        {hasEdit && (
+                          <>
+                            <Button variant="ghost" size="icon" onClick={() => openEdit(s)} className="h-8 w-8 rounded-lg hover:bg-foreground/20">
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" onClick={() => setDeleteId(s.id)} className="h-8 w-8 rounded-lg hover:bg-destructive/20 hover:text-destructive">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {paged.map((s) => (
-                    <TableRow key={s.id} className="border-border/10 hover:bg-white/5 transition-colors group">
-                      <TableCell className="px-6 py-4">
-                         <div className="flex items-center gap-2">
-                            <Car className="h-4 w-4 text-muted-foreground" />
-                            <span className="font-semibold text-sm transition-colors group-hover:text-violet-500">{vehicleMap[s.vehicle_id] || "—"}</span>
-                         </div>
-                      </TableCell>
-                      <TableCell>
-                         <div className="flex items-center gap-2">
-                            <Users className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-sm">{customerMap[s.customer_id] || "—"}</span>
-                         </div>
-                      </TableCell>
-                      <TableCell className="font-semibold">₦{Number(s.sale_price).toLocaleString()}</TableCell>
-                      <TableCell className="text-muted-foreground text-sm flex items-center gap-2"><Calendar className="h-3.5 w-3.5" /> {new Date(s.sale_date).toLocaleDateString()}</TableCell>
-                      <TableCell className="text-right px-6">
-                        <div className="flex justify-end gap-1 opacity-50 group-hover:opacity-100 transition-opacity">
-                          <Button variant="ghost" size="sm" className="h-8 rounded-lg hover:bg-foreground/20 text-amber-500" onClick={() => setQrId(s.id)}>
-                            <QrCode className="h-4 w-4 mr-1.5" /> Sign Link
-                          </Button>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="sm" className="h-8 rounded-lg hover:bg-foreground/20 text-sky-500">
-                                <FileDown className="h-4 w-4 mr-1.5" /> Download
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent className="rounded-xl glass-panel p-2 shadow-2xl border-white/10" align="end">
-                              <DropdownMenuItem onClick={() => downloadSaleReceipt(s, "png")} className="rounded-lg cursor-pointer gap-2">
-                                <Image className="h-4 w-4 text-emerald-500" /> Save as PNG
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => downloadSaleReceipt(s, "jpeg")} className="rounded-lg cursor-pointer gap-2">
-                                <Image className="h-4 w-4 text-amber-500" /> Save as JPEG
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => downloadSaleReceipt(s, "pdf")} className="rounded-lg cursor-pointer gap-2">
-                                <FileDown className="h-4 w-4 text-violet-500" /> Save as PDF
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="sm" className="h-8 rounded-lg hover:bg-foreground/20 text-emerald-500">
-                                <Receipt className="h-4 w-4 mr-1.5" /> Receipt
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent className="rounded-xl glass-panel p-2 shadow-2xl border-white/10" align="end">
-                              <DropdownMenuItem onClick={() => handlePrintReceipt(s)} className="rounded-lg cursor-pointer gap-2">
-                                <Printer className="h-4 w-4 text-emerald-500" /> Print Receipt
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => downloadSaleReceipt(s, "pdf", true)} className="rounded-lg cursor-pointer gap-2">
-                                <Mail className="h-4 w-4 text-indigo-500" /> Email to Customer
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                          <Button variant="ghost" size="sm" className="h-8 rounded-lg hover:bg-violet-500/10 hover:text-violet-500" onClick={() => navigate(`/invoices?action=create&customer_id=${s.customer_id}&sale_id=${s.id}&type=sale`)}>
-                            <FileOutput className="h-4 w-4 mr-1.5" /> Invoice
-                          </Button>
-                          {hasEdit && (
-                            <>
-                              <Button variant="ghost" size="icon" onClick={() => openEdit(s)} className="h-8 w-8 rounded-lg hover:bg-foreground/20">
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                              <Button variant="ghost" size="icon" onClick={() => setDeleteId(s.id)} className="h-8 w-8 rounded-lg hover:bg-destructive/20 hover:text-destructive">
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* Mobile Card View */}
+          <div className="md:hidden divide-y divide-white/5">
+            {paged.map((s) => (
+              <div key={s.id} className="p-4 space-y-4">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="font-bold text-sm tracking-tight">{vehicleMap[s.vehicle_id] || "—"}</p>
+                    <p className="text-[10px] text-violet-500 font-bold mt-0.5 uppercase tracking-widest">{customerMap[s.customer_id] || "—"}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-bold text-sm text-foreground">₦{Number(s.sale_price).toLocaleString()}</p>
+                    <p className="text-[10px] text-muted-foreground">{new Date(s.sale_date).toLocaleDateString()}</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center justify-between pt-1">
+                  <div className="flex gap-1.5 items-center">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setQrId(s.id)}
+                      className="h-8 rounded-lg text-[11px] font-bold border-white/10"
+                    >
+                      <QrCode className="w-3.5 h-3.5 mr-1" /> Sign
+                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm" className="h-8 rounded-lg hover:bg-violet-500/10 text-violet-500">
+                          <FileDown className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="glass-panel border-white/10 rounded-xl p-1">
+                        <DropdownMenuItem onClick={() => downloadSaleReceipt(s, "pdf")} className="rounded-lg cursor-pointer gap-2 text-xs">
+                          <FileDown className="h-4 w-4 text-violet-500" /> PDF
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handlePrintReceipt(s)} className="rounded-lg cursor-pointer gap-2 text-xs">
+                          <Printer className="h-4 w-4 text-emerald-500" /> Print
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                  
+                  <div className="flex gap-1">
+                    {hasEdit && (
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => openEdit(s)}
+                          className="h-8 rounded-lg hover:bg-violet-500/10 hover:text-violet-500"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setDeleteId(s.id)}
+                          className="h-8 rounded-lg hover:bg-destructive/10 hover:text-destructive text-muted-foreground"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
 
           {/* Pagination */}

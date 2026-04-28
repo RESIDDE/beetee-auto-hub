@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useFormPersistence } from "@/hooks/useFormPersistence";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -49,7 +50,7 @@ export default function Inquiries() {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
-  const [form, setForm] = useState(emptyForm);
+  const [form, setForm, clearDraft] = useFormPersistence("inquiry", emptyForm, !!editId, editId || undefined);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
@@ -149,7 +150,10 @@ export default function Inquiries() {
       queryClient.invalidateQueries({ queryKey: ["inquiries"] });
       queryClient.invalidateQueries({ queryKey: ["customers"] });
       toast.success(editId ? "Inquiry updated" : "Inquiry added");
-      closeDialog();
+      clearDraft();
+      setForm(emptyForm);
+      setEditId(null);
+      setDialogOpen(false);
     },
     onError: (error: any) => {
       console.error("Save error:", error);
@@ -169,7 +173,7 @@ export default function Inquiries() {
     onError: () => toast.error("Failed to delete inquiry"),
   });
 
-  const closeDialog = () => { setDialogOpen(false); setEditId(null); setForm(emptyForm); };
+  const closeDialog = () => { setDialogOpen(false); setEditId(null); };
 
   const openEdit = (i: any) => {
     setEditId(i.id);
@@ -207,7 +211,7 @@ export default function Inquiries() {
           </p>
         </div>
         <div className="shrink-0">
-          <Button onClick={() => { setForm(emptyForm); setEditId(null); setDialogOpen(true); }} size="lg" className="rounded-2xl shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all bg-indigo-500 hover:bg-indigo-600 text-white">
+          <Button onClick={() => { setEditId(null); setDialogOpen(true); }} size="lg" className="rounded-2xl shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all bg-indigo-500 hover:bg-indigo-600 text-white">
             <PlusCircle className="mr-2 h-5 w-5" /> Add Inquiry
           </Button>
         </div>
@@ -244,7 +248,7 @@ export default function Inquiries() {
       ) : (
         <div className="space-y-6">
           <div className="bento-card overflow-hidden">
-            <div className="overflow-x-auto w-full">
+            <div className="hidden md:block table-container">
               <Table className="w-full">
                 <TableHeader className="bg-foreground/5 pointer-events-none">
                   <TableRow className="border-border/50 hover:bg-transparent">
@@ -310,6 +314,45 @@ export default function Inquiries() {
                   ))}
                 </TableBody>
               </Table>
+            </div>
+
+            {/* Mobile Card View */}
+            <div className="md:hidden divide-y divide-white/5">
+              {paged.map((i: any) => (
+                <div key={i.id} className="p-4 space-y-3">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <p className="font-bold text-sm tracking-tight">{i.customer_id ? customerMap[i.customer_id] || "—" : i.manual_customer_name || "—"}</p>
+                      <p className="text-[10px] text-muted-foreground font-bold uppercase mt-0.5">
+                        {i.vehicle_id
+                          ? vehicleMap[i.vehicle_id] || "—"
+                          : i.manual_vehicle_make
+                            ? `${i.manual_vehicle_year || ""} ${i.manual_vehicle_make} ${i.manual_vehicle_model || ""}`.trim()
+                            : "General Inquiry"}
+                      </p>
+                    </div>
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider ${i.status === "Open" ? "bg-indigo-500/10 text-indigo-500" :
+                        i.status === "In Progress" ? "bg-amber-500/10 text-amber-500" : "bg-muted/50 text-muted-foreground"
+                      }`}>{i.status}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground line-clamp-2 italic">"{i.message}"</p>
+                  <div className="flex justify-between items-center pt-2">
+                    <span className="text-[10px] text-muted-foreground">{new Date(i.created_at).toLocaleDateString()}</span>
+                    <div className="flex gap-1">
+                      {hasEdit && (
+                        <>
+                          <Button variant="ghost" size="sm" onClick={() => openEdit(i)} className="h-8 rounded-lg hover:bg-foreground/20">
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={() => setDeleteId(i.id)} className="h-8 rounded-lg hover:bg-destructive/20 hover:text-destructive">
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 

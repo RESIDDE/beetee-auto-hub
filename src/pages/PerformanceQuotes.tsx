@@ -167,8 +167,8 @@ export default function PerformanceQuotes() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["performance_quotes"] });
       queryClient.invalidateQueries({ queryKey: ["customers"] });
-      logAction("CREATE", "Performance Quote");
-      toast.success("Performance quote created successfully");
+      logAction("CREATE", "Proforma Quote");
+      toast.success("Proforma quote created successfully");
       clearDraft();
       closeDialog();
     },
@@ -251,7 +251,7 @@ export default function PerformanceQuotes() {
 
       // Reuse the existing HTML generation logic but wrapped in a function or just copied here for now
       // (Ideally we should refactor getQuoteHTML but I'll implement it here for speed)
-      const html = `<html><head><title>Performance Quote - ${quote.id.slice(0,8).toUpperCase()}</title>
+      const html = `<html><head><title>Proforma Quote - ${quote.id.slice(0,8).toUpperCase()}</title>
       <style>
         @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap');
         body { font-family: 'Roboto', 'Arial', sans-serif; padding: 15px; max-width: 800px; margin: 0 auto; color: #1a1a1a; line-height: 1.3; }
@@ -267,8 +267,6 @@ export default function PerformanceQuotes() {
         .total-row td { border-top: 3px solid #1e293b; font-weight: 900; font-size: 16px; }
         .amount-words { font-weight: 900; margin-bottom: 10px; font-size: 14px; text-transform: uppercase; }
         .notes-box { font-size: 12px; color: #475569; background: transparent; padding: 8px; border-radius: 8px; margin-bottom: 10px; border: 1px solid #e2e8f0; }
-        .signature-area { display: flex; justify-content: space-between; margin-top: 15px; border-top: 2px solid #94a3b8; padding-top: 10px; }
-        .sig-box { width: 45%; text-align: center; font-size: 12px; }
       </style></head><body>
       ${getPrintHeaderHTML()}
       <div class="date-section">DATE: ${new Date(quote.quote_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}<br/>QUOTE NO: PQ-${quote.id.slice(0,8).toUpperCase()}</div>
@@ -280,7 +278,7 @@ export default function PerformanceQuotes() {
       <div class="main-container">
         ${getPrintWatermarkHTML()}
         <div class="content-wrapper">
-          <h2 class="bill-title">PERFORMANCE QUOTE</h2>
+          <h2 class="bill-title">PROFORMA QUOTE</h2>
           <table>
             <thead>
               <tr><th style="width: 40px;">#</th><th>VEHICLE DESCRIPTION</th><th style="width: 60px;">QTY</th><th style="width: 120px;">UNIT PRICE</th><th style="width: 120px; text-align: right;">AMOUNT (₦)</th></tr>
@@ -321,7 +319,6 @@ export default function PerformanceQuotes() {
           </div>
           <div class="amount-words">AMOUNT IN WORDS: ${numberToWords(Number(quote.total_amount) || 0)}</div>
           ${quote.notes ? `<div class="notes-box"><strong>NOTES:</strong><br/>${quote.notes}</div>` : ''}
-          <div class="signature-area"><div class="sig-box"><div style="height:40px"></div><p style="border-top: 1px solid #000;"><strong>CUSTOMER SIGNATURE</strong></p></div><div class="sig-box"><div style="height:40px"></div><p style="border-top: 1px solid #000;"><strong>FOR: BEE TEE AUTOMOBILE</strong></p></div></div>
         </div>
       </div>
       ${getPrintFooterHTML()}
@@ -360,8 +357,8 @@ export default function PerformanceQuotes() {
         await supabase.from("performance_quotes" as any).update({ quote_url: publicUrl }).eq("id", quote.id);
 
         if (quote.customers?.email) {
-          const subject = `Performance Quote - Beetee Autos`;
-          const body = `Hello ${quote.customers.name},\n\nPlease find your performance quote attached.\n\nDownload here: ${publicUrl}\n\nThank you!`;
+          const subject = `Proforma Quote - Beetee Autos`;
+          const body = `Hello ${quote.customers.name},\n\nPlease find your proforma quote attached.\n\nDownload here: ${publicUrl}\n\nThank you!`;
           window.location.href = `mailto:${quote.customers.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
           toast.success("Quote generated and email ready!", { id: "quote-dl" });
         } else {
@@ -379,7 +376,7 @@ export default function PerformanceQuotes() {
 
   const handlePrint = (quote: any) => {
     toast.info("Preparing quote document...");
-    const html = `<html><head><title>Performance Quote - ${quote.id.slice(0,8).toUpperCase()}</title>
+    const html = `<html><head><title>Proforma Quote - ${quote.id.slice(0,8).toUpperCase()}</title>
     <style>
       @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap');
       body { font-family: 'Roboto', 'Arial', sans-serif; padding: 10px; max-width: 800px; margin: 0 auto; color: #1a1a1a; line-height: 1.2; }
@@ -407,9 +404,6 @@ export default function PerformanceQuotes() {
       .bank-details h4 { margin: 0 0 3px 0; font-weight: 900; text-transform: uppercase; }
       .bank-details p { margin: 1px 0; font-weight: 500; }
       .notes-box { font-size: 12px; color: #475569; background: transparent; padding: 8px; border-radius: 8px; margin-bottom: 10px; border: 1px solid #e2e8f0; }
-      .signature-area { display: flex; justify-content: space-between; margin-top: 15px; border-top: 2px solid #94a3b8; padding-top: 10px; }
-      .sig-box { width: 45%; text-align: center; font-size: 12px; }
-      .signature-img { max-height: 35px; display: block; margin: 0 auto 5px; }
     </style></head><body>
     ${getPrintHeaderHTML()}
     
@@ -424,7 +418,7 @@ export default function PerformanceQuotes() {
     <div class="main-container">
       ${getPrintWatermarkHTML()}
       <div class="content-wrapper">
-        <h2 class="bill-title">PERFORMANCE QUOTE</h2>
+        <h2 class="bill-title">PROFORMA QUOTE</h2>
         
         <table>
           <thead>
@@ -517,17 +511,6 @@ export default function PerformanceQuotes() {
           ${quote.notes.replace(/\n/g, '<br/>')}
         </div>
         ` : ''}
-
-        <div class="signature-area">
-          <div class="sig-box">
-            <div style="height:50px"></div>
-            <p style="border-top: 1px solid #1a1a1a; padding-top: 5px;"><strong>CUSTOMER SIGNATURE</strong></p>
-          </div>
-          <div class="sig-box">
-            <div style="height:50px"></div>
-            <p style="border-top: 1px solid #1a1a1a; padding-top: 5px;"><strong>FOR: BEE TEE AUTOMOBILE</strong></p>
-          </div>
-        </div>
       </div>
     </div>
 
@@ -567,7 +550,7 @@ export default function PerformanceQuotes() {
             <span className="text-sm font-medium uppercase tracking-wider text-emerald-500">Sales & Proposals</span>
           </div>
           <h1 className="text-4xl md:text-5xl font-heading font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-foreground via-foreground to-foreground/70 tracking-tight">
-            Performance Quotes
+            Proforma Quotes
           </h1>
           <p className="text-base text-muted-foreground mt-2 max-w-xl">
             Create and manage multi-vehicle proforma quotes with dynamic duty pricing.
@@ -624,7 +607,8 @@ export default function PerformanceQuotes() {
             <p>No performance quotes found.</p>
           </div>
         ) : (
-          <div className="overflow-x-auto w-full">
+          <>
+            <div className="hidden md:block table-container">
             <Table className="w-full">
               <TableHeader className="bg-foreground/5 pointer-events-none">
                 <TableRow className="border-border/50 hover:bg-transparent">
@@ -682,6 +666,56 @@ export default function PerformanceQuotes() {
               </TableBody>
             </Table>
           </div>
+
+          {/* Mobile Card View */}
+          <div className="md:hidden divide-y divide-white/5">
+            {filteredQuotes.map((q: any) => (
+              <div key={q.id} className="p-4 space-y-4">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="font-bold text-sm tracking-tight">{q.customers?.name || "Unknown Customer"}</p>
+                    <p className="text-[10px] text-emerald-500 font-mono font-bold mt-0.5 uppercase tracking-widest">PQ-{q.id.slice(0, 8)}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-bold text-sm text-foreground">₦{Number(q.total_amount).toLocaleString()}</p>
+                    <p className="text-[10px] text-muted-foreground">{new Date(q.quote_date).toLocaleDateString()}</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 bg-emerald-500/10 px-2 py-0.5 rounded-full">
+                    <Car className="h-3 w-3 text-emerald-500" />
+                    <span className="text-[9px] font-bold text-emerald-500 uppercase">{q.performance_quote_items?.length || 0} Vehicles</span>
+                  </div>
+                  
+                  <div className="flex gap-1">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm" className="h-8 rounded-lg hover:bg-emerald-500/10 text-emerald-500">
+                          <Download className="h-3.5 w-3.5" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="glass-panel border-white/10 rounded-xl p-1">
+                        <DropdownMenuItem onClick={() => downloadQuotePDF(q, false)} className="rounded-lg cursor-pointer gap-2 text-xs">
+                          <Download className="h-4 w-4 text-amber-500" /> PDF Quote
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handlePrint(q)} className="rounded-lg cursor-pointer gap-2 text-xs">
+                          <Printer className="h-4 w-4 text-emerald-500" /> Print
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                    
+                    {hasEdit && (
+                      <Button variant="ghost" size="sm" onClick={() => deleteQuoteMutation.mutate(q.id)} className="h-8 rounded-lg hover:bg-destructive/20 text-destructive">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+            </div>
+          </>
         )}
       </div>
 
@@ -690,7 +724,7 @@ export default function PerformanceQuotes() {
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto rounded-3xl glass-panel border-white/10 p-0 shadow-2xl">
           <div className="sticky top-0 z-10 glass-panel border-b border-white/10 p-6 flex justify-between items-center bg-background/80 backdrop-blur-xl">
             <DialogTitle className="text-2xl font-bold flex items-center gap-2">
-              <FileSignature className="h-6 w-6 text-emerald-500" /> Create Performance Quote
+              <FileSignature className="h-6 w-6 text-emerald-500" /> Create Proforma Quote
             </DialogTitle>
             <Button variant="ghost" size="icon" onClick={closeDialog} className="rounded-full"><X className="h-5 w-5" /></Button>
           </div>
@@ -838,7 +872,7 @@ export default function PerformanceQuotes() {
             <Button variant="outline" onClick={closeDialog} className="rounded-xl">Cancel</Button>
             <Button 
               onClick={() => { setIsSubmitting(true); createQuoteMutation.mutate(); }} 
-              disabled={isSubmitting || selectedVehicles.length === 0 || (customerMode === 'manual' && !manualCustomer.name.trim()) || (customerMode === 'existing' && !customerId)}
+              disabled={isSubmitting || form.selectedVehicles.length === 0 || (form.customerMode === 'manual' && !form.manualCustomer.name.trim()) || (form.customerMode === 'existing' && !form.customerId)}
               className="rounded-xl bg-emerald-500 hover:bg-emerald-600 shadow-lg shadow-emerald-500/20"
             >
               {isSubmitting ? "Generating..." : "Generate Quote"}

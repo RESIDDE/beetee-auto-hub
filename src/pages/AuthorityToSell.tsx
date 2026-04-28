@@ -1,5 +1,6 @@
 import { useState, useRef, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useFormPersistence } from "@/hooks/useFormPersistence";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,6 +36,7 @@ type ATS = {
   rep_name?: string;
   rep_signature?: string;
   rep_signature_date?: string;
+  owner_rep_name?: string;
   created_by?: string;
 };
 
@@ -52,6 +54,7 @@ const EMPTY_FORM = {
   validUntil: "",
   note: "",
   repName: "",
+  ownerRepName: "",
   repSignatureDate: new Date().toISOString().split("T")[0],
 };
 
@@ -62,16 +65,14 @@ export default function AuthorityToSell() {
   const { user, role } = useAuth();
   const hasEdit = canEdit(role, "authority-to-sell");
 
-  const [formData, setFormData] = useState(EMPTY_FORM);
-  const [signature, setSignature] = useState("");
-  const [repSignature, setRepSignature] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [form, setForm, clearDraft] = useFormPersistence("ats", { ...EMPTY_FORM, signature: "", repSignature: "" }, !!editingId, editingId || undefined);
   const [search, setSearch] = useState("");
   const [dateFilter, setDateFilter] = useState("");
   const queryClient = useQueryClient();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    setForm({ ...form, [e.target.name]: e.target.value });
   };
 
   const handlePrint = () => {
@@ -102,6 +103,7 @@ export default function AuthorityToSell() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["ats-history"] });
       toast.success("Document saved to history");
+      clearDraft();
     },
     onError: (e: any) => {
       console.error("ATS Save Error:", e);
@@ -139,32 +141,33 @@ export default function AuthorityToSell() {
 
   // ── Handlers ──────────────────────────────────────────────────────────────
   const handlePreview = async () => {
-    if (!signature) {
+    if (!form.signature) {
       toast.warning("Please capture the owner's signature before saving.");
       return;
     }
-    if (!repSignature) {
+    if (!form.repSignature) {
       toast.warning("Please capture the representative's signature before saving.");
       return;
     }
     const payload = {
       ...(editingId ? { id: editingId } : {}),
-      agreement_date: formData.agreementDate || new Date().toISOString().split("T")[0],
-      customer_name: formData.customerName,
-      customer_address: formData.customerAddress,
-      customer_phone: formData.customerPhone,
-      customer_id_type: formData.customerIdType,
-      vehicle_make: formData.vehicleMake,
-      vehicle_year_model: formData.vehicleYearModel,
-      vehicle_color: formData.vehicleColor,
-      vehicle_engine_number: formData.vehicleEngineNumber,
-      vehicle_chassis: formData.vehicleChassis,
-      valid_until: formData.validUntil || null,
-      note: formData.note,
-      signature,
-      rep_name: formData.repName,
-      rep_signature: repSignature,
-      rep_signature_date: formData.repSignatureDate,
+      agreement_date: form.agreementDate || new Date().toISOString().split("T")[0],
+      customer_name: form.customerName,
+      customer_address: form.customerAddress,
+      customer_phone: form.customerPhone,
+      customer_id_type: form.customerIdType,
+      vehicle_make: form.vehicleMake,
+      vehicle_year_model: form.vehicleYearModel,
+      vehicle_color: form.vehicleColor,
+      vehicle_engine_number: form.vehicleEngineNumber,
+      vehicle_chassis: form.vehicleChassis,
+      valid_until: form.validUntil || null,
+      note: form.note,
+      signature: form.signature,
+      rep_name: form.repName,
+      owner_rep_name: form.ownerRepName,
+      rep_signature: form.repSignature,
+      rep_signature_date: form.repSignatureDate,
       created_by: user?.id,
     };
     
@@ -177,7 +180,7 @@ export default function AuthorityToSell() {
   };
 
   const viewHistoryItem = (item: ATS) => {
-    setFormData({
+    setForm({
       agreementDate: item.agreement_date || new Date().toISOString().split("T")[0],
       customerName: item.customer_name || "",
       customerAddress: item.customer_address || "",
@@ -191,15 +194,16 @@ export default function AuthorityToSell() {
       validUntil: item.valid_until || "",
       note: item.note || "",
       repName: item.rep_name || "",
+      ownerRepName: item.owner_rep_name || "",
       repSignatureDate: item.rep_signature_date || new Date().toISOString().split("T")[0],
+      signature: item.signature || "",
+      repSignature: item.rep_signature || "",
     });
-    setSignature(item.signature);
-    setRepSignature(item.rep_signature || "");
     setMode("preview");
   };
 
   const handleEdit = (item: ATS) => {
-    setFormData({
+    setForm({
       agreementDate: item.agreement_date || new Date().toISOString().split("T")[0],
       customerName: item.customer_name || "",
       customerAddress: item.customer_address || "",
@@ -213,19 +217,18 @@ export default function AuthorityToSell() {
       validUntil: item.valid_until || "",
       note: item.note || "",
       repName: item.rep_name || "",
+      ownerRepName: item.owner_rep_name || "",
       repSignatureDate: item.rep_signature_date || new Date().toISOString().split("T")[0],
+      signature: item.signature || "",
+      repSignature: item.rep_signature || "",
     });
-    setSignature(item.signature);
-    setRepSignature(item.rep_signature || "");
     setEditingId(item.id);
     setMode("edit");
     setActiveTab("create");
   };
 
   const clearForm = () => {
-    setFormData(EMPTY_FORM);
-    setSignature("");
-    setRepSignature("");
+    setForm({ ...EMPTY_FORM, signature: "", repSignature: "" });
     setEditingId(null);
   };
 
@@ -275,8 +278,8 @@ export default function AuthorityToSell() {
           <div className="flex items-baseline gap-2 mb-4 border-b border-gray-300 pb-1">
             <span className="font-bold text-sm">Date:</span>
             <span className="text-sm font-medium flex-1">
-              {formData.agreementDate
-                ? new Date(formData.agreementDate).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
+              {form.agreementDate
+                ? new Date(form.agreementDate).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
                 : ""}
             </span>
           </div>
@@ -285,10 +288,10 @@ export default function AuthorityToSell() {
           <section className="mb-4">
             <h2 className="font-black text-sm uppercase tracking-wide mb-1">Owner's Information</h2>
             <div className="space-y-1">
-              <Field label="Full Name" value={formData.customerName} />
-              <Field label="Address" value={formData.customerAddress} />
-              <Field label="Contact Number" value={formData.customerPhone} />
-              <Field label="Valid ID Type & Number" value={formData.customerIdType} />
+              <Field label="Full Name" value={form.customerName} />
+              <Field label="Address" value={form.customerAddress} />
+              <Field label="Contact Number" value={form.customerPhone} />
+              <Field label="Valid ID Type & Number" value={form.customerIdType} />
             </div>
           </section>
 
@@ -296,11 +299,11 @@ export default function AuthorityToSell() {
           <section className="mb-4">
             <h2 className="font-black text-sm uppercase tracking-wide mb-1">Vehicle Information</h2>
             <div className="space-y-1">
-              <Field label="Make/Brand" value={formData.vehicleMake} />
-              <Field label="Year Model" value={formData.vehicleYearModel} />
-              <Field label="Color" value={formData.vehicleColor} />
-              <Field label="Engine Number" value={formData.vehicleEngineNumber} />
-              <Field label="Chassis Number" value={formData.vehicleChassis} />
+              <Field label="Make/Brand" value={form.vehicleMake} />
+              <Field label="Year Model" value={form.vehicleYearModel} />
+              <Field label="Color" value={form.vehicleColor} />
+              <Field label="Engine Number" value={form.vehicleEngineNumber} />
+              <Field label="Chassis Number" value={form.vehicleChassis} />
             </div>
           </section>
 
@@ -309,18 +312,27 @@ export default function AuthorityToSell() {
             <h2 className="font-black text-sm uppercase tracking-wide mb-2">Authority Given</h2>
             <p className="text-sm leading-[2.2] text-gray-800">
               I,{" "}
-              <span className="inline-block min-w-[220px] border-b border-gray-800 text-center font-bold">
-                {formData.customerName || ""}
+              <span className="inline-block min-w-[220px] border-b border-gray-800 text-center font-bold px-2">
+                {form.customerName || ""}
               </span>
-              , hereby authorize the above-named person to sell the vehicle described above on my behalf. This includes:
+              {form.ownerRepName && (
+                <>
+                  {" "}
+                  (Represented by{" "}
+                  <span className="inline-block min-w-[150px] border-b border-gray-800 text-center font-bold px-2">
+                    {form.ownerRepName}
+                  </span>
+                  )
+                </>
+              )}, hereby authorize the above-named person to sell the vehicle described above on my behalf. This includes:
               <br />
               Talking to potential buyers, accepting payment, signing necessary sale documents, Releasing the vehicle and its documents.
             </p>
             <div className="flex items-baseline gap-2 mt-3 border-b border-gray-300 pb-1">
               <span className="font-bold text-sm whitespace-nowrap">This authority is valid until:</span>
               <span className="text-sm font-medium flex-1">
-                {formData.validUntil
-                  ? new Date(formData.validUntil).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
+                {form.validUntil
+                  ? new Date(form.validUntil).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
                   : ""}
               </span>
             </div>
@@ -331,7 +343,7 @@ export default function AuthorityToSell() {
           <section className="mb-4">
             <h2 className="font-black text-sm uppercase tracking-wide mb-1">Note:</h2>
             <p className="text-sm text-gray-800 leading-relaxed min-h-[30px] border-b border-gray-300 pb-2">
-              {formData.note}
+              {form.note}
             </p>
           </section>
 
@@ -340,23 +352,31 @@ export default function AuthorityToSell() {
           <section>
             <h2 className="font-black text-sm uppercase tracking-wide mb-4">Signatures</h2>
             <div className="grid grid-cols-2 gap-16">
-              {/* Owner */}
+              {/* Owner / Representative */}
               <div>
-                <p className="text-xs font-bold text-gray-600 mb-1">Owner's Signature:</p>
+                <p className="text-xs font-bold text-gray-600 mb-1">Owner / Representative Signature:</p>
                 <div className="h-16 border-b border-gray-800 mb-2 flex items-end">
-                  {signature && (
-                    <img src={signature} alt="Owner Signature" className="max-h-12 object-contain" />
+                  {form.signature && (
+                    <img src={form.signature} alt="Owner Signature" className="max-h-12 object-contain" />
                   )}
                 </div>
-                <div className="flex items-baseline gap-2 border-b border-gray-400 pb-1 mb-2">
-                  <span className="text-xs font-bold">Name:</span>
-                  <span className="text-xs font-medium flex-1">{formData.customerName}</span>
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-baseline gap-2 border-b border-gray-400 pb-1">
+                    <span className="text-[10px] font-bold uppercase opacity-60">Owner Name:</span>
+                    <span className="text-xs font-medium flex-1">{form.customerName}</span>
+                  </div>
+                  {form.ownerRepName && (
+                    <div className="flex items-baseline gap-2 border-b border-gray-400 pb-1">
+                      <span className="text-[10px] font-bold uppercase opacity-60">Rep. Full Name:</span>
+                      <span className="text-xs font-medium flex-1">{form.ownerRepName}</span>
+                    </div>
+                  )}
                 </div>
-                <div className="flex items-baseline gap-2 border-b border-gray-400 pb-1">
-                  <span className="text-xs font-bold">Date:</span>
+                <div className="flex items-baseline gap-2 border-b border-gray-400 pb-1 mt-2">
+                  <span className="text-[10px] font-bold uppercase opacity-60">Date:</span>
                   <span className="text-xs font-medium flex-1">
-                    {formData.agreementDate
-                      ? new Date(formData.agreementDate).toLocaleDateString("en-GB")
+                    {form.agreementDate
+                      ? new Date(form.agreementDate).toLocaleDateString("en-GB")
                       : ""}
                   </span>
                 </div>
@@ -364,21 +384,21 @@ export default function AuthorityToSell() {
 
               {/* BEE TEE Rep */}
               <div>
-                <p className="text-xs font-bold text-gray-600 mb-1">BEE TEE Representatives Signature:</p>
+                <p className="text-xs font-bold text-gray-600 mb-1">Company Representatives Signature:</p>
                 <div className="h-16 border-b border-gray-800 mb-2 flex items-end">
-                  {repSignature && (
-                    <img src={repSignature} alt="Rep Signature" className="max-h-12 object-contain" />
+                  {form.repSignature && (
+                    <img src={form.repSignature} alt="Rep Signature" className="max-h-12 object-contain" />
                   )}
                 </div>
                 <div className="flex items-baseline gap-2 border-b border-gray-400 pb-1 mb-2">
-                  <span className="text-xs font-bold">Name:</span>
-                  <span className="text-xs font-medium flex-1">{formData.repName}</span>
+                  <span className="text-[10px] font-bold uppercase opacity-60">Company Rep:</span>
+                  <span className="text-xs font-medium flex-1">{form.repName}</span>
                 </div>
                 <div className="flex items-baseline gap-2 border-b border-gray-400 pb-1">
                   <span className="text-xs font-bold">Date:</span>
                   <span className="text-xs font-medium flex-1">
-                    {formData.repSignatureDate
-                      ? new Date(formData.repSignatureDate).toLocaleDateString("en-GB")
+                    {form.repSignatureDate
+                      ? new Date(form.repSignatureDate).toLocaleDateString("en-GB")
                       : ""}
                   </span>
                 </div>
@@ -434,7 +454,7 @@ export default function AuthorityToSell() {
                 {/* Agreement Date */}
                 <div className="space-y-2 max-w-xs">
                   <Label className="text-muted-foreground text-xs font-semibold px-1">AGREEMENT DATE</Label>
-                  <Input name="agreementDate" type="date" value={formData.agreementDate} onChange={handleChange} className="h-12 bg-background/50 border-white/10 focus-visible:ring-sky-500 rounded-xl" />
+                  <Input name="agreementDate" type="date" value={form.agreementDate} onChange={handleChange} className="h-12 bg-background/50 border-white/10 focus-visible:ring-sky-500 rounded-xl" />
                 </div>
 
                 <div className="h-px bg-white/5" />
@@ -442,24 +462,28 @@ export default function AuthorityToSell() {
                 {/* Owner's Information */}
                 <div className="space-y-5">
                   <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-sky-500 flex items-center gap-3">
-                    <Users className="w-4 h-4" /> Owner's Information
+                    <Users className="w-4 h-4" /> Owner / Representative Details
                   </h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                     <div className="space-y-2 sm:col-span-2">
-                      <Label className="text-muted-foreground text-xs font-semibold px-1">FULL NAME</Label>
-                      <Input name="customerName" value={formData.customerName} onChange={handleChange} placeholder="e.g. John Adeyemi" className="h-12 bg-background/50 border-white/10 focus-visible:ring-sky-500 rounded-xl" />
+                      <Label className="text-muted-foreground text-xs font-semibold px-1">OWNER FULL NAME</Label>
+                      <Input name="customerName" value={form.customerName} onChange={handleChange} placeholder="e.g. John Adeyemi" className="h-12 bg-background/50 border-white/10 focus-visible:ring-sky-500 rounded-xl" />
+                    </div>
+                    <div className="space-y-2 sm:col-span-2">
+                      <Label className="text-muted-foreground text-xs font-semibold px-1">REPRESENTATIVE NAME (IF APPLICABLE)</Label>
+                      <Input name="ownerRepName" value={form.ownerRepName} onChange={handleChange} placeholder="Name of person representing the owner" className="h-12 bg-background/50 border-white/10 focus-visible:ring-sky-500 rounded-xl italic" />
                     </div>
                     <div className="space-y-2 sm:col-span-2">
                       <Label className="text-muted-foreground text-xs font-semibold px-1">ADDRESS</Label>
-                      <Input name="customerAddress" value={formData.customerAddress} onChange={handleChange} placeholder="Full residential address..." className="h-12 bg-background/50 border-white/10 focus-visible:ring-sky-500 rounded-xl" />
+                      <Input name="customerAddress" value={form.customerAddress} onChange={handleChange} placeholder="Full residential address..." className="h-12 bg-background/50 border-white/10 focus-visible:ring-sky-500 rounded-xl" />
                     </div>
                     <div className="space-y-2">
                       <Label className="text-muted-foreground text-xs font-semibold px-1">CONTACT NUMBER</Label>
-                      <Input name="customerPhone" value={formData.customerPhone} onChange={handleChange} placeholder="0807..." className="h-12 bg-background/50 border-white/10 focus-visible:ring-sky-500 rounded-xl" />
+                      <Input name="customerPhone" value={form.customerPhone} onChange={handleChange} placeholder="0807..." className="h-12 bg-background/50 border-white/10 focus-visible:ring-sky-500 rounded-xl" />
                     </div>
                     <div className="space-y-2">
                       <Label className="text-muted-foreground text-xs font-semibold px-1">VALID ID TYPE & NUMBER</Label>
-                      <Input name="customerIdType" value={formData.customerIdType} onChange={handleChange} placeholder="NIN / Intl. Passport / Driver's License..." className="h-12 bg-background/50 border-white/10 focus-visible:ring-sky-500 rounded-xl" />
+                      <Input name="customerIdType" value={form.customerIdType} onChange={handleChange} placeholder="NIN / Intl. Passport / Driver's License..." className="h-12 bg-background/50 border-white/10 focus-visible:ring-sky-500 rounded-xl" />
                     </div>
                   </div>
                 </div>
@@ -474,27 +498,27 @@ export default function AuthorityToSell() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
                     <div className="space-y-2">
                       <Label className="text-muted-foreground text-xs font-semibold px-1">MAKE / BRAND</Label>
-                      <Input name="vehicleMake" value={formData.vehicleMake} onChange={handleChange} placeholder="e.g. Toyota" className="h-12 bg-background/50 border-white/10 focus-visible:ring-sky-500 rounded-xl" />
+                      <Input name="vehicleMake" value={form.vehicleMake} onChange={handleChange} placeholder="e.g. Toyota" className="h-12 bg-background/50 border-white/10 focus-visible:ring-sky-500 rounded-xl" />
                     </div>
                     <div className="space-y-2">
                       <Label className="text-muted-foreground text-xs font-semibold px-1">YEAR MODEL</Label>
-                      <Input name="vehicleYearModel" value={formData.vehicleYearModel} onChange={handleChange} placeholder="e.g. Camry 2021" className="h-12 bg-background/50 border-white/10 focus-visible:ring-sky-500 rounded-xl" />
+                      <Input name="vehicleYearModel" value={form.vehicleYearModel} onChange={handleChange} placeholder="e.g. Camry 2021" className="h-12 bg-background/50 border-white/10 focus-visible:ring-sky-500 rounded-xl" />
                     </div>
                     <div className="space-y-2">
                       <Label className="text-muted-foreground text-xs font-semibold px-1">COLOR</Label>
-                      <Input name="vehicleColor" value={formData.vehicleColor} onChange={handleChange} placeholder="e.g. Pearl White" className="h-12 bg-background/50 border-white/10 focus-visible:ring-sky-500 rounded-xl" />
+                      <Input name="vehicleColor" value={form.vehicleColor} onChange={handleChange} placeholder="e.g. Pearl White" className="h-12 bg-background/50 border-white/10 focus-visible:ring-sky-500 rounded-xl" />
                     </div>
                     <div className="space-y-2">
                       <Label className="text-muted-foreground text-xs font-semibold px-1">ENGINE NUMBER</Label>
-                      <Input name="vehicleEngineNumber" value={formData.vehicleEngineNumber} onChange={handleChange} placeholder="Engine No." className="h-12 bg-background/50 border-white/10 focus-visible:ring-sky-500 rounded-xl" />
+                      <Input name="vehicleEngineNumber" value={form.vehicleEngineNumber} onChange={handleChange} placeholder="Engine No." className="h-12 bg-background/50 border-white/10 focus-visible:ring-sky-500 rounded-xl" />
                     </div>
                     <div className="space-y-2">
                       <Label className="text-muted-foreground text-xs font-semibold px-1">CHASSIS NUMBER</Label>
-                      <Input name="vehicleChassis" value={formData.vehicleChassis} onChange={handleChange} placeholder="Chassis / VIN No." className="h-12 bg-background/50 border-white/10 focus-visible:ring-sky-500 rounded-xl" />
+                      <Input name="vehicleChassis" value={form.vehicleChassis} onChange={handleChange} placeholder="Chassis / VIN No." className="h-12 bg-background/50 border-white/10 focus-visible:ring-sky-500 rounded-xl" />
                     </div>
                     <div className="space-y-2">
                       <Label className="text-muted-foreground text-xs font-semibold px-1">AUTHORITY VALID UNTIL</Label>
-                      <Input name="validUntil" type="date" value={formData.validUntil} onChange={handleChange} className="h-12 bg-background/50 border-white/10 focus-visible:ring-sky-500 rounded-xl" />
+                      <Input name="validUntil" type="date" value={form.validUntil} onChange={handleChange} className="h-12 bg-background/50 border-white/10 focus-visible:ring-sky-500 rounded-xl" />
                     </div>
                   </div>
                 </div>
@@ -506,7 +530,7 @@ export default function AuthorityToSell() {
                   <Label className="text-muted-foreground text-xs font-semibold px-1">NOTE (OPTIONAL)</Label>
                   <Textarea
                     name="note"
-                    value={formData.note}
+                    value={form.note}
                     onChange={handleChange}
                     placeholder="Any additional terms or conditions..."
                     className="bg-background/50 border-white/10 focus-visible:ring-sky-500 rounded-xl min-h-[80px]"
@@ -517,48 +541,48 @@ export default function AuthorityToSell() {
                 
                 {/* Signatures */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                  {/* Owner Signature */}
+                  {/* Representative Signature (Left) */}
                   <div className="space-y-4">
                     <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-sky-500 flex items-center justify-between">
                       <span className="flex items-center gap-3">
-                        <Pencil className="w-4 h-4" /> Owner's Signature
+                        <Pencil className="w-4 h-4" /> Owner / Representative Signature
                       </span>
-                      {signature && (
+                      {form.signature && (
                         <span className="text-[10px] text-emerald-500 flex items-center gap-1.5 bg-emerald-500/10 px-3 py-1 rounded-full">
                           <CheckCircle2 className="w-3 h-3" /> CAPTURED
                         </span>
                       )}
                     </h3>
                     <div className="bg-card/40 p-4 rounded-2xl border border-white/5 shadow-inner">
-                      <SignaturePad value={signature} onChange={setSignature} />
+                      <SignaturePad value={form.signature} onChange={(val) => setForm(p => ({...p, signature: val}))} />
                       <p className="text-[10px] text-muted-foreground text-center mt-3 uppercase font-bold tracking-tighter opacity-50">
                         Have the owner draw their signature above.
                       </p>
                     </div>
                   </div>
 
-                  {/* Representative Signature */}
+                  {/* BEE TEE Representative (Right) */}
                   <div className="space-y-4">
                     <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-sky-500 flex items-center justify-between">
                       <span className="flex items-center gap-3">
                         <Pencil className="w-4 h-4" /> Rep. Signature
                       </span>
-                      {repSignature && (
+                      {form.repSignature && (
                         <span className="text-[10px] text-emerald-500 flex items-center gap-1.5 bg-emerald-500/10 px-3 py-1 rounded-full">
                           <CheckCircle2 className="w-3 h-3" /> CAPTURED
                         </span>
                       )}
                     </h3>
                     <div className="bg-card/40 p-4 rounded-2xl border border-white/5 shadow-inner">
-                      <SignaturePad value={repSignature} onChange={setRepSignature} />
+                      <SignaturePad value={form.repSignature} onChange={(val) => setForm(p => ({...p, repSignature: val}))} />
                       <div className="grid grid-cols-1 gap-3 mt-4">
                         <div className="space-y-1">
-                          <Label className="text-[10px] text-muted-foreground font-bold uppercase px-1">Rep. Name</Label>
-                          <Input name="repName" value={formData.repName} onChange={handleChange} placeholder="Full Name" className="h-9 text-sm bg-background/50 border-white/10 rounded-lg" />
+                          <Label className="text-[10px] text-muted-foreground font-bold uppercase px-1">Company Rep Name</Label>
+                          <Input name="repName" value={form.repName} onChange={handleChange} placeholder="Full Name" className="h-9 text-sm bg-background/50 border-white/10 rounded-lg" />
                         </div>
                         <div className="space-y-1">
                           <Label className="text-[10px] text-muted-foreground font-bold uppercase px-1">Sign Date</Label>
-                          <Input name="repSignatureDate" type="date" value={formData.repSignatureDate} onChange={handleChange} className="h-9 text-sm bg-background/50 border-white/10 rounded-lg" />
+                          <Input name="repSignatureDate" type="date" value={form.repSignatureDate} onChange={handleChange} className="h-9 text-sm bg-background/50 border-white/10 rounded-lg" />
                         </div>
                       </div>
                     </div>
@@ -575,7 +599,7 @@ export default function AuthorityToSell() {
               <Button
                 size="lg"
                 className="rounded-2xl px-12 h-14 bg-sky-500 hover:bg-sky-600 text-white shadow-xl shadow-sky-500/25 font-bold transition-all disabled:opacity-50"
-                disabled={!formData.customerName || !formData.vehicleMake || !signature || !repSignature || saveMutation.isPending}
+                disabled={!form.customerName || !form.vehicleMake || !form.signature || !form.repSignature || saveMutation.isPending}
                 onClick={handlePreview}
               >
                 {saveMutation.isPending ? "Saving..." : "Save & Preview Document"}
@@ -612,7 +636,7 @@ export default function AuthorityToSell() {
 
             {/* Table */}
             <div className="bento-card overflow-hidden">
-              <div className="overflow-x-auto">
+              <div className="hidden md:block table-container">
                 <Table>
                   <TableHeader className="bg-foreground/5">
                     <TableRow className="border-white/5 hover:bg-transparent">
@@ -688,6 +712,60 @@ export default function AuthorityToSell() {
                     )}
                   </TableBody>
                 </Table>
+              </div>
+
+              {/* Mobile Card View */}
+              <div className="md:hidden divide-y divide-white/5">
+                {filteredHistory.map((item) => (
+                  <div key={item.id} className="p-4 space-y-4">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="font-bold text-sm tracking-tight">{item.customer_name}</p>
+                        <p className="text-[10px] text-sky-500 font-bold mt-0.5 uppercase tracking-widest">{item.vehicle_make} — {item.vehicle_year_model}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[10px] text-muted-foreground font-medium uppercase">{new Date(item.agreement_date).toLocaleDateString("en-GB")}</p>
+                        <p className="text-[9px] text-muted-foreground/60 font-mono mt-0.5">{item.vehicle_chassis?.slice(-8) || "—"}</p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center justify-between pt-1">
+                      <div className="flex gap-1.5 items-center">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => viewHistoryItem(item)}
+                          className="h-8 rounded-lg text-[11px] font-bold border-white/10"
+                        >
+                          <Printer className="w-3.5 h-3.5 mr-1" /> View
+                        </Button>
+                      </div>
+                      
+                      <div className="flex gap-1">
+                        {hasEdit && (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEdit(item)}
+                              className="h-8 rounded-lg hover:bg-sky-500/10 hover:text-sky-500"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => deleteMutation.mutate(item.id)}
+                              className="h-8 rounded-lg hover:bg-destructive/10 hover:text-destructive text-muted-foreground"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           </div>

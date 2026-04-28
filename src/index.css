@@ -78,10 +78,19 @@
 
   body {
     @apply bg-background text-foreground antialiased selection:bg-primary/20 selection:text-primary font-sans;
+    overflow-x: hidden;
+    width: 100%;
+    -webkit-tap-highlight-color: transparent;
   }
   
   h1, h2, h3, h4, h5, h6 {
     @apply font-heading tracking-tight;
+  }
+
+  /* Universal mobile table wrapper */
+  .table-container {
+    @apply w-full overflow-x-auto custom-scrollbar;
+    -webkit-overflow-scrolling: touch;
   }
 }
 
@@ -129,6 +138,26 @@
   }
   .custom-scrollbar::-webkit-scrollbar-thumb {
     @apply bg-foreground/10 rounded-full hover:bg-foreground/20;
+  }
+
+  /* Mobile-specific adjustments */
+  @media (max-width: 640px) {
+    .bento-card {
+      @apply p-4 rounded-2xl;
+    }
+    
+    .stat-card {
+      @apply p-4;
+    }
+
+    h1 { @apply text-2xl; }
+    h2 { @apply text-xl; }
+    h3 { @apply text-lg; }
+
+    /* Fix for shadcn dialogs on mobile */
+    [role="dialog"] {
+      @apply !w-[95vw] !max-w-none !rounded-3xl;
+    }
   }
 }
 

@@ -147,7 +147,7 @@ export default function SourceCompanyDetails() {
         />
       </div>
 
-      <div className="bento-card overflow-hidden">
+      <div className="bento-card overflow-hidden table-container">
         <Table>
           <TableHeader className="bg-foreground/5 pointer-events-none">
             <TableRow className="border-border/50">

@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { 
-  ChevronRight, ArrowRight, Receipt, ClipboardCheck, Wrench, PlusCircle, Clock, DollarSign, PieChart as PieChartIcon, Search, Car, Pencil, QrCode, FileOutput, Trash2, History as HistoryIcon, Check, ChevronsUpDown, Mail, Printer 
+  ChevronRight, ArrowRight, Receipt, ClipboardCheck, Wrench, PlusCircle, Clock, DollarSign, PieChart as PieChartIcon, Search, Car, Pencil, QrCode, FileOutput, Trash2, History as HistoryIcon, Check, ChevronsUpDown, Mail, Printer, CreditCard, CheckCircle 
 } from "lucide-react";
 import {
   Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList
@@ -43,6 +43,21 @@ import { SignaturePad } from "@/components/SignaturePad";
 import { QrSignDialog } from "@/lib/qrHelpers";
 import { CurrencyInput } from "@/components/CurrencyInput";
 import { numberToWords } from "@/lib/numberToWords";
+
+const BANK_ACCOUNTS = {
+  servicing: {
+    name: "BEE TEE AUTOMOBILE-SERVICES",
+    account: "1229785752",
+    bank: "Zenith Bank",
+    label: "Servicing Account"
+  },
+  painting: {
+    name: "BEE TEE AUTOMOBILE-SERVICES",
+    account: "0126589674",
+    bank: "Wema Bank",
+    label: "Painting Services Account"
+  }
+};
 import { CustomerSelect } from "@/components/CustomerSelect";
 import { logAction } from "@/lib/logger";
 
@@ -89,6 +104,7 @@ type Repair = {
   rep_signature_date: string | null;
   respray_notes: string | null;
   notes: string | null;
+  bank_account: string | null;
   replacement_parts_list: { name: string; price: number }[] | null;
   manual_trim?: string | null;
   created_at: string;
@@ -141,6 +157,7 @@ const emptyForm = {
   manual_customer_address: "",
   is_new_customer: false,
   replacement_parts_list: [] as { name: string; price: number }[],
+  bank_account: "servicing",
 };
 
 const getVehicleLabel = (r: Repair) => {
@@ -399,6 +416,7 @@ export default function RepairsMaintenance() {
         notes: form.notes,
         customer_id: finalCustomerId || null,
         replacement_parts_list: form.replacement_parts_list,
+        bank_account: form.bank_account,
       };
       if (editId) {
         const { error } = await supabase.from("repairs").update(payload).eq("id", editId);
@@ -414,7 +432,9 @@ export default function RepairsMaintenance() {
       logAction(editId ? "UPDATE" : "CREATE", "Repair", editId ?? undefined);
       toast.success(editId ? "Repair updated" : "Repair added");
       clearDraft();
-      closeDialog();
+      setForm(emptyForm);
+      setEditId(null);
+      setOpen(false);
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -432,7 +452,7 @@ export default function RepairsMaintenance() {
     onError: (e: any) => toast.error(e.message),
   });
 
-  const closeDialog = () => { setOpen(false); setForm(emptyForm); setEditId(null); };
+  const closeDialog = () => { setOpen(false); setEditId(null); };
 
   const openEdit = (r: Repair) => {
     setEditId(r.id);
@@ -478,6 +498,7 @@ export default function RepairsMaintenance() {
       rep_signature_date: r.rep_signature_date || new Date().toISOString().split("T")[0],
       respray_notes: r.respray_notes || "",
       notes: r.notes || "",
+      bank_account: r.bank_account || "servicing",
       replacement_parts_list: (r.replacement_parts_list as any) || [],
       manual_customer_name: "",
       manual_customer_phone: "",
@@ -640,9 +661,9 @@ export default function RepairsMaintenance() {
 
         <div class="bank-details">
           <h4>BANK DETAILS:</h4>
-          <p>Account name: <strong>BEE TEE AUTOMOBILE -SERVICES</strong></p>
-          <p>Account Number: <strong>1229785752</strong></p>
-          <p>Bank: <strong>ZENITH BANK</strong></p>
+          <p>Account name: <strong>${BANK_ACCOUNTS[r.bank_account as keyof typeof BANK_ACCOUNTS]?.name || BANK_ACCOUNTS.servicing.name}</strong></p>
+          <p>Account Number: <strong>${BANK_ACCOUNTS[r.bank_account as keyof typeof BANK_ACCOUNTS]?.account || BANK_ACCOUNTS.servicing.account}</strong></p>
+          <p>Bank: <strong>${BANK_ACCOUNTS[r.bank_account as keyof typeof BANK_ACCOUNTS]?.bank || BANK_ACCOUNTS.servicing.bank}</strong></p>
         </div>
       </div>
     </div>
@@ -960,7 +981,7 @@ export default function RepairsMaintenance() {
           </p>
         </div>
         <div className="shrink-0">
-          <Button onClick={() => { setForm(emptyForm); setEditId(null); setOpen(true); }} size="lg" className="rounded-2xl shadow-lg shadow-amber-500/25 hover:shadow-amber-500/40 transition-all bg-amber-500 hover:bg-amber-600 text-white">
+          <Button onClick={() => { setEditId(null); setOpen(true); }} size="lg" className="rounded-2xl shadow-lg shadow-amber-500/25 hover:shadow-amber-500/40 transition-all bg-amber-500 hover:bg-amber-600 text-white">
             <PlusCircle className="mr-2 h-5 w-5" /> Record Repair
           </Button>
         </div>
@@ -1240,7 +1261,7 @@ export default function RepairsMaintenance() {
 
       {/* Form Dialog */}
       <Dialog open={open} onOpenChange={(v) => !v && closeDialog()}>
-        <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto rounded-3xl glass-panel shadow-2xl border-white/10 p-0 bg-background/95 backdrop-blur-3xl">
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto rounded-3xl glass-panel shadow-2xl border-white/10 p-0 bg-background/95 backdrop-blur-3xl">
           <div className="p-6 border-b border-white/5 bg-foreground/5 pointer-events-none sticky top-0 z-50 backdrop-blur-md">
              <DialogHeader><DialogTitle className="text-xl font-bold">{editId ? "Edit Job Card" : "New Job Card Intake"}</DialogTitle></DialogHeader>
           </div>
@@ -1403,96 +1424,99 @@ export default function RepairsMaintenance() {
                 </div>
               </div>
 
-              {/* SECTION 3 & 4: COMPLAINT & CONDITION */}
-              <div className="space-y-6 pt-4 border-t border-white/5">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="w-6 h-6 rounded-full bg-amber-500/20 text-amber-500 flex items-center justify-center text-[10px] font-bold">3</span>
-                  <h3 className="text-sm font-bold uppercase tracking-widest text-foreground/70">Vehicle Entry Inspection</h3>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label className="text-[10px] font-extrabold uppercase mb-2 block">Customer Complaint / Request</Label>
-                  <Textarea value={form.customer_complaint} onChange={(e) => setForm({ ...form, customer_complaint: e.target.value })} className="rounded-xl min-h-[80px]" placeholder="Explain nature of fault or service requested..." />
-                </div>
-
-                <div className="space-y-4">
-                  <Label className="text-[10px] font-extrabold uppercase block">Condition Check (Arrival)</Label>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    {['Scratches', 'Broken Lights', 'Interior Damage', 'Engine Noise', 'Warning Lights', 'Electrical Fault', 'AC Fault'].map((c) => (
-                      <div key={c} className="flex items-center space-x-2 bg-foreground/5 p-2 rounded-lg border border-white/5">
-                        <Checkbox 
-                          id={`cond-${c}`} 
-                          checked={form.condition_check?.includes(c)} 
-                          onCheckedChange={(checked) => {
-                            const newCheck = checked 
-                              ? [...(form.condition_check || []), c] 
-                              : (form.condition_check || []).filter(x => x !== c);
-                            setForm({ ...form, condition_check: newCheck });
-                          }}
-                        />
-                        <Label htmlFor={`cond-${c}`} className="text-[11px] font-medium leading-none cursor-pointer">{c}</Label>
-                      </div>
-                    ))}
+                {/* SECTION 3 & 4: COMPLAINT & SERVICE REQUIREMENTS */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4 border-t border-white/5">
+                {/* Column 1: Entry Inspection */}
+                <div className="space-y-6">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="w-6 h-6 rounded-full bg-amber-500/20 text-amber-500 flex items-center justify-center text-[10px] font-bold">3</span>
+                    <h3 className="text-sm font-bold uppercase tracking-widest text-foreground/70">Entry Inspection</h3>
                   </div>
-                  <Textarea value={form.inspection_notes} onChange={(e) => setForm({ ...form, inspection_notes: e.target.value })} className="rounded-xl min-h-[60px] mt-2 text-xs" placeholder="Additional inspection notes..." />
-                </div>
-              </div>
-
-              {/* SECTION 5: SERVICE DETAILS */}
-              <div className="space-y-8 pt-4 border-t border-white/5">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="w-6 h-6 rounded-full bg-amber-500/20 text-amber-500 flex items-center justify-center text-[10px] font-bold">4</span>
-                  <h3 className="text-sm font-bold uppercase tracking-widest text-foreground/70">Service & Repair Requirements</h3>
-                </div>
-
-                {/* Painting */}
-                <div className="space-y-4">
-                  <Label className="text-xs font-black uppercase text-amber-500 tracking-tighter shadow-sm flex items-center gap-2">
-                    A. Painting & Body Work
-                  </Label>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    {['Full Body Respray', 'Panel Beating', 'Dent Removal', 'Scratch Removal', 'Color Change', 'Polishing & Buffing'].map((p) => (
-                      <div key={p} className="flex items-center space-x-2 bg-foreground/5 p-2 rounded-lg border border-white/5">
-                        <Checkbox 
-                          id={`paint-${p}`} 
-                          checked={form.painting_bodywork?.items.includes(p)} 
-                          onCheckedChange={(checked) => {
-                            const items = checked 
-                              ? [...(form.painting_bodywork?.items || []), p] 
-                              : (form.painting_bodywork?.items || []).filter(x => x !== p);
-                            setForm({ ...form, painting_bodywork: { ...form.painting_bodywork, items, details: form.painting_bodywork?.details || "" } });
-                          }}
-                        />
-                        <Label htmlFor={`paint-${p}`} className="text-[10px] font-bold opacity-70 leading-none cursor-pointer">{p}</Label>
-                      </div>
-                    ))}
+                  
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-extrabold uppercase opacity-60">Customer Complaint</Label>
+                    <Textarea value={form.customer_complaint} onChange={(e) => setForm({ ...form, customer_complaint: e.target.value })} className="rounded-xl min-h-[100px] text-xs bg-background/30" placeholder="Explain nature of fault..." />
                   </div>
-                  <Textarea value={form.painting_bodywork?.details} onChange={(e) => setForm({ ...form, painting_bodywork: { ...form.painting_bodywork, details: e.target.value, items: form.painting_bodywork?.items || [] } })} className="rounded-xl min-h-[60px] text-xs" placeholder="Painting details..." />
+
+                  <div className="space-y-3">
+                    <Label className="text-[10px] font-extrabold uppercase opacity-60">Condition Check (Arrival)</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {['Scratches', 'Broken Lights', 'Interior Damage', 'Engine Noise', 'Warning Lights', 'Electrical Fault', 'AC Fault'].map((c) => (
+                        <div key={c} className="flex items-center space-x-2 bg-foreground/5 p-2 rounded-lg border border-white/5">
+                          <Checkbox 
+                            id={`cond-${c}`} 
+                            checked={form.condition_check?.includes(c)} 
+                            onCheckedChange={(checked) => {
+                              const newCheck = checked 
+                                ? [...(form.condition_check || []), c] 
+                                : (form.condition_check || []).filter(x => x !== c);
+                              setForm({ ...form, condition_check: newCheck });
+                            }}
+                          />
+                          <Label htmlFor={`cond-${c}`} className="text-[9px] font-bold opacity-70 leading-none cursor-pointer">{c}</Label>
+                        </div>
+                      ))}
+                    </div>
+                    <Textarea value={form.inspection_notes} onChange={(e) => setForm({ ...form, inspection_notes: e.target.value })} className="rounded-xl min-h-[60px] text-xs mt-2 bg-background/30" placeholder="Additional inspection notes..." />
+                  </div>
                 </div>
 
-                {/* Mechanical */}
-                <div className="space-y-4 pt-4">
-                  <Label className="text-xs font-black uppercase text-amber-500 tracking-tighter shadow-sm flex items-center gap-2">
-                    B. Mechanical & General Service
-                  </Label>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    {['Engine Service', 'Oil Change', 'Brake Service', 'Suspension', 'Electricals', 'AC Service', 'Diagnostics', 'Wheel Balancing and Alignment'].map((m) => (
-                      <div key={m} className="flex items-center space-x-2 bg-foreground/5 p-2 rounded-lg border border-white/5">
-                        <Checkbox 
-                          id={`mech-${m}`} 
-                          checked={form.mechanical_service?.items.includes(m)} 
-                          onCheckedChange={(checked) => {
-                            const items = checked 
-                              ? [...(form.mechanical_service?.items || []), m] 
-                              : (form.mechanical_service?.items || []).filter(x => x !== m);
-                            setForm({ ...form, mechanical_service: { ...form.mechanical_service, items, details: form.mechanical_service?.details || "" } });
-                          }}
-                        />
-                        <Label htmlFor={`mech-${m}`} className="text-[10px] font-bold opacity-70 leading-none cursor-pointer">{m}</Label>
-                      </div>
-                    ))}
+                {/* Column 2: Service Requirements */}
+                <div className="space-y-6">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="w-6 h-6 rounded-full bg-amber-500/20 text-amber-500 flex items-center justify-center text-[10px] font-bold">4</span>
+                    <h3 className="text-sm font-bold uppercase tracking-widest text-foreground/70">Service Requirements</h3>
                   </div>
-                  <Textarea value={form.mechanical_service?.details} onChange={(e) => setForm({ ...form, mechanical_service: { ...form.mechanical_service, details: e.target.value, items: form.mechanical_service?.items || [] } })} className="rounded-xl min-h-[60px] text-xs" placeholder="Mechanical details..." />
+
+                  {/* Painting & Bodywork */}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 text-amber-500/70">
+                      <Label className="text-[10px] font-extrabold uppercase">Painting & Bodywork</Label>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {['Buffing / Polishing', 'Full Respray', 'Panel Beating', 'Accident Repair', 'Chassis Alignment', 'Plastic Repair', 'Wheel Refurbishment'].map((p) => (
+                        <div key={p} className="flex items-center space-x-2 bg-foreground/5 p-2 rounded-lg border border-white/5">
+                          <Checkbox 
+                            id={`paint-${p}`} 
+                            checked={form.painting_bodywork?.items.includes(p)} 
+                            onCheckedChange={(checked) => {
+                              const items = checked 
+                                ? [...(form.painting_bodywork?.items || []), p] 
+                                : (form.painting_bodywork?.items || []).filter(x => x !== p);
+                              setForm({ ...form, painting_bodywork: { ...form.painting_bodywork, items, details: form.painting_bodywork?.details || "" } });
+                            }}
+                          />
+                          <Label htmlFor={`paint-${p}`} className="text-[9px] font-bold opacity-70 leading-none cursor-pointer">{p}</Label>
+                        </div>
+                      ))}
+                    </div>
+                    <Textarea value={form.painting_bodywork?.details} onChange={(e) => setForm({ ...form, painting_bodywork: { ...form.painting_bodywork, details: e.target.value, items: form.painting_bodywork?.items || [] } })} className="rounded-xl min-h-[60px] text-xs bg-background/30" placeholder="Painting details..." />
+                  </div>
+
+                  {/* Mechanical Service */}
+                  <div className="space-y-3 pt-2">
+                    <div className="flex items-center gap-2 text-blue-500/70">
+                      <Label className="text-[10px] font-extrabold uppercase">Mechanical Service</Label>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {['Engine Service', 'Oil Change', 'Brake Service', 'Suspension', 'Electricals', 'AC Service', 'Diagnostics', 'Wheel Balancing'].map((m) => (
+                        <div key={m} className="flex items-center space-x-2 bg-foreground/5 p-2 rounded-lg border border-white/5">
+                          <Checkbox 
+                            id={`mech-${m}`} 
+                            checked={form.mechanical_service?.items.includes(m)} 
+                            onCheckedChange={(checked) => {
+                              const items = checked 
+                                ? [...(form.mechanical_service?.items || []), m] 
+                                : (form.mechanical_service?.items || []).filter(x => x !== m);
+                              setForm({ ...form, mechanical_service: { ...form.mechanical_service, items, details: form.mechanical_service?.details || "" } });
+                            }}
+                          />
+                          <Label htmlFor={`mech-${m}`} className="text-[9px] font-bold opacity-70 leading-none cursor-pointer">{m}</Label>
+                        </div>
+                      ))}
+                    </div>
+                    <Textarea value={form.mechanical_service?.details} onChange={(e) => setForm({ ...form, mechanical_service: { ...form.mechanical_service, details: e.target.value, items: form.mechanical_service?.items || [] } })} className="rounded-xl min-h-[60px] text-xs bg-background/30" placeholder="Mechanical details..." />
+                  </div>
                 </div>
               </div>
 
@@ -1592,40 +1616,95 @@ export default function RepairsMaintenance() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 bg-foreground/5 p-5 rounded-2xl border border-white/5">
-                  <div className="space-y-1">
-                    <Label className="text-[10px] font-bold uppercase opacity-60">Parts Total</Label>
-                    <CurrencyInput value={form.parts_total} onChange={(e) => setForm({ ...form, parts_total: e.target.value })} placeholder="0" className="h-9 text-sm" />
+                {/* SECTION 5: FINANCIAL SUMMARY */}
+                <div className="space-y-6 pt-6 border-t border-white/10 bg-amber-500/5 -mx-6 px-6 py-6 rounded-b-none">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="w-6 h-6 rounded-full bg-amber-500/20 text-amber-500 flex items-center justify-center text-[10px] font-bold">5</span>
+                    <h3 className="text-sm font-bold uppercase tracking-widest text-foreground/70">Financial Summary</h3>
                   </div>
-                  <div className="space-y-1">
-                    <Label className="text-[10px] font-bold uppercase opacity-60">Labour Total</Label>
-                    <CurrencyInput value={form.labour_total} onChange={(e) => setForm({ ...form, labour_total: e.target.value })} placeholder="0" className="h-9 text-sm" />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-[10px] font-bold uppercase opacity-60">Other</Label>
-                    <CurrencyInput value={form.other_charges} onChange={(e) => setForm({ ...form, other_charges: e.target.value })} placeholder="0" className="h-9 text-sm" />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-[10px] font-bold uppercase opacity-60 text-amber-500">VAT Rate (%)</Label>
-                    <Input value={form.vat_rate} onChange={(e) => setForm({ ...form, vat_rate: e.target.value })} placeholder="7.5" className="h-9 text-sm rounded-lg bg-amber-500/5 border-amber-500/20" />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-[10px] font-bold uppercase opacity-40">VAT Amount</Label>
-                    <CurrencyInput value={form.vat} readOnly onChange={() => {}} className="h-9 text-sm opacity-60 bg-transparent border-dashed cursor-not-allowed" />
-                  </div>
-                </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label className="text-[10px] font-extrabold uppercase flex items-center justify-between">
-                      <span>Final Quote (Grand Total)</span>
-                      <span className="text-[9px] text-amber-500/60 font-medium lowercase italic tracking-normal">(Auto-calculated)</span>
-                    </Label>
-                    <CurrencyInput className="rounded-xl h-11 bg-amber-500/10 border-amber-500/20 text-amber-500 font-black text-lg" placeholder="0" value={form.repair_cost} onChange={(e) => setForm({ ...form, repair_cost: e.target.value })} />
+                  {/* Row 1: Sub-totals */}
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-[10px] font-bold uppercase opacity-60">Parts</Label>
+                      <CurrencyInput value={form.parts_total} onChange={(e) => setForm({ ...form, parts_total: e.target.value })} placeholder="0" className="h-9 text-xs rounded-lg" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px] font-bold uppercase opacity-60">Labour</Label>
+                      <CurrencyInput value={form.labour_total} onChange={(e) => setForm({ ...form, labour_total: e.target.value })} placeholder="0" className="h-9 text-xs rounded-lg" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px] font-bold uppercase opacity-60">Other</Label>
+                      <CurrencyInput value={form.other_charges} onChange={(e) => setForm({ ...form, other_charges: e.target.value })} placeholder="0" className="h-9 text-xs rounded-lg" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px] font-bold uppercase opacity-60 text-amber-500">VAT (%)</Label>
+                      <Input value={form.vat_rate} onChange={(e) => setForm({ ...form, vat_rate: e.target.value })} placeholder="7.5" className="h-9 text-xs rounded-lg bg-amber-500/5 border-amber-500/20" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px] font-bold uppercase opacity-40">VAT Amt</Label>
+                      <CurrencyInput value={form.vat} readOnly onChange={() => {}} className="h-9 text-xs opacity-60 bg-transparent border-dashed cursor-not-allowed" />
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label className="text-[10px] font-extrabold uppercase">Deposit Paid</Label>
-                    <CurrencyInput className="rounded-xl h-11 bg-emerald-500/10 border-emerald-500/20 text-emerald-500 font-black text-lg" placeholder="0" value={form.deposit_amount} onChange={(e) => setForm({ ...form, deposit_amount: e.target.value })} />
+
+                  {/* Row 2: Grand Total & Deposit */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 space-y-2">
+                      <Label className="text-[10px] font-extrabold uppercase flex items-center justify-between text-amber-600">
+                        <span>Final Quote (Grand Total)</span>
+                        <span className="text-[9px] font-medium lowercase italic tracking-normal opacity-60">(Auto-calculated)</span>
+                      </Label>
+                      <CurrencyInput className="rounded-xl h-12 bg-white/5 border-none text-amber-600 font-black text-2xl shadow-inner" placeholder="0" value={form.repair_cost} onChange={(e) => setForm({ ...form, repair_cost: e.target.value })} />
+                    </div>
+                    <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 space-y-2">
+                      <Label className="text-[10px] font-extrabold uppercase text-emerald-600">Deposit Paid</Label>
+                      <CurrencyInput className="rounded-xl h-12 bg-white/5 border-none text-emerald-600 font-black text-2xl shadow-inner" placeholder="0" value={form.deposit_amount} onChange={(e) => setForm({ ...form, deposit_amount: e.target.value })} />
+                    </div>
+                  </div>
+
+                  {/* Row 3: Bank & Payment Method */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-3">
+                      <Label className="text-[10px] font-extrabold uppercase opacity-70 flex items-center gap-2">
+                        <DollarSign className="w-3 h-3" /> Select Bank Account for Bill
+                      </Label>
+                      <div className="grid grid-cols-1 gap-2">
+                        {Object.entries(BANK_ACCOUNTS).map(([key, acc]) => (
+                          <button
+                            key={key}
+                            type="button"
+                            className={`group relative rounded-xl border p-3 text-left transition-all duration-300 ${form.bank_account === key ? 'bg-amber-500 border-amber-500 text-white shadow-lg scale-[1.02]' : 'bg-background/50 border-white/10 hover:border-amber-500/50 hover:bg-amber-500/5'}`}
+                            onClick={() => setForm({ ...form, bank_account: key })}
+                          >
+                            <div className="flex justify-between items-center">
+                              <span className={`text-[10px] font-black uppercase tracking-wider ${form.bank_account === key ? 'text-white' : 'text-foreground/80'}`}>{acc.label}</span>
+                              {form.bank_account === key && <CheckCircle className="h-3 w-3 text-white" />}
+                            </div>
+                            <div className={`text-[9px] mt-1 ${form.bank_account === key ? 'text-white/80' : 'text-muted-foreground'}`}>
+                              {acc.bank} • {acc.account}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      <Label className="text-[10px] font-extrabold uppercase opacity-70 flex items-center gap-2">
+                        <CreditCard className="w-3 h-3" /> Payment Method
+                      </Label>
+                      <div className="flex flex-wrap gap-2">
+                        {['cash', 'transfer', 'pos'].map((type) => (
+                          <button
+                            key={type}
+                            type="button"
+                            className={`px-6 py-2 rounded-full border text-[10px] uppercase font-black transition-all duration-300 ${form.payment_type === type ? 'bg-emerald-500 border-emerald-500 text-white shadow-lg scale-105' : 'bg-background/50 border-white/10 hover:border-emerald-500/50 hover:bg-emerald-500/5 text-muted-foreground'}`}
+                            onClick={() => setForm({ ...form, payment_type: type })}
+                          >
+                            {type}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
