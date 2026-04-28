@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Maximize2, Minimize2, RotateCw, Hand, Info } from "lucide-react";
+import { Maximize2, Minimize2, Hand, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface SignaturePadProps {
@@ -135,12 +135,8 @@ export function SignaturePad({ value, onChange, className }: SignaturePadProps) 
 
         {isFullscreen && (
           <div className="absolute top-8 left-1/2 -translate-x-1/2 pointer-events-none text-center w-full px-10">
-            <div className="bg-violet-500/10 text-violet-600 px-4 py-2 rounded-full inline-flex items-center gap-2 border border-violet-500/20 animate-bounce">
-              <RotateCw className="w-4 h-4" />
-              <span className="text-xs font-bold uppercase tracking-wider">Rotate device for larger area</span>
-            </div>
             <p className="text-[10px] text-slate-400 mt-3 font-medium uppercase tracking-widest flex items-center justify-center gap-2">
-              <Hand className="w-3 h-3" /> Please sign horizontally in the space below
+              <Hand className="w-3 h-3" /> Please sign in the space below
             </p>
           </div>
         )}
