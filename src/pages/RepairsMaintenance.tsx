@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useFormPersistence } from "@/hooks/useFormPersistence";
 import { supabase } from "@/integrations/supabase/client";
 import logoAsset from "@/assets/logo.png";
 import { Button } from "@/components/ui/button";
@@ -153,8 +154,8 @@ export default function RepairsMaintenance() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState(emptyForm);
   const [editId, setEditId] = useState<string | null>(null);
+  const [form, setForm, clearDraft] = useFormPersistence("repair", emptyForm, !!editId, editId || undefined);
   const [qrId, setQrId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -412,6 +413,7 @@ export default function RepairsMaintenance() {
       queryClient.invalidateQueries({ queryKey: ["customers-list"] });
       logAction(editId ? "UPDATE" : "CREATE", "Repair", editId ?? undefined);
       toast.success(editId ? "Repair updated" : "Repair added");
+      clearDraft();
       closeDialog();
     },
     onError: (e: any) => toast.error(e.message),

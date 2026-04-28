@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useFormPersistence } from "@/hooks/useFormPersistence";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -82,7 +83,7 @@ export default function VehicleForm() {
   const isEdit = !!id;
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [form, setForm] = useState<FormData>(emptyForm);
+  const [form, setForm, clearDraft] = useFormPersistence<FormData>("vehicle", emptyForm, isEdit, id);
   const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({});
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
@@ -266,6 +267,7 @@ export default function VehicleForm() {
       }
 
       queryClient.invalidateQueries({ queryKey: ["vehicles"] });
+      clearDraft();
       navigate(form.inventory_type === 'resale' ? "/resale-vehicles" : "/vehicles");
     } catch (err: any) {
       toast.error(err.message || "Failed to save vehicle");

@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import logoAsset from "@/assets/logo.png";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useFormPersistence } from "@/hooks/useFormPersistence";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,23 +44,26 @@ export default function PerformanceQuotes() {
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   
-  // New Quote Form State
-  const [customerMode, setCustomerMode] = useState<"existing" | "manual">("existing");
-  const [customerId, setCustomerId] = useState("");
-  const [manualCustomer, setManualCustomer] = useState({ name: "", phone: "", email: "", address: "" });
-  const [selectedVehicles, setSelectedVehicles] = useState<{
-    id: string;
-    make: string;
-    model: string;
-    year: string;
-    vin: string;
-    base_price: string;
-    has_duty: boolean;
-    duty_price: string;
-    quantity: number;
-  }[]>([]);
+  const emptyForm = {
+    customerMode: "existing" as "existing" | "manual",
+    customerId: "",
+    manualCustomer: { name: "", phone: "", email: "", address: "" },
+    selectedVehicles: [] as {
+      id: string;
+      make: string;
+      model: string;
+      year: string;
+      vin: string;
+      base_price: string;
+      has_duty: boolean;
+      duty_price: string;
+      quantity: number;
+    }[],
+    notes: ""
+  };
+
+  const [form, setForm, clearDraft] = useFormPersistence("performance_quote", emptyForm);
   const [vehicleSearch, setVehicleSearch] = useState("");
-  const [notes, setNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Queries
@@ -104,18 +108,18 @@ export default function PerformanceQuotes() {
   // Mutations
   const createQuoteMutation = useMutation({
     mutationFn: async () => {
-      let finalCustomerId = customerId;
+      let finalCustomerId = form.customerId;
 
       // Handle manual customer creation
-      if (customerMode === "manual") {
-        if (!manualCustomer.name.trim()) throw new Error("Customer name is required");
+      if (form.customerMode === "manual") {
+        if (!form.manualCustomer.name.trim()) throw new Error("Customer name is required");
         const { data: cust, error: custErr } = await supabase
           .from("customers")
           .insert({
-            name: manualCustomer.name.trim(),
-            phone: manualCustomer.phone.trim() || null,
-            email: manualCustomer.email.trim() || null,
-            address: manualCustomer.address.trim() || null,
+            name: form.manualCustomer.name.trim(),
+            phone: form.manualCustomer.phone.trim() || null,
+            email: form.manualCustomer.email.trim() || null,
+            address: form.manualCustomer.address.trim() || null,
           })
           .select()
           .single();
@@ -125,10 +129,10 @@ export default function PerformanceQuotes() {
         if (!finalCustomerId) throw new Error("Please select a customer");
       }
 
-      if (selectedVehicles.length === 0) throw new Error("Please select at least one vehicle");
+      if (form.selectedVehicles.length === 0) throw new Error("Please select at least one vehicle");
 
       // Calculate total
-      const totalAmount = selectedVehicles.reduce((sum, v) => {
+      const totalAmount = form.selectedVehicles.reduce((sum, v) => {
         const qty = v.quantity || 1;
         return sum + ((Number(v.base_price) || 0) * qty) + (v.has_duty ? ((Number(v.duty_price) || 0) * qty) : 0);
       }, 0);
@@ -139,7 +143,7 @@ export default function PerformanceQuotes() {
         .insert({
           customer_id: finalCustomerId,
           total_amount: totalAmount,
-          notes: notes.trim() || null,
+          notes: form.notes.trim() || null,
         })
         .select()
         .single();
@@ -148,7 +152,7 @@ export default function PerformanceQuotes() {
       if (quoteErr) throw quoteErr;
 
       // Create Quote Items
-      const items = selectedVehicles.map((v) => ({
+      const items = form.selectedVehicles.map((v) => ({
         quote_id: quote.id,
         vehicle_id: v.id,
         base_price: Number(v.base_price) || 0,
@@ -165,6 +169,7 @@ export default function PerformanceQuotes() {
       queryClient.invalidateQueries({ queryKey: ["customers"] });
       logAction("CREATE", "Performance Quote");
       toast.success("Performance quote created successfully");
+      clearDraft();
       closeDialog();
     },
     onError: (error: any) => {
@@ -188,38 +193,43 @@ export default function PerformanceQuotes() {
 
   const closeDialog = () => {
     setDialogOpen(false);
-    setCustomerMode("existing");
-    setCustomerId("");
-    setManualCustomer({ name: "", phone: "", email: "", address: "" });
-    setSelectedVehicles([]);
-    setNotes("");
+    setForm(emptyForm);
     setVehicleSearch("");
   };
 
   const handleAddVehicle = (v: any) => {
-    if (selectedVehicles.some((sv) => sv.id === v.id)) return;
-    setSelectedVehicles([...selectedVehicles, {
-      id: v.id,
-      make: v.make,
-      model: v.model,
-      year: v.year,
-      vin: v.vin,
-      base_price: v.price?.toString() || "0",
-      has_duty: false,
-      duty_price: "0",
-      quantity: 1,
-    }]);
+    if (form.selectedVehicles.some((sv) => sv.id === v.id)) return;
+    setForm(prev => ({
+      ...prev,
+      selectedVehicles: [...prev.selectedVehicles, {
+        id: v.id,
+        make: v.make,
+        model: v.model,
+        year: v.year,
+        vin: v.vin,
+        base_price: v.price?.toString() || "0",
+        has_duty: false,
+        duty_price: "0",
+        quantity: 1,
+      }]
+    }));
     setVehicleSearch("");
   };
 
   const handleRemoveVehicle = (id: string) => {
-    setSelectedVehicles(selectedVehicles.filter(v => v.id !== id));
+    setForm(prev => ({
+      ...prev,
+      selectedVehicles: prev.selectedVehicles.filter(v => v.id !== id)
+    }));
   };
 
   const updateVehicleData = (id: string, field: string, value: any) => {
-    setSelectedVehicles(selectedVehicles.map(v => 
-      v.id === id ? { ...v, [field]: value } : v
-    ));
+    setForm(prev => ({
+      ...prev,
+      selectedVehicles: prev.selectedVehicles.map(v => 
+        v.id === id ? { ...v, [field]: value } : v
+      )
+    }));
   };
 
   const downloadQuotePDF = async (quote: any, isEmail = false) => {
@@ -691,32 +701,32 @@ export default function PerformanceQuotes() {
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-bold">Customer Details</h3>
                 <div className="flex items-center gap-2 text-sm bg-foreground/5 p-1 rounded-lg">
-                  <button onClick={() => setCustomerMode("existing")} className={`px-3 py-1.5 rounded-md transition-colors ${customerMode === 'existing' ? 'bg-background shadow font-semibold' : 'text-muted-foreground'}`}>Existing</button>
-                  <button onClick={() => setCustomerMode("manual")} className={`px-3 py-1.5 rounded-md transition-colors ${customerMode === 'manual' ? 'bg-background shadow font-semibold' : 'text-muted-foreground'}`}>New / Manual</button>
+                  <button onClick={() => setForm(p => ({...p, customerMode: "existing"}))} className={`px-3 py-1.5 rounded-md transition-colors ${form.customerMode === 'existing' ? 'bg-background shadow font-semibold' : 'text-muted-foreground'}`}>Existing</button>
+                  <button onClick={() => setForm(p => ({...p, customerMode: "manual"}))} className={`px-3 py-1.5 rounded-md transition-colors ${form.customerMode === 'manual' ? 'bg-background shadow font-semibold' : 'text-muted-foreground'}`}>New / Manual</button>
                 </div>
               </div>
 
-              {customerMode === "existing" ? (
+              {form.customerMode === "existing" ? (
                 <div className="w-full">
-                  <CustomerSelect customers={customers} value={customerId} onValueChange={setCustomerId} />
+                  <CustomerSelect customers={customers} value={form.customerId} onValueChange={(val) => setForm(p => ({...p, customerId: val}))} />
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 border border-white/10 rounded-xl bg-black/20">
                   <div className="space-y-1">
                     <Label>Customer Name *</Label>
-                    <Input value={manualCustomer.name} onChange={e => setManualCustomer({...manualCustomer, name: e.target.value})} />
+                    <Input value={form.manualCustomer.name} onChange={e => setForm(p => ({...p, manualCustomer: {...p.manualCustomer, name: e.target.value}}))} />
                   </div>
                   <div className="space-y-1">
                     <Label>Phone Number</Label>
-                    <Input value={manualCustomer.phone} onChange={e => setManualCustomer({...manualCustomer, phone: e.target.value})} />
+                    <Input value={form.manualCustomer.phone} onChange={e => setForm(p => ({...p, manualCustomer: {...p.manualCustomer, phone: e.target.value}}))} />
                   </div>
                   <div className="space-y-1">
                     <Label>Email</Label>
-                    <Input type="email" value={manualCustomer.email} onChange={e => setManualCustomer({...manualCustomer, email: e.target.value})} />
+                    <Input type="email" value={form.manualCustomer.email} onChange={e => setForm(p => ({...p, manualCustomer: {...p.manualCustomer, email: e.target.value}}))} />
                   </div>
                   <div className="space-y-1">
                     <Label>Address</Label>
-                    <Input value={manualCustomer.address} onChange={e => setManualCustomer({...manualCustomer, address: e.target.value})} />
+                    <Input value={form.manualCustomer.address} onChange={e => setForm(p => ({...p, manualCustomer: {...p.manualCustomer, address: e.target.value}}))} />
                   </div>
                 </div>
               )}
@@ -741,7 +751,7 @@ export default function PerformanceQuotes() {
                     (v.make.toLowerCase().includes(vehicleSearch.toLowerCase()) || 
                      v.model.toLowerCase().includes(vehicleSearch.toLowerCase()) || 
                      (v.vin && v.vin.toLowerCase().includes(vehicleSearch.toLowerCase()))) &&
-                    !selectedVehicles.some(sv => sv.id === v.id)
+                    !form.selectedVehicles.some(sv => sv.id === v.id)
                   ).map(v => (
                     <div key={v.id} className="p-3 border-b border-white/5 hover:bg-white/5 flex justify-between items-center cursor-pointer" onClick={() => handleAddVehicle(v)}>
                       <div>
@@ -755,9 +765,9 @@ export default function PerformanceQuotes() {
               )}
 
               {/* Selected Vehicles List */}
-              {selectedVehicles.length > 0 && (
+              {form.selectedVehicles.length > 0 && (
                 <div className="space-y-4 mt-6">
-                  {selectedVehicles.map((sv, idx) => (
+                  {form.selectedVehicles.map((sv, idx) => (
                     <div key={sv.id} className="p-4 border border-white/10 rounded-2xl bg-gradient-to-br from-white/5 to-transparent relative">
                       <button onClick={() => handleRemoveVehicle(sv.id)} className="absolute top-4 right-4 text-muted-foreground hover:text-destructive">
                         <X className="h-5 w-5" />
@@ -810,7 +820,7 @@ export default function PerformanceQuotes() {
                   <div className="bg-emerald-500/10 border border-emerald-500/20 p-4 rounded-2xl flex justify-between items-center mt-6">
                     <span className="font-bold text-lg text-emerald-500 uppercase tracking-wider">Grand Total Estimate</span>
                     <span className="text-3xl font-black text-emerald-500">
-                      ₦{selectedVehicles.reduce((sum, v) => sum + ((Number(v.base_price) || 0) * (v.quantity || 1)) + (v.has_duty ? ((Number(v.duty_price) || 0) * (v.quantity || 1)) : 0), 0).toLocaleString()}
+                      ₦{form.selectedVehicles.reduce((sum, v) => sum + ((Number(v.base_price) || 0) * (v.quantity || 1)) + (v.has_duty ? ((Number(v.duty_price) || 0) * (v.quantity || 1)) : 0), 0).toLocaleString()}
                     </span>
                   </div>
                 </div>
@@ -820,7 +830,7 @@ export default function PerformanceQuotes() {
             {/* Notes */}
             <div className="space-y-2">
               <Label>Additional Notes / Terms</Label>
-              <Textarea placeholder="Enter any special conditions, validity period, etc." value={notes} onChange={e => setNotes(e.target.value)} rows={3} className="bg-black/20 rounded-xl" />
+              <Textarea placeholder="Enter any special conditions, validity period, etc." value={form.notes} onChange={e => setForm(p => ({...p, notes: e.target.value}))} rows={3} className="bg-black/20 rounded-xl" />
             </div>
           </div>
 

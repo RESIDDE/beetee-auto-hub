@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import logoAsset from "@/assets/logo.png";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useFormPersistence } from "@/hooks/useFormPersistence";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -96,7 +97,7 @@ export default function Sales() {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
-  const [form, setForm] = useState(emptyForm);
+  const [form, setForm, clearDraft] = useFormPersistence("sale", emptyForm, !!editId, editId || undefined);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [qrId, setQrId] = useState<string | null>(null);
   const [receiptSale, setReceiptSale] = useState<any>(null);
@@ -249,6 +250,7 @@ export default function Sales() {
       const action = editId ? "UPDATE" : "CREATE";
       logAction(action, "Sales", editId ?? undefined);
       toast.success(editId ? "Sale updated" : "Sale recorded");
+      clearDraft();
       closeDialog();
     },
     onError: () => toast.error("Failed to save sale"),
