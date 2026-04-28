@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { 
   Car, Users, DollarSign, Wrench, PlusCircle, Search, ChevronRight, 
   TrendingUp, Calendar, ArrowUpRight, BarChart3, Clock, PieChart as PieChartIcon,
-  FileSignature, FileText
+  FileSignature, FileText, Building2, Printer, Download, ListFilter
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import {
@@ -14,6 +14,8 @@ import {
   PieChart, Pie, Cell, CartesianGrid, AreaChart, Area
 } from "recharts";
 import { differenceInDays } from "date-fns";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { exportToExcel, printTable } from "@/lib/exportHelpers";
 
 const COLORS = ["hsl(var(--primary))", "hsl(142 76% 36%)", "hsl(0 84% 60%)", "hsl(262 83% 58%)", "hsl(38 92% 50%)", "hsl(199 89% 48%)"];
 
@@ -44,6 +46,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
 export default function Dashboard() {
   const [search, setSearch] = useState("");
+  const [companySearch, setCompanySearch] = useState("");
   const [greeting, setGreeting] = useState("Welcome back");
 
   useEffect(() => {
@@ -186,6 +189,20 @@ export default function Dashboard() {
      const entries = Object.entries(makes) as [string, number][];
      return entries.sort((a, b) => b[1] - a[1]).slice(0, 4);
   }, [sales]);
+
+  // 7. Source Company Inventory
+  const sourceCompanyStats = useMemo(() => {
+    const stats: Record<string, { inventory: number, total: number }> = {};
+    vehicles.forEach(v => {
+      const company = v.source_company || "Unknown";
+      if (!stats[company]) stats[company] = { inventory: 0, total: 0 };
+      stats[company].total++;
+      if (v.status !== 'Sold') stats[company].inventory++;
+    });
+    return Object.entries(stats).map(([name, data]) => ({ name, ...data })).sort((a,b) => b.inventory - a.inventory);
+  }, [vehicles]);
+
+  const filteredCompanyStats = sourceCompanyStats.filter(s => s.name.toLowerCase().includes(companySearch.toLowerCase()));
 
   const filteredVehicles = vehicles
     .filter((v) => {
@@ -437,6 +454,65 @@ export default function Dashboard() {
                     ))}
                   </div>
                 )}
+              </div>
+            </div>
+
+            {/* Sourced Companies Inventory */}
+            <div className="glass-panel p-0 flex flex-col overflow-hidden bg-card/20 border-white/10 flex-1">
+              <div className="p-5 border-b border-white/5 flex flex-col sm:flex-row items-center justify-between bg-card/40 gap-4">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 bg-primary/10 rounded-lg"><Building2 className="h-4 w-4 text-primary" /></div>
+                  <h3 className="font-semibold text-foreground">Sourced Companies Inventory</h3>
+                </div>
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  <div className="relative flex-1 sm:w-48">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                    <Input 
+                      placeholder="Search company..." 
+                      value={companySearch}
+                      onChange={(e) => setCompanySearch(e.target.value)}
+                      className="pl-8 h-8 rounded-lg bg-background/50 border-white/5 text-xs"
+                    />
+                  </div>
+                  <Button variant="outline" size="sm" className="h-8 rounded-lg" onClick={() => exportToExcel(filteredCompanyStats, "sourced_companies_inventory")}>
+                    <Download className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button variant="outline" size="sm" className="h-8 rounded-lg" onClick={() => printTable("Sourced Companies Inventory", filteredCompanyStats, [{key: 'name', label: 'Company'}, {key: 'inventory', label: 'In Stock'}, {key: 'total', label: 'Total Sourced'}])}>
+                    <Printer className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader className="bg-white/5 pointer-events-none">
+                    <TableRow className="border-white/5 hover:bg-transparent">
+                      <TableHead className="text-[11px] font-bold uppercase tracking-wider h-10 px-5">Company Name</TableHead>
+                      <TableHead className="text-[11px] font-bold uppercase tracking-wider h-10 text-center">In Stock</TableHead>
+                      <TableHead className="text-[11px] font-bold uppercase tracking-wider h-10 text-center">Total Sourced</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredCompanyStats.length === 0 ? (
+                      <TableRow><TableCell colSpan={3} className="text-center py-8 text-sm text-muted-foreground">No companies found.</TableCell></TableRow>
+                    ) : (
+                      filteredCompanyStats.map((s) => (
+                        <TableRow key={s.name} className="border-white/5 hover:bg-white/5 transition-colors group">
+                          <TableCell className="px-5 py-3">
+                            <span className="font-medium text-sm group-hover:text-primary transition-colors">{s.name}</span>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 text-xs font-bold border border-emerald-500/20">
+                              {s.inventory}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-center">
+                             <span className="text-xs font-medium text-muted-foreground">{s.total}</span>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
               </div>
             </div>
           </div>

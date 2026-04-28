@@ -31,7 +31,7 @@ import {
   PlusCircle, Pencil, Trash2, Receipt, Download, FileText, Printer, FileOutput, 
   DollarSign, Calendar, Search, Car, Users, QrCode, CheckCircle, Image, FileDown,
   TrendingUp, TrendingDown, ShoppingBag, Target, ArrowUpRight, BarChart3, PieChart as PieChartIcon,
-  Mail
+  Mail, ListFilter
 } from "lucide-react";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
@@ -101,6 +101,7 @@ export default function Sales() {
   const [qrId, setQrId] = useState<string | null>(null);
   const [receiptSale, setReceiptSale] = useState<any>(null);
   const [search, setSearch] = useState("");
+  const [sourceCompanyFilter, setSourceCompanyFilter] = useState("all");
   const [vehicleSearch, setVehicleSearch] = useState("");
   const [page, setPage] = useState(0);
   const [showAnalytics, setShowAnalytics] = useState(true);
@@ -154,11 +155,26 @@ export default function Sales() {
   const fullVehicleMap = Object.fromEntries(vehicles.map((v) => [v.id, v]));
   const customerMap = Object.fromEntries(customers.map((c) => [c.id, c.name]));
   const customerObjMap = Object.fromEntries(customers.map((c) => [c.id, c]));
+  
+  const sourceCompanies = useMemo(() => {
+    const companies = new Set<string>();
+    vehicles.forEach(v => {
+      if (v.source_company) companies.add(v.source_company);
+    });
+    return Array.from(companies).sort();
+  }, [vehicles]);
 
   const filtered = sales.filter((s) => {
     const q = search.toLowerCase();
     const vName = (vehicleMap[s.vehicle_id] || "").toLowerCase();
     const cName = (customerMap[s.customer_id] || "").toLowerCase();
+    
+    if (sourceCompanyFilter !== "all") {
+      const vIds = s.sale_vehicles?.length > 0 ? s.sale_vehicles.map((sv:any) => sv.vehicle_id) : [s.vehicle_id];
+      const hasSourceMatch = vIds.some((vid:string) => fullVehicleMap[vid]?.source_company === sourceCompanyFilter);
+      if (!hasSourceMatch) return false;
+    }
+
     return !q || vName.includes(q) || cName.includes(q);
   });
 
@@ -789,14 +805,33 @@ export default function Sales() {
       {/* Search Bar */}
       <div className="glass-panel p-4 rounded-3xl flex flex-col sm:flex-row gap-4 items-center relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-r from-violet-500/5 to-transparent pointer-events-none" />
-        <div className="relative w-full group z-10">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-violet-500 transition-colors" />
-          <Input 
-            placeholder="Search by vehicle or customer name..." 
-            value={search} 
-            onChange={(e) => { setSearch(e.target.value); setPage(0); }} 
-            className="pl-10 h-10 rounded-xl bg-background/50 border-white/10 focus-visible:ring-violet-500/50 transition-all font-medium text-sm w-full"
-          />
+        <div className="relative w-full group z-10 flex flex-col sm:flex-row gap-4 items-center">
+          <div className="relative flex-1 w-full">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-violet-500 transition-colors" />
+            <Input 
+              placeholder="Search by vehicle or customer name..." 
+              value={search} 
+              onChange={(e) => { setSearch(e.target.value); setPage(0); }} 
+              className="pl-10 h-10 rounded-xl bg-background/50 border-white/10 focus-visible:ring-violet-500/50 transition-all font-medium text-sm w-full"
+            />
+          </div>
+          
+          <div className="w-full sm:w-[250px] shrink-0">
+            <Select value={sourceCompanyFilter} onValueChange={(v) => { setSourceCompanyFilter(v); setPage(0); }}>
+              <SelectTrigger className="h-10 rounded-xl bg-background/50 border-white/10 focus:ring-violet-500/50 transition-all">
+                <div className="flex items-center gap-2">
+                  <ListFilter className="h-4 w-4 text-muted-foreground" />
+                  <SelectValue placeholder="Filter by Source Company" />
+                </div>
+              </SelectTrigger>
+              <SelectContent className="rounded-xl glass-panel">
+                <SelectItem value="all">All Source Companies</SelectItem>
+                {sourceCompanies.map(company => (
+                  <SelectItem key={company} value={company}>{company}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
 

@@ -452,7 +452,7 @@ export default function VehicleForm() {
             {field("date_arrived", "Date Arrived", "date")}
             {field("date_stored", "Date Stored", "date")}
             {field("num_keys", "Number of Keys", "number")}
-            {field("source_company", "Source Company")}
+            {field("source_company", "Company the vehicle is from")}
             
             <div className="space-y-1">
               <Label>Inventory Type</Label>
