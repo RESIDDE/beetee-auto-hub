@@ -69,6 +69,7 @@ export function usePermissions() {
   return {
     permissions,
     isLoading,
+    isLoaded: !isLoading,
     savePermissions: saveMutation.mutateAsync,
     isSaving: saveMutation.isPending,
   };

@@ -449,13 +449,13 @@ export default function AuthorityToSell() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="bg-card/40 border border-white/5 p-1 rounded-2xl">
+        <TabsList className="bg-card/40 border border-white/5 p-1 rounded-2xl flex flex-col md:flex-row h-auto w-full md:w-auto">
           {hasEdit && (
-            <TabsTrigger value="create" className="rounded-xl px-6 font-semibold data-[state=active]:bg-sky-500 data-[state=active]:text-white transition-all">
+            <TabsTrigger value="create" className="rounded-xl px-6 py-2.5 font-semibold data-[state=active]:bg-sky-500 data-[state=active]:text-white transition-all w-full md:w-auto">
               <PlusCircle className="w-4 h-4 mr-2" /> Create Document
             </TabsTrigger>
           )}
-          <TabsTrigger value="history" className="rounded-xl px-6 font-semibold data-[state=active]:bg-sky-500 data-[state=active]:text-white transition-all">
+          <TabsTrigger value="history" className="rounded-xl px-6 py-2.5 font-semibold data-[state=active]:bg-sky-500 data-[state=active]:text-white transition-all w-full md:w-auto">
             <History className="w-4 h-4 mr-2" /> Agreement History
           </TabsTrigger>
         </TabsList>
@@ -612,13 +612,13 @@ export default function AuthorityToSell() {
               </CardContent>
             </Card>
 
-            <div className="flex justify-end gap-4">
-              <Button variant="outline" size="lg" className="rounded-2xl px-10 h-14 border-white/10 hover:bg-white/5 transition-all" onClick={clearForm}>
+            <div className="flex flex-col sm:flex-row justify-end gap-4 mt-6">
+              <Button variant="outline" size="lg" className="rounded-2xl w-full sm:w-auto px-10 h-14 border-white/10 hover:bg-white/5 transition-all" onClick={clearForm}>
                 Clear Form
               </Button>
               <Button
                 size="lg"
-                className="rounded-2xl px-12 h-14 bg-sky-500 hover:bg-sky-600 text-white shadow-xl shadow-sky-500/25 font-bold transition-all disabled:opacity-50"
+                className="rounded-2xl w-full sm:w-auto px-12 h-14 bg-sky-500 hover:bg-sky-600 text-white shadow-xl shadow-sky-500/25 font-bold transition-all disabled:opacity-50"
                 disabled={!form.customerName || !form.vehicleMake || !form.signature || !form.repSignature || saveMutation.isPending}
                 onClick={handlePreview}
               >
