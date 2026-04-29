@@ -1,14 +1,15 @@
 import {
   LayoutDashboard, Car, Users, MessageSquare, ClipboardCheck,
-  Wrench, FileText, Settings, FileSignature, Crown,
+  Wrench, FileText, FileSignature, Crown,
 } from "lucide-react";
 import { NairaIcon } from "@/components/NairaIcon";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/hooks/useAuth";
+import { usePermissions } from "@/hooks/usePermissions";
 import { getAccessiblePages, type AppRole, type PageKey } from "@/lib/permissions";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,
-  SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem,
+  SidebarGroupLabel, SidebarMenu, SidebarMenuItem,
   SidebarHeader, useSidebar,
 } from "@/components/ui/sidebar";
 import logo from "@/assets/logo.png";
@@ -16,39 +17,40 @@ import logo from "@/assets/logo.png";
 type NavItem = {
   title: string;
   url: string;
-  pageKey: PageKey | "settings"; // settings is always visible to super_admin
+  pageKey: PageKey | "settings";
   icon: React.ComponentType<{ className?: string }>;
 };
 
 const ALL_NAV_ITEMS: NavItem[] = [
-  { title: "Dashboard",    url: "/dashboard",         pageKey: "dashboard",        icon: LayoutDashboard },
-  { title: "Beetee Vehicles", url: "/vehicles",        pageKey: "vehicles",         icon: Car },
-  { title: "Resale Vehicles", url: "/resale-vehicles", pageKey: "vehicles",         icon: Car },
-  { title: "Customers",    url: "/customers",         pageKey: "customers",        icon: Users },
-  { title: "Sales",        url: "/sales",             pageKey: "sales",            icon: (props) => <NairaIcon {...props} /> },
+  { title: "Dashboard",       url: "/dashboard",          pageKey: "dashboard",          icon: LayoutDashboard },
+  { title: "Beetee Vehicles", url: "/vehicles",           pageKey: "vehicles",           icon: Car },
+  { title: "Resale Vehicles", url: "/resale-vehicles",    pageKey: "vehicles",           icon: Car },
+  { title: "Customers",       url: "/customers",          pageKey: "customers",          icon: Users },
+  { title: "Sales",           url: "/sales",              pageKey: "sales",              icon: (props) => <NairaIcon {...props} /> },
   { title: "Proforma Quotes", url: "/performance-quotes", pageKey: "performance-quotes", icon: FileSignature },
-  { title: "Invoices",     url: "/invoices",          pageKey: "invoices",         icon: FileText },
-  { title: "Inquiries",    url: "/inquiries",         pageKey: "inquiries",        icon: MessageSquare },
-  { title: "Inspections",  url: "/inspections",       pageKey: "inspections",      icon: ClipboardCheck },
-  { title: "Repairs",      url: "/repairs",           pageKey: "repairs",          icon: Wrench },
-  { title: "Auth. Form",   url: "/authority-to-sell", pageKey: "authority-to-sell", icon: FileSignature },
+  { title: "Invoices",        url: "/invoices",           pageKey: "invoices",           icon: FileText },
+  { title: "Inquiries",       url: "/inquiries",          pageKey: "inquiries",          icon: MessageSquare },
+  { title: "Inspections",     url: "/inspections",        pageKey: "inspections",        icon: ClipboardCheck },
+  { title: "Repairs",         url: "/repairs",            pageKey: "repairs",            icon: Wrench },
+  { title: "Auth. Form",      url: "/authority-to-sell",  pageKey: "authority-to-sell",  icon: FileSignature },
 ];
 
 export function AppSidebar() {
   const { state, setOpenMobile } = useSidebar();
   const collapsed = state === "collapsed";
   const { role } = useAuth();
+  const { permissions } = usePermissions();
 
-  const accessible = getAccessiblePages(role as AppRole | null);
   const isSuperAdmin = role === "super_admin";
 
-  // Filter nav items to only show accessible pages
+  // Get accessible pages using live Supabase-backed permissions
+  const accessiblePages = getAccessiblePages(role as AppRole | null, permissions);
+
   const visibleItems = ALL_NAV_ITEMS.filter((item) =>
-    accessible.includes(item.pageKey as PageKey)
+    accessiblePages.includes(item.pageKey as PageKey)
   );
 
   const handleNavClick = () => {
-    // Close sidebar on mobile when a link is clicked
     setOpenMobile(false);
   };
 
@@ -80,7 +82,7 @@ export function AppSidebar() {
                       className="flex items-center gap-3 rounded-full px-4 py-2.5 text-sm font-medium transition-all duration-300 hover:bg-sidebar-accent/50 text-sidebar-foreground/70 hover:text-sidebar-foreground w-full"
                       activeClassName="bg-primary/10 text-primary font-semibold shadow-sm"
                     >
-                      {(() => { const Icon = item.icon; return <Icon className="h-5 w-5" />; })()}
+                      {(() => { const Icon = item.icon; return <Icon className="h-5 w-5 shrink-0" />; })()}
                       {!collapsed && <span>{item.title}</span>}
                     </NavLink>
                   </div>
@@ -97,7 +99,7 @@ export function AppSidebar() {
                       className="flex items-center gap-3 rounded-full px-4 py-2.5 text-sm font-medium transition-all duration-300 hover:bg-amber-500/10 text-amber-500/70 hover:text-amber-500 w-full"
                       activeClassName="bg-amber-500/10 text-amber-500 font-semibold"
                     >
-                      <Crown className="h-5 w-5" />
+                      <Crown className="h-5 w-5 shrink-0" />
                       {!collapsed && <span>Settings</span>}
                     </NavLink>
                   </div>

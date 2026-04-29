@@ -4,6 +4,7 @@ import { useFormPersistence } from "@/hooks/useFormPersistence";
 import { supabase } from "@/integrations/supabase/client";
 import { createClient } from "@supabase/supabase-js";
 import { useAuth } from "@/hooks/useAuth";
+import { usePermissions } from "@/hooks/usePermissions";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -19,13 +20,12 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import {
-  Shield, ShieldAlert, ShieldCheck, User, Users, Settings2,
+  Shield, ShieldCheck, User, Users, Settings2,
   ToggleLeft, Eye, Pencil, RotateCcw, Crown, Lock, Activity,
-  UserPlus, ArrowRightLeft, AlertTriangle, CheckCircle2, Trash2,
+  UserPlus, ArrowRightLeft, AlertTriangle, Trash2,
 } from "lucide-react";
 import {
-  ALL_PAGES, getPermissions, savePermissions, resetPermissions,
-  DEFAULT_PERMISSIONS, type AppRole, type PageKey,
+  ALL_PAGES, DEFAULT_PERMISSIONS, type AppRole, type PageKey, type PermissionsMap,
 } from "@/lib/permissions";
 import { logAction, describeLog } from "@/lib/logger";
 
@@ -62,8 +62,17 @@ export default function Settings() {
   const { role, user } = useAuth();
   const queryClient = useQueryClient();
   const [tab, setTab] = useState<Tab>("team");
-  const [permissions, setPermissions] = useState(() => getPermissions());
+
+  // ── Live permissions from Supabase ────────────────────────────────────────
+  const {
+    permissions: livePermissions,
+    savePermissions: savePermsToSupabase,
+    isSaving,
+  } = usePermissions();
+  const [localPermissions, setLocalPermissions] = useState<PermissionsMap | null>(null);
   const [permDirty, setPermDirty] = useState(false);
+  // Use local draft if dirty, otherwise use live data
+  const permissions = localPermissions ?? livePermissions;
 
   // ── Invite User State ──────────────────────────────────────────────────────
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -278,9 +287,10 @@ export default function Settings() {
 
   // ── Permissions helpers ────────────────────────────────────────────────────
   const togglePerm = (r: Exclude<AppRole, "super_admin">, page: PageKey) => {
-    setPermissions((prev) => {
-      const currentView = prev[r]?.view ?? [];
-      const currentEdit = prev[r]?.edit ?? [];
+    setLocalPermissions((prev) => {
+      const base = prev ?? livePermissions;
+      const currentView = base[r]?.view ?? [];
+      const currentEdit = base[r]?.edit ?? [];
       const hasView = currentView.includes(page);
       const hasEdit = currentEdit.includes(page);
       let nextView = [...currentView];
@@ -288,13 +298,32 @@ export default function Settings() {
       if (!hasView && !hasEdit) { nextView.push(page); }
       else if (hasView && !hasEdit) { nextEdit.push(page); }
       else { nextView = nextView.filter((p) => p !== page); nextEdit = nextEdit.filter((p) => p !== page); }
-      return { ...prev, [r]: { view: nextView, edit: nextEdit } };
+      return { ...base, [r]: { view: nextView, edit: nextEdit } };
     });
     setPermDirty(true);
   };
 
-  const savePerms = () => { savePermissions(permissions); setPermDirty(false); toast.success("Permissions saved"); };
-  const resetPerms = () => { resetPermissions(); setPermissions({ ...DEFAULT_PERMISSIONS }); setPermDirty(false); toast.success("Permissions reset to defaults"); };
+  const savePerms = async () => {
+    try {
+      await savePermsToSupabase(permissions);
+      setPermDirty(false);
+      setLocalPermissions(null);
+      toast.success("✅ Permissions saved — all users will see changes on next navigation.");
+    } catch (e: any) {
+      toast.error("Failed to save permissions: " + e.message);
+    }
+  };
+
+  const resetPerms = async () => {
+    try {
+      await savePermsToSupabase({ ...DEFAULT_PERMISSIONS });
+      setLocalPermissions(null);
+      setPermDirty(false);
+      toast.success("Permissions reset to defaults");
+    } catch (e: any) {
+      toast.error("Failed to reset permissions: " + e.message);
+    }
+  };
 
   const configurableRoles: Exclude<AppRole, "super_admin">[] = ["admin", "sales", "mechanic"];
   const otherUsers = usersData.filter((u: any) => u.user_id !== user?.id);
@@ -447,11 +476,11 @@ export default function Settings() {
               <Shield className="h-5 w-5 text-violet-400" /> Permissions Matrix
             </h2>
             <div className="flex gap-2">
-              <Button variant="ghost" size="sm" className="rounded-xl gap-1.5 text-muted-foreground" onClick={resetPerms}>
+              <Button variant="ghost" size="sm" className="rounded-xl gap-1.5 text-muted-foreground" onClick={resetPerms} disabled={isSaving}>
                 <RotateCcw className="w-3.5 h-3.5" /> Reset
               </Button>
-              <Button size="sm" disabled={!permDirty} className="rounded-xl bg-amber-500 hover:bg-amber-600 text-white gap-1.5" onClick={savePerms}>
-                Save Changes{permDirty ? " *" : ""}
+              <Button size="sm" disabled={!permDirty || isSaving} className="rounded-xl bg-amber-500 hover:bg-amber-600 text-white gap-1.5" onClick={savePerms}>
+                {isSaving ? "Saving..." : (permDirty ? "Save Changes *" : "Save Changes")}
               </Button>
             </div>
           </div>
@@ -501,8 +530,8 @@ export default function Settings() {
             </table>
           </div>
           <p className="text-xs text-muted-foreground mt-6 border-t border-white/5 pt-4">
-            Permissions are saved locally and apply immediately on next page navigation.
-            {permDirty && <span className="ml-2 text-amber-400 font-semibold">⚠ Unsaved changes</span>}
+            Permissions are saved to the cloud and apply to all users immediately on next page navigation.
+            {permDirty && <span className="ml-2 text-amber-400 font-semibold">⚠ Unsaved changes — click Save Changes to apply</span>}
           </p>
         </div>
       )}
