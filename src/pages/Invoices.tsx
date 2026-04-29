@@ -31,12 +31,14 @@ import {
 } from "@/components/ui/alert-dialog";
 import { PlusCircle, FileText, Printer, Trash2, Receipt, Search, Mail } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { usePermissions } from "@/hooks/usePermissions";
 import { canEdit } from "@/lib/permissions";
 import { logAction } from "@/lib/logger";
 
 export default function Invoices() {
   const { role } = useAuth();
-  const hasEdit = canEdit(role, "invoices");
+  const { permissions } = usePermissions();
+  const hasEdit = canEdit(role, "invoices", permissions);
 
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();

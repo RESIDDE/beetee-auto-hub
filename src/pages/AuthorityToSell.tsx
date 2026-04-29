@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { PrintHeader, PrintWatermark } from "@/components/PrintHeader";
 import { PrintFooter } from "@/components/PrintFooter";
 import { useAuth } from "@/hooks/useAuth";
+import { usePermissions } from "@/hooks/usePermissions";
 import { canEdit } from "@/lib/permissions";
 
 type ATS = {
@@ -63,7 +64,7 @@ export default function AuthorityToSell() {
   const [mode, setMode] = useState<"edit" | "preview">("edit");
   const documentRef = useRef<HTMLDivElement>(null);
   const { user, role } = useAuth();
-  const hasEdit = canEdit(role, "authority-to-sell");
+  const hasEdit = canEdit(role, "authority-to-sell", permissions);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm, clearDraft] = useFormPersistence("ats", { ...EMPTY_FORM, signature: "", repSignature: "" }, !!editingId, editingId || undefined);

@@ -25,6 +25,7 @@ import { PlusCircle, Pencil, Trash2, MessageSquare, Car, Users, Search } from "l
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
+import { usePermissions } from "@/hooks/usePermissions";
 import { canEdit } from "@/lib/permissions";
 import { CustomerSelect } from "@/components/CustomerSelect";
 
@@ -46,7 +47,8 @@ const emptyForm = {
 
 export default function Inquiries() {
   const { role } = useAuth();
-  const hasEdit = canEdit(role, "inquiries");
+  const { permissions } = usePermissions();
+  const hasEdit = canEdit(role, "inquiries", permissions);
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);

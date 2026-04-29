@@ -22,6 +22,7 @@ import {
 import { Pencil, Trash2, PlusCircle, CheckCircle, XCircle, ClipboardCheck, Car, QrCode, Search } from "lucide-react";
 import { format } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";
+import { usePermissions } from "@/hooks/usePermissions";
 import { canEdit } from "@/lib/permissions";
 
 type Inspection = {
@@ -52,7 +53,8 @@ const emptyForm = {
 
 export default function Inspections() {
   const { role } = useAuth();
-  const hasEdit = canEdit(role, "inspections");
+  const { permissions } = usePermissions();
+  const hasEdit = canEdit(role, "inspections", permissions);
 
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);

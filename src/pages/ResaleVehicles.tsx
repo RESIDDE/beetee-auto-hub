@@ -33,6 +33,7 @@ import { differenceInDays } from "date-fns";
 import { toast } from "sonner";
 import { exportToExcel, exportToJSON, printTable, exportToCSV, exportToPDF } from "@/lib/exportHelpers";
 import { useAuth } from "@/hooks/useAuth";
+import { usePermissions } from "@/hooks/usePermissions";
 import { canEdit } from "@/lib/permissions";
 import { logAction } from "@/lib/logger";
 
@@ -58,7 +59,8 @@ const PAGE_SIZE = 20;
 
 export default function ResaleVehicles() {
   const { role } = useAuth();
-  const hasEdit = canEdit(role, "vehicles");
+  const { permissions } = usePermissions();
+  const hasEdit = canEdit(role, "vehicles", permissions);
   console.log("ResaleVehicles loaded with statusFilter support", { role, hasEdit });
 
   const [search, setSearch] = useState("");

@@ -42,6 +42,7 @@ import { format, subMonths, startOfMonth, endOfMonth, isWithinInterval } from "d
 import { toast } from "sonner";
 import { exportToExcel, exportToJSON, printTable } from "@/lib/exportHelpers";
 import { useAuth } from "@/hooks/useAuth";
+import { usePermissions } from "@/hooks/usePermissions";
 import { canEdit } from "@/lib/permissions";
 import { getPrintHeaderHTML, getPrintWatermarkHTML } from "@/components/PrintHeader";
 import { getPrintFooterHTML } from "@/components/PrintFooter";
@@ -93,7 +94,8 @@ const emptyForm = {
 
 export default function Sales() {
   const { role } = useAuth();
-  const hasEdit = canEdit(role, "sales");
+  const { permissions } = usePermissions();
+  const hasEdit = canEdit(role, "sales", permissions);
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);

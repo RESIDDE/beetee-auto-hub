@@ -18,6 +18,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { CustomerSelect } from "@/components/CustomerSelect";
 import { CurrencyInput } from "@/components/CurrencyInput";
 import { useAuth } from "@/hooks/useAuth";
+import { usePermissions } from "@/hooks/usePermissions";
 import { canEdit } from "@/lib/permissions";
 import { toast } from "sonner";
 import { 
@@ -38,7 +39,8 @@ import { Download, Mail } from "lucide-react";
 
 export default function PerformanceQuotes() {
   const { role } = useAuth();
-  const hasEdit = canEdit(role, "performance-quotes");
+  const { permissions } = usePermissions();
+  const hasEdit = canEdit(role, "performance-quotes", permissions);
   const queryClient = useQueryClient();
 
   const [search, setSearch] = useState("");

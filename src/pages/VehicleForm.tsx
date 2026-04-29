@@ -23,6 +23,7 @@ import {
 import { X, Upload, FileSignature } from "lucide-react";
 import VehicleMakeModelSelector from "@/components/VehicleMakeModelSelector";
 import { useAuth } from "@/hooks/useAuth";
+import { usePermissions } from "@/hooks/usePermissions";
 import { canEdit } from "@/lib/permissions";
 import { CurrencyInput } from "@/components/CurrencyInput";
 import { toast } from "sonner";
@@ -92,7 +93,8 @@ export default function VehicleForm() {
   const [searchParams] = useSearchParams();
   const defaultType = searchParams.get("inventory_type") || "beetee";
   const { role } = useAuth();
-  const hasEdit = canEdit(role, "vehicles");
+  const { permissions } = usePermissions();
+  const hasEdit = canEdit(role, "vehicles", permissions);
 
   useEffect(() => {
     if (isEdit && !hasEdit) {

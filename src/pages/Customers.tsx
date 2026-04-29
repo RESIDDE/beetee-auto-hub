@@ -21,6 +21,7 @@ import { toast } from "sonner";
 import { SignaturePad } from "@/components/SignaturePad";
 import { QrSignDialog } from "@/lib/qrHelpers";
 import { useAuth } from "@/hooks/useAuth";
+import { usePermissions } from "@/hooks/usePermissions";
 import { canEdit } from "@/lib/permissions";
 import { logAction } from "@/lib/logger";
 
@@ -38,7 +39,8 @@ const emptyForm = { name: "", email: "", phone: "", address: "", notes: "", sign
 
 export default function Customers() {
   const { role } = useAuth();
-  const hasEdit = canEdit(role, "customers");
+  const { permissions } = usePermissions();
+  const hasEdit = canEdit(role, "customers", permissions);
 
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
