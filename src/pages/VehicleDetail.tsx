@@ -24,6 +24,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissions } from "@/hooks/usePermissions";
 import { canEdit } from "@/lib/permissions";
+import { logAction } from "@/lib/logger";
 
 export default function VehicleDetail() {
   const { role } = useAuth();
@@ -65,6 +66,7 @@ export default function VehicleDetail() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["vehicles"] });
+      logAction("DELETE", "Vehicle", id!, { vehicle: `${vehicle?.year} ${vehicle?.make} ${vehicle?.model}` });
       toast.success("Vehicle deleted");
       navigate(vehicle?.inventory_type === 'resale' ? "/resale-vehicles" : "/vehicles");
     },
@@ -82,7 +84,7 @@ export default function VehicleDetail() {
   );
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
+    <div className="space-y-6 max-w-4xl mx-auto pb-20">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" asChild>

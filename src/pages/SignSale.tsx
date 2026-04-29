@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { CheckCircle, DollarSign, Car, User, Calendar, ShieldCheck, AlertCircle, Download, FileText } from "lucide-react";
+import { logAction } from "@/lib/logger";
 
 export default function SignSale() {
   const { id } = useParams<{ id: string }>();
@@ -53,6 +54,10 @@ export default function SignSale() {
       console.error("Signature save error:", error);
       toast.error(`Could not save signature: ${error.message || 'Permission denied'}`);
     } else {
+      await logAction("SIGNATURE", "Sales", id, { 
+        customer: (sale?.customer as any)?.name,
+        type: "Sale Agreement Purchase"
+      });
       setSubmitted(true);
       toast.success("Signature recorded successfully!");
     }

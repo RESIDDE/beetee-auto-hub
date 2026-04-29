@@ -424,6 +424,7 @@ export default function Sales() {
 
   const handlePrintReceipt = (sale: any) => {
     toast.info("Preparing receipt...");
+    logAction("PRINT", "Sales", sale.id, { vehicle: sale.sale_vehicles?.[0]?.vehicle ? `${sale.sale_vehicles[0].vehicle.year} ${sale.sale_vehicles[0].vehicle.make} ${sale.sale_vehicles[0].vehicle.model}` : "Vehicle" });
     const html = `<html><head><title>Receipt - ${sale.id.slice(0, 8).toUpperCase()}</title>
     <style>
       @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap');
@@ -575,6 +576,7 @@ export default function Sales() {
         } else {
           toast.error("Customer email not found.", { id: "sale-dl" });
         }
+        logAction("EXPORT", "Sales", sale.id, { vehicle: sale.sale_vehicles?.[0]?.vehicle ? `${sale.sale_vehicles[0].vehicle.year} ${sale.sale_vehicles[0].vehicle.make} ${sale.sale_vehicles[0].vehicle.model}` : "Vehicle", format: fileExt.toUpperCase(), method: "Email" });
         document.body.removeChild(iframe);
       } else {
         console.log("Triggering browser download...");
@@ -584,6 +586,7 @@ export default function Sales() {
         a.download = `${filename}.${fileExt}`;
         a.click();
         URL.revokeObjectURL(url);
+        logAction("EXPORT", "Sales", sale.id, { vehicle: sale.sale_vehicles?.[0]?.vehicle ? `${sale.sale_vehicles[0].vehicle.year} ${sale.sale_vehicles[0].vehicle.make} ${sale.sale_vehicles[0].vehicle.model}` : "Vehicle", format: fileExt.toUpperCase(), method: "Download" });
         document.body.removeChild(iframe);
         toast.success("Download complete", { id: "sale-dl" });
       }
@@ -683,9 +686,11 @@ export default function Sales() {
               <DropdownMenuItem onClick={handleBulkPrintReceipts} className="rounded-lg cursor-pointer text-violet-500 border-t border-white/5 mt-1 pt-2"><Receipt className="mr-2 h-4 w-4" /> Print All Receipts (PDF)</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button onClick={() => { setEditId(null); setDialogOpen(true); }} size="sm" className="rounded-xl shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40 transition-all bg-violet-500 hover:bg-violet-600 text-white text-xs">
-            <PlusCircle className="mr-1.5 h-4 w-4" /> Record Sale
-          </Button>
+          {hasEdit && (
+            <Button onClick={() => { setEditId(null); setDialogOpen(true); }} size="sm" className="rounded-xl shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40 transition-all bg-violet-500 hover:bg-violet-600 text-white text-xs">
+              <PlusCircle className="mr-1.5 h-4 w-4" /> Record Sale
+            </Button>
+          )}
         </div>
       </div>
 

@@ -25,6 +25,7 @@ import VehicleMakeModelSelector from "@/components/VehicleMakeModelSelector";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissions } from "@/hooks/usePermissions";
 import { canEdit } from "@/lib/permissions";
+import { logAction } from "@/lib/logger";
 import { CurrencyInput } from "@/components/CurrencyInput";
 import { toast } from "sonner";
 import { SignaturePad } from "@/components/SignaturePad";
@@ -250,21 +251,23 @@ export default function VehicleForm() {
       };
 
       if (isEdit) {
-        const { error } = await supabase
-          .from("vehicles")
-          .update(payload)
-          .eq("id", id!);
+        const { error } = await supabase.from("vehicles").update(payload).eq("id", id!);
         if (error) throw error;
         await uploadImages(id!);
+        await logAction("UPDATE", "Vehicle", id, {
+          make: form.make, model: form.model, year: form.year,
+          vin: form.vin, inventory_type: form.inventory_type,
+        });
         toast.success("Vehicle updated successfully");
       } else {
-        const { data, error } = await supabase
-          .from("vehicles")
-          .insert(payload)
-          .select()
-          .single();
+        const { data, error } = await supabase.from("vehicles").insert(payload).select().single();
         if (error) throw error;
         await uploadImages(data.id);
+        await logAction("CREATE", "Vehicle", data.id, {
+          make: form.make, model: form.model, year: form.year,
+          vin: form.vin, inventory_type: form.inventory_type,
+          source_company: form.source_company,
+        });
         toast.success("Vehicle added successfully");
       }
 

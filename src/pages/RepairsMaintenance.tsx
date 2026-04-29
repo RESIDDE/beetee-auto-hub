@@ -60,6 +60,9 @@ const BANK_ACCOUNTS = {
 };
 import { CustomerSelect } from "@/components/CustomerSelect";
 import { logAction } from "@/lib/logger";
+import { useAuth } from "@/hooks/useAuth";
+import { usePermissions } from "@/hooks/usePermissions";
+import { canEdit } from "@/lib/permissions";
 
 type Repair = {
   id: string;
@@ -170,6 +173,9 @@ const getVehicleLabel = (r: Repair) => {
 export default function RepairsMaintenance() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const { role } = useAuth();
+  const { permissions } = usePermissions();
+  const hasEdit = canEdit(role, "repairs", permissions);
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm, clearDraft] = useFormPersistence("repair", emptyForm, !!editId, editId || undefined);
@@ -851,12 +857,16 @@ export default function RepairsMaintenance() {
   };
 
   const printBill = (r: Repair) => {
+    const veh = vehicles.find(v => v.id === r.vehicle_id);
+    logAction("PRINT", "Repair Bill", r.id, { vehicle: veh ? `${veh.year} ${veh.make} ${veh.model}` : r.vehicle_id });
     const html = getBillHTML(r);
     const win = window.open("", "_blank");
     if (win) { win.document.write(html); win.document.close(); win.print(); }
   };
 
   const printJobCard = (r: Repair) => {
+    const veh = vehicles.find(v => v.id === r.vehicle_id);
+    logAction("PRINT", "Job Card", r.id, { vehicle: veh ? `${veh.year} ${veh.make} ${veh.model}` : r.vehicle_id });
     const html = getJobCardHTML(r);
     const win = window.open("", "_blank");
     if (win) { win.document.write(html); win.document.close(); win.print(); }
@@ -946,6 +956,10 @@ export default function RepairsMaintenance() {
         const updateData = type === 'bill' ? { bill_url: publicUrl } : { job_card_url: publicUrl };
         await supabase.from("repairs" as any).update(updateData).eq("id", r.id);
 
+        const veh = vehicles.find(v => v.id === r.vehicle_id);
+        const vehicleLabel = veh ? `${veh.year} ${veh.make} ${veh.model}` : r.vehicle_id;
+        logAction("EXPORT", type === 'bill' ? "Repair Bill" : "Job Card", r.id, { vehicle: vehicleLabel, format: "PDF", method: "Email" });
+        
         if (cust?.email) {
           const subject = `${type === 'bill' ? 'Repair Bill' : 'Job Card'} - Beetee Autos`;
           const body = `Hello ${cust.name || 'Customer'},\n\nPlease find your ${type === 'bill' ? 'repair bill' : 'job card'} attached below.\n\nYou can also download it directly here: ${publicUrl}\n\nThank you for choosing Beetee Autos!`;
@@ -956,6 +970,9 @@ export default function RepairsMaintenance() {
         }
       } else {
         pdf.save(`${filename}.pdf`);
+        const veh = vehicles.find(v => v.id === r.vehicle_id);
+        const vehicleLabel = veh ? `${veh.year} ${veh.make} ${veh.model}` : r.vehicle_id;
+        logAction("EXPORT", type === 'bill' ? "Repair Bill" : "Job Card", r.id, { vehicle: vehicleLabel, format: "PDF", method: "Download" });
         toast.success(`${type === 'bill' ? 'Bill' : 'Job Card'} downloaded!`, { id: "repair-dl" });
       }
     } catch (error) {
@@ -980,11 +997,13 @@ export default function RepairsMaintenance() {
              Manage service logs, parts replacements, and track vehicle repair history across your fleet.
           </p>
         </div>
-        <div className="shrink-0">
-          <Button onClick={() => { setEditId(null); setOpen(true); }} size="lg" className="rounded-2xl shadow-lg shadow-amber-500/25 hover:shadow-amber-500/40 transition-all bg-amber-500 hover:bg-amber-600 text-white">
-            <PlusCircle className="mr-2 h-5 w-5" /> Record Repair
-          </Button>
-        </div>
+        {hasEdit && (
+          <div className="shrink-0">
+            <Button onClick={() => { setEditId(null); setOpen(true); }} size="lg" className="rounded-2xl shadow-lg shadow-amber-500/25 hover:shadow-amber-500/40 transition-all bg-amber-500 hover:bg-amber-600 text-white">
+              <PlusCircle className="mr-2 h-5 w-5" /> Record Repair
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Stats Dashboard */}
@@ -1193,9 +1212,16 @@ export default function RepairsMaintenance() {
                     </DropdownMenuContent>
                   </DropdownMenu>
 
-                  <Button variant="ghost" size="sm" className="h-8 rounded-lg hover:bg-foreground/10 hover:text-foreground text-muted-foreground transition-all" onClick={() => openEdit(r)}>
-                    <Pencil className="h-3.5 w-3.5 mr-1.5" /> Edit
-                  </Button>
+                  {hasEdit && (
+                    <>
+                      <Button variant="ghost" size="sm" className="h-8 rounded-lg hover:bg-foreground/10 hover:text-foreground text-muted-foreground transition-all" onClick={() => openEdit(r)}>
+                        <Pencil className="h-3.5 w-3.5 mr-1.5" /> Edit
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-all" onClick={() => { if(window.confirm("Are you sure?")) deleteMut.mutate(r.id) }}>
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </>
+                  )}
                   <Button variant="ghost" size="sm" className="h-8 rounded-lg hover:bg-amber-500/10 hover:text-amber-500 text-muted-foreground transition-all" onClick={() => setQrId(r.id)}>
                     <QrCode className="h-3.5 w-3.5 mr-1.5" /> QR Sign
                   </Button>
@@ -1208,9 +1234,6 @@ export default function RepairsMaintenance() {
                       navigate(`/invoices?action=create&customer_id=${r.customer_id}&repair_id=${r.id}&type=repair`);
                     }}
                   ><FileOutput className="h-3.5 w-3.5 mr-1.5" /> Invoice</Button>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-all" onClick={() => { if(window.confirm("Are you sure?")) deleteMut.mutate(r.id) }}>
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
                 </div>
               </div>
             ))}

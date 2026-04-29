@@ -341,6 +341,7 @@ export default function Invoices() {
   };
 
   const printInvoice = (inv: any) => {
+    logAction("PRINT", "Invoice", inv.id, { invoice_number: inv.invoice_number });
     const html = getInvoiceHTML(inv);
     const win = window.open("", "_blank");
     if (win) { win.document.write(html); win.document.close(); win.print(); }
@@ -426,11 +427,12 @@ export default function Invoices() {
         } else {
           toast.error("Customer email not found.", { id: "invoice-dl" });
         }
-        document.body.removeChild(iframe);
+        logAction("EXPORT", "Invoice", inv.id, { invoice_number: inv.invoice_number, format: "PDF", method: "Email" });
         return publicUrl;
       } else {
         console.log("Triggering browser download...");
         pdf.save(`${filename}.pdf`);
+        logAction("EXPORT", "Invoice", inv.id, { invoice_number: inv.invoice_number, format: "PDF", method: "Download" });
         document.body.removeChild(iframe);
         toast.success("Invoice downloaded", { id: "invoice-dl" });
       }
@@ -460,9 +462,11 @@ export default function Invoices() {
           </p>
         </div>
         <div className="shrink-0">
-          <Button onClick={() => setDialogOpen(true)} size="lg" className="rounded-2xl shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40 transition-all bg-cyan-500 hover:bg-cyan-600 text-white">
-            <PlusCircle className="mr-2 h-5 w-5" /> Create Invoice
-          </Button>
+          {hasEdit && (
+            <Button onClick={() => setDialogOpen(true)} size="lg" className="rounded-2xl shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40 transition-all bg-cyan-500 hover:bg-cyan-600 text-white">
+              <PlusCircle className="mr-2 h-5 w-5" /> Create Invoice
+            </Button>
+          )}
         </div>
       </div>
 
@@ -491,52 +495,54 @@ export default function Invoices() {
              </div>
              <h2 className="text-xl font-bold mb-2">No invoices created yet.</h2>
              <p className="text-muted-foreground max-w-sm mb-6">Create your first professional invoice for a customer sale or repair.</p>
-             <Button onClick={() => setDialogOpen(true)} className="rounded-xl shadow-lg shadow-cyan-500/20 bg-cyan-500 hover:bg-cyan-600 text-white">Create Invoice</Button>
-        </div>
-      ) : (
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {paged.map((inv) => {
-              const linkedCount = invoiceRepairLinks.filter((l) => l.invoice_id === inv.id).length;
-              return (
-                <div key={inv.id} className="bento-card p-6 flex flex-col justify-between group">
-                  <div>
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="bg-foreground/5 p-3 rounded-2xl group-hover:bg-cyan-500/10 transition-colors shrink-0">
-                        <FileText className="h-5 w-5 text-foreground/70 group-hover:text-cyan-500 transition-colors" />
+             {hasEdit && (
+               <Button onClick={() => setDialogOpen(true)} className="rounded-xl shadow-lg shadow-cyan-500/20 bg-cyan-500 hover:bg-cyan-600 text-white">Create Invoice</Button>
+             )}
+          </div>
+        ) : (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {paged.map((inv) => {
+                const linkedCount = invoiceRepairLinks.filter((l) => l.invoice_id === inv.id).length;
+                return (
+                  <div key={inv.id} className="bento-card p-6 flex flex-col justify-between group">
+                    <div>
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="bg-foreground/5 p-3 rounded-2xl group-hover:bg-cyan-500/10 transition-colors shrink-0">
+                          <FileText className="h-5 w-5 text-foreground/70 group-hover:text-cyan-500 transition-colors" />
+                        </div>
+                        <span className={`inline-flex items-center px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider border ${
+                            inv.status === "paid" ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" : "bg-amber-500/10 text-amber-500 border-amber-500/20"
+                          }`}>
+                          {inv.status}
+                        </span>
                       </div>
-                      <span className={`inline-flex items-center px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider border ${
-                          inv.status === "paid" ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" : "bg-amber-500/10 text-amber-500 border-amber-500/20"
-                        }`}>
-                        {inv.status}
-                      </span>
-                    </div>
-                    
-                    <h3 className="font-bold text-lg text-foreground group-hover:text-cyan-500 transition-colors truncate">
-                      {inv.invoice_number}
-                    </h3>
-                    
-                    <div className="mt-2 space-y-1">
-                      <p className="text-sm font-medium text-muted-foreground truncate">{customerMap[inv.customer_id]?.name || "Unknown Customer"}</p>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-foreground/60 capitalize bg-foreground/5 px-2 py-1 rounded-lg">{inv.invoice_type}</span>
-                        {linkedCount > 0 && <span className="text-xs text-foreground/60 bg-foreground/5 px-2 py-1 rounded-lg">{linkedCount} repair(s)</span>}
+                      
+                      <h3 className="font-bold text-lg text-foreground group-hover:text-cyan-500 transition-colors truncate">
+                        {inv.invoice_number}
+                      </h3>
+                      
+                      <div className="mt-2 space-y-1">
+                        <p className="text-sm font-medium text-muted-foreground truncate">{customerMap[inv.customer_id]?.name || "Unknown Customer"}</p>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-foreground/60 capitalize bg-foreground/5 px-2 py-1 rounded-lg">{inv.invoice_type}</span>
+                          {linkedCount > 0 && <span className="text-xs text-foreground/60 bg-foreground/5 px-2 py-1 rounded-lg">{linkedCount} repair(s)</span>}
+                        </div>
+                      </div>
+                      
+                      <div className="mt-4">
+                        <p className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">
+                          ₦{Number(inv.total).toLocaleString()}
+                        </p>
                       </div>
                     </div>
-                    
-                    <div className="mt-4">
-                      <p className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">
-                        ₦{Number(inv.total).toLocaleString()}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-2 mt-6 pt-4 border-t border-white/5 justify-end">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm" className="h-8 rounded-lg hover:bg-cyan-500/10 hover:text-cyan-500 text-muted-foreground transition-all">
-                          <Printer className="h-3.5 w-3.5 mr-1.5" /> Print
-                        </Button>
+  
+                    <div className="flex gap-2 mt-6 pt-4 border-t border-white/5 justify-end">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm" className="h-8 rounded-lg hover:bg-cyan-500/10 hover:text-cyan-500 text-muted-foreground transition-all">
+                            <Printer className="h-3.5 w-3.5 mr-1.5" /> Print
+                          </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent className="rounded-xl glass-panel p-2 shadow-2xl border-white/10" align="end">
                         <DropdownMenuItem onClick={() => printInvoice(inv)} className="rounded-lg cursor-pointer gap-2">

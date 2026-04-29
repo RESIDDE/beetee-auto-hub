@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { CheckCircle } from "lucide-react";
+import { logAction } from "@/lib/logger";
 
 export default function SignInspection() {
   const { id } = useParams<{ id: string }>();
@@ -21,6 +22,7 @@ export default function SignInspection() {
     if (error) {
       toast.error("Failed to save signature");
     } else {
+      await logAction("SIGNATURE", "Inspection", id, { type: "Inspection Report Confirmation" });
       setSubmitted(true);
     }
   };

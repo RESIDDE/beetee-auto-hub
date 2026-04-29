@@ -17,6 +17,7 @@ import { PrintFooter } from "@/components/PrintFooter";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissions } from "@/hooks/usePermissions";
 import { canEdit } from "@/lib/permissions";
+import { logAction } from "@/lib/logger";
 
 type ATS = {
   id: string;
@@ -60,11 +61,13 @@ const EMPTY_FORM = {
 };
 
 export default function AuthorityToSell() {
-  const [activeTab, setActiveTab] = useState("create");
+  const { user, role } = useAuth();
+  const { permissions } = usePermissions();
+  const hasEdit = canEdit(role, "authority-to-sell", permissions);
+
+  const [activeTab, setActiveTab] = useState(hasEdit ? "create" : "history");
   const [mode, setMode] = useState<"edit" | "preview">("edit");
   const documentRef = useRef<HTMLDivElement>(null);
-  const { user, role } = useAuth();
-  const hasEdit = canEdit(role, "authority-to-sell", permissions);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm, clearDraft] = useFormPersistence("ats", { ...EMPTY_FORM, signature: "", repSignature: "" }, !!editingId, editingId || undefined);
@@ -77,6 +80,10 @@ export default function AuthorityToSell() {
   };
 
   const handlePrint = () => {
+    logAction("PRINT", "Authority to Sell", editingId ?? undefined, {
+      customer: form.customerName,
+      vehicle: `${form.vehicleMake} ${form.vehicleYearModel}`.trim(),
+    });
     window.print();
   };
 
@@ -103,6 +110,11 @@ export default function AuthorityToSell() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["ats-history"] });
+      logAction(editingId ? "UPDATE" : "CREATE", "Authority to Sell", editingId ?? undefined, {
+        customer: form.customerName,
+        vehicle: `${form.vehicleMake} ${form.vehicleYearModel}`.trim(),
+        chassis: form.vehicleChassis,
+      });
       toast.success("Document saved to history");
       clearDraft();
     },
@@ -120,7 +132,12 @@ export default function AuthorityToSell() {
         .eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_data, id) => {
+      const deleted = history.find((h) => h.id === id);
+      logAction("DELETE", "Authority to Sell", id, {
+        customer: deleted?.customer_name,
+        vehicle: `${deleted?.vehicle_make ?? ""} ${deleted?.vehicle_year_model ?? ""}`.trim(),
+      });
       queryClient.invalidateQueries({ queryKey: ["ats-history"] });
       toast.success("Record deleted");
     },
@@ -433,9 +450,11 @@ export default function AuthorityToSell() {
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="bg-card/40 border border-white/5 p-1 rounded-2xl">
-          <TabsTrigger value="create" className="rounded-xl px-6 font-semibold data-[state=active]:bg-sky-500 data-[state=active]:text-white transition-all">
-            <PlusCircle className="w-4 h-4 mr-2" /> Create Document
-          </TabsTrigger>
+          {hasEdit && (
+            <TabsTrigger value="create" className="rounded-xl px-6 font-semibold data-[state=active]:bg-sky-500 data-[state=active]:text-white transition-all">
+              <PlusCircle className="w-4 h-4 mr-2" /> Create Document
+            </TabsTrigger>
+          )}
           <TabsTrigger value="history" className="rounded-xl px-6 font-semibold data-[state=active]:bg-sky-500 data-[state=active]:text-white transition-all">
             <History className="w-4 h-4 mr-2" /> Agreement History
           </TabsTrigger>

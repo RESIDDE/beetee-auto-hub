@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppLayout } from "@/components/AppLayout";
 import { RoleGuard } from "@/components/RoleGuard";
 import { useAuth } from "@/hooks/useAuth";
+import { PermissionsRealtimeSync } from "@/hooks/usePermissions";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Settings from "./pages/Settings";
@@ -116,6 +117,8 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
+        {/* Single global Realtime listener — must be inside QueryClientProvider */}
+        <PermissionsRealtimeSync />
         <AppRoutes />
       </BrowserRouter>
     </TooltipProvider>

@@ -366,8 +366,10 @@ export default function PerformanceQuotes() {
         } else {
           toast.error("Customer email not found.", { id: "quote-dl" });
         }
+        logAction("EXPORT", "Proforma Quote", quote.id, { customer: quote.customers?.name, format: "PDF", method: "Email" });
       } else {
         pdf.save(`${filename}.pdf`);
+        logAction("EXPORT", "Proforma Quote", quote.id, { customer: quote.customers?.name, format: "PDF", method: "Download" });
         toast.success("Quote downloaded!", { id: "quote-dl" });
       }
     } catch (error) {
@@ -378,6 +380,7 @@ export default function PerformanceQuotes() {
 
   const handlePrint = (quote: any) => {
     toast.info("Preparing quote document...");
+    logAction("PRINT", "Proforma Quote", quote.id, { customer: quote.customers?.name });
     const html = `<html><head><title>Proforma Quote - ${quote.id.slice(0,8).toUpperCase()}</title>
     <style>
       @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap');
@@ -558,11 +561,13 @@ export default function PerformanceQuotes() {
             Create and manage multi-vehicle proforma quotes with dynamic duty pricing.
           </p>
         </div>
-        <div className="flex gap-2 shrink-0">
-          <Button asChild size="lg" onClick={() => setDialogOpen(true)} className="rounded-2xl shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all bg-emerald-500 hover:bg-emerald-600 cursor-pointer">
-            <div><PlusCircle className="mr-2 h-5 w-5" /> New Quote</div>
-          </Button>
-        </div>
+        {hasEdit && (
+          <div className="flex gap-2 shrink-0">
+            <Button size="lg" onClick={() => setDialogOpen(true)} className="rounded-2xl shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all bg-emerald-500 hover:bg-emerald-600 cursor-pointer">
+              <PlusCircle className="mr-2 h-5 w-5" /> New Quote
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Dashboard Metrics */}

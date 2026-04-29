@@ -27,6 +27,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissions } from "@/hooks/usePermissions";
 import { canEdit } from "@/lib/permissions";
+import { logAction } from "@/lib/logger";
 import { CustomerSelect } from "@/components/CustomerSelect";
 
 const statuses = ["Open", "In Progress", "Closed"];
@@ -151,6 +152,20 @@ export default function Inquiries() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["inquiries"] });
       queryClient.invalidateQueries({ queryKey: ["customers"] });
+      const customerLabel = form.is_new_customer
+        ? form.manual_customer_name
+        : (customers as any[]).find((c) => c.id === form.customer_id)?.name ?? "";
+      const vehicleLabel = form.vehicle_id
+        ? (vehicles as any[]).find((v) => v.id === form.vehicle_id)
+          ? `${(vehicles as any[]).find((v) => v.id === form.vehicle_id)?.year} ${(vehicles as any[]).find((v) => v.id === form.vehicle_id)?.make} ${(vehicles as any[]).find((v) => v.id === form.vehicle_id)?.model}`
+          : ""
+        : `${form.manual_vehicle_year} ${form.manual_vehicle_make} ${form.manual_vehicle_model}`.trim();
+      logAction(editId ? "UPDATE" : "CREATE", "Inquiry", editId ?? undefined, {
+        customer: customerLabel,
+        vehicle: vehicleLabel,
+        status: form.status,
+        message_preview: form.message.slice(0, 80),
+      });
       toast.success(editId ? "Inquiry updated" : "Inquiry added");
       clearDraft();
       setForm(emptyForm);
@@ -168,7 +183,12 @@ export default function Inquiries() {
       const { error } = await supabase.from("inquiries").delete().eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_data, id) => {
+      const deleted = (inquiries as any[]).find((i) => i.id === id);
+      const customerLabel = deleted?.customer_id
+        ? customerMap[deleted.customer_id] ?? ""
+        : deleted?.manual_customer_name ?? "";
+      logAction("DELETE", "Inquiry", id, { customer: customerLabel, message_preview: deleted?.message?.slice(0, 80) });
       queryClient.invalidateQueries({ queryKey: ["inquiries"] });
       toast.success("Inquiry deleted");
     },
@@ -213,9 +233,11 @@ export default function Inquiries() {
           </p>
         </div>
         <div className="shrink-0">
-          <Button onClick={() => { setEditId(null); setDialogOpen(true); }} size="lg" className="rounded-2xl shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all bg-indigo-500 hover:bg-indigo-600 text-white">
-            <PlusCircle className="mr-2 h-5 w-5" /> Add Inquiry
-          </Button>
+          {hasEdit && (
+            <Button onClick={() => { setEditId(null); setDialogOpen(true); }} size="lg" className="rounded-2xl shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all bg-indigo-500 hover:bg-indigo-600 text-white">
+              <PlusCircle className="mr-2 h-5 w-5" /> Add Inquiry
+            </Button>
+          )}
         </div>
       </div>
 
@@ -245,7 +267,9 @@ export default function Inquiries() {
           </div>
           <h2 className="text-xl font-bold mb-2">No inquiries yet.</h2>
           <p className="text-muted-foreground max-w-sm mb-6">There are currently no active messages from customers.</p>
-          <Button onClick={() => { setForm(emptyForm); setEditId(null); setDialogOpen(true); }} className="rounded-xl shadow-lg shadow-indigo-500/20 bg-indigo-500 hover:bg-indigo-600 text-white">Add Inquiry</Button>
+          {hasEdit && (
+            <Button onClick={() => { setForm(emptyForm); setEditId(null); setDialogOpen(true); }} className="rounded-xl shadow-lg shadow-indigo-500/20 bg-indigo-500 hover:bg-indigo-600 text-white">Add Inquiry</Button>
+          )}
         </div>
       ) : (
         <div className="space-y-6">

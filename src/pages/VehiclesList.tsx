@@ -144,6 +144,7 @@ export default function VehiclesList() {
       Price: v.price, "Cost Price": v.cost_price || "", Status: v.status, Condition: v.condition || "",
       "Source Company": v.source_company || "", "Date Arrived": v.date_arrived || "",
     }));
+    logAction("EXPORT", "Vehicle", "bulk", { format: "Excel", count: rows.length });
     exportToExcel(rows, "beetee_vehicles_export");
   };
 
@@ -153,6 +154,7 @@ export default function VehiclesList() {
       Price: v.price, Status: v.status, Condition: v.condition || "",
       Source: v.source_company || "", Date: v.date_arrived || "",
     }));
+    logAction("EXPORT", "Vehicle", "bulk", { format: "CSV", count: rows.length });
     exportToCSV(rows, "beetee_vehicles_export");
   };
 
@@ -164,6 +166,7 @@ export default function VehiclesList() {
       status: v.status, 
       condition: v.condition || "—",
     }));
+    logAction("EXPORT", "Vehicle", "bulk", { format: "PDF", count: rows.length });
     exportToPDF("Beetee Vehicles Inventory", rows, [
       { key: "vehicle", label: "Vehicle Description" }, 
       { key: "vin", label: "VIN/Chassis" },
@@ -173,13 +176,17 @@ export default function VehiclesList() {
     ]);
   };
 
-  const handleExportJSON = () => exportToJSON(filtered, "vehicles_export");
+  const handleExportJSON = () => {
+    logAction("EXPORT", "Vehicle", "bulk", { format: "JSON", count: filtered.length });
+    exportToJSON(filtered, "vehicles_export");
+  };
 
   const handlePrint = () => {
     const rows = filtered.map((v) => ({
       vehicle: `${v.year} ${v.make} ${v.model}`, vin: v.vin || "—", price: `₦${Number(v.price).toLocaleString()}`,
       status: v.status, condition: v.condition || "—",
     }));
+    logAction("PRINT", "Vehicle List", "bulk", { count: filtered.length });
     printTable("Beetee Vehicles Inventory — Beetee Autos", rows, [
       { key: "vehicle", label: "Vehicle" }, { key: "vin", label: "VIN" },
       { key: "price", label: "Price" }, { key: "status", label: "Status" }, { key: "condition", label: "Condition" },
@@ -226,11 +233,13 @@ export default function VehiclesList() {
               <DropdownMenuItem onClick={handlePrint} className="rounded-lg cursor-pointer text-primary font-bold"><Printer className="mr-2 h-4 w-4" /> Print View</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button asChild size="sm" className="rounded-xl shadow-lg shadow-sky-500/25 hover:shadow-sky-500/40 transition-all bg-sky-500 hover:bg-sky-600 text-xs">
-            <Link to="/vehicles/new">
-              <PlusCircle className="mr-1.5 h-4 w-4" /> Add Vehicle
-            </Link>
-          </Button>
+          {hasEdit && (
+            <Button asChild size="sm" className="rounded-xl shadow-lg shadow-sky-500/25 hover:shadow-sky-500/40 transition-all bg-sky-500 hover:bg-sky-600 text-xs">
+              <Link to="/vehicles/new">
+                <PlusCircle className="mr-1.5 h-4 w-4" /> Add Vehicle
+              </Link>
+            </Button>
+          )}
         </div>
       </div>
 

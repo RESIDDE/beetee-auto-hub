@@ -44,10 +44,18 @@ const ACTION_COLORS: Record<string, string> = {
   UPDATE: "bg-blue-500/10 text-blue-500",
   DELETE: "bg-rose-500/10 text-rose-500",
   LOGIN:  "bg-amber-500/10 text-amber-500",
+  LOGOUT: "bg-slate-500/10 text-slate-500",
   SIGNUP: "bg-amber-500/10 text-amber-500",
   INVITE: "bg-violet-500/10 text-violet-500",
   ROLE_CHANGE: "bg-sky-500/10 text-sky-500",
   EXPORT: "bg-indigo-500/10 text-indigo-500",
+  PRINT:  "bg-cyan-500/10 text-cyan-500",
+  VIEW:   "bg-gray-500/10 text-gray-500",
+  SEARCH: "bg-zinc-500/10 text-zinc-500",
+  STATUS_CHANGE: "bg-orange-500/10 text-orange-500",
+  PERMISSION_CHANGE: "bg-fuchsia-500/10 text-fuchsia-500",
+  PAYMENT: "bg-lime-500/10 text-lime-500",
+  SIGNATURE: "bg-teal-500/10 text-teal-500",
 };
 
 // A secondary, isolated Supabase client for creating new users.
@@ -306,6 +314,7 @@ export default function Settings() {
   const savePerms = async () => {
     try {
       await savePermsToSupabase(permissions);
+      logAction("PERMISSION_CHANGE", "app_settings", "permissions", { type: "save", permissions });
       setPermDirty(false);
       setLocalPermissions(null);
       toast.success("✅ Permissions saved — all users will see changes on next navigation.");
@@ -317,6 +326,7 @@ export default function Settings() {
   const resetPerms = async () => {
     try {
       await savePermsToSupabase({ ...DEFAULT_PERMISSIONS });
+      logAction("PERMISSION_CHANGE", "app_settings", "permissions", { type: "reset" });
       setLocalPermissions(null);
       setPermDirty(false);
       toast.success("Permissions reset to defaults");

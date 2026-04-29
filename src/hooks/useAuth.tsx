@@ -1,6 +1,7 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState, useRef } from "react";
 import { User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { logAction } from "@/lib/logger";
 
 type AuthState = {
   user: User | null;
@@ -23,6 +24,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     role: null,
     isLoading: true,
   });
+  const userIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -30,6 +32,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const setUserAndLoadExtras = (user: User) => {
       if (mounted) {
         setState((prev) => ({ ...prev, user }));
+        userIdRef.current = user.id;
       }
 
       Promise.all([
@@ -65,6 +68,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
 
       if (session?.user) {
+        userIdRef.current = session.user.id;
         setUserAndLoadExtras(session.user);
       } else {
         setState({ user: null, profile: null, role: null, isLoading: false });
@@ -78,8 +82,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (event === "INITIAL_SESSION") return;
 
       if (session?.user) {
+        if (event === "SIGNED_IN") {
+          logAction("LOGIN", "Auth", session.user.id);
+        }
+        userIdRef.current = session.user.id;
         setUserAndLoadExtras(session.user);
       } else {
+        if (event === "SIGNED_OUT") {
+          // Use ref to log who actually logged out before state was cleared
+          logAction("LOGOUT", "Auth", null, {}, userIdRef.current || undefined);
+          userIdRef.current = null;
+        }
         setState({ user: null, profile: null, role: null, isLoading: false });
       }
     });

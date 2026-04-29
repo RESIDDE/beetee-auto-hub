@@ -138,9 +138,11 @@ export default function Customers() {
           </p>
         </div>
         <div className="shrink-0">
-          <Button onClick={() => { setEditId(null); setDialogOpen(true); }} size="lg" className="rounded-2xl shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all bg-emerald-500 hover:bg-emerald-600 text-white">
-            <PlusCircle className="mr-2 h-5 w-5" /> Add Customer
-          </Button>
+          {hasEdit && (
+            <Button onClick={() => { setEditId(null); setDialogOpen(true); }} size="lg" className="rounded-2xl shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all bg-emerald-500 hover:bg-emerald-600 text-white">
+              <PlusCircle className="mr-2 h-5 w-5" /> Add Customer
+            </Button>
+          )}
         </div>
       </div>
 
@@ -169,54 +171,56 @@ export default function Customers() {
           </div>
           <h2 className="text-xl font-bold mb-2">No customers yet.</h2>
           <p className="text-muted-foreground max-w-sm mb-6">Start building your client database by adding your first customer.</p>
-          <Button onClick={() => { setForm(emptyForm); setEditId(null); setDialogOpen(true); }} className="rounded-xl shadow-lg shadow-emerald-500/20 bg-emerald-500 hover:bg-emerald-600 text-white">Add Customer</Button>
+          {hasEdit && (
+            <Button onClick={() => { setForm(emptyForm); setEditId(null); setDialogOpen(true); }} className="rounded-xl shadow-lg shadow-emerald-500/20 bg-emerald-500 hover:bg-emerald-600 text-white">Add Customer</Button>
+          )}
         </div>
-      ) : (
-        <div className="space-y-6">
-          <div className="max-h-[65vh] overflow-y-auto pr-2 custom-scrollbar transition-all">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pb-4">
-            {paged.map((c) => (
-              <div key={c.id} className="bento-card p-6 flex flex-col justify-between group">
-                <div>
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="bg-foreground/5 p-3 rounded-2xl group-hover:bg-emerald-500/10 transition-colors">
-                      <Users className="h-5 w-5 text-foreground/70 group-hover:text-emerald-500 transition-colors" />
+        ) : (
+          <div className="space-y-6">
+            <div className="max-h-[65vh] overflow-y-auto pr-2 custom-scrollbar transition-all">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pb-4">
+              {paged.map((c) => (
+                <div key={c.id} className="bento-card p-6 flex flex-col justify-between group">
+                  <div>
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="bg-foreground/5 p-3 rounded-2xl group-hover:bg-emerald-500/10 transition-colors">
+                        <Users className="h-5 w-5 text-foreground/70 group-hover:text-emerald-500 transition-colors" />
+                      </div>
+                      {c.signature_data && (
+                         <span className="inline-flex items-center px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                           Signed
+                         </span>
+                      )}
                     </div>
-                    {c.signature_data && (
-                       <span className="inline-flex items-center px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
-                         Signed
-                       </span>
-                    )}
+                    
+                    <h3 className="font-bold text-lg text-foreground group-hover:text-emerald-500 transition-colors">{c.name}</h3>
+                    
+                    <div className="mt-4 space-y-2">
+                      {c.phone && (
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                           <Phone className="h-3.5 w-3.5 opacity-70" /> {c.phone}
+                        </div>
+                      )}
+                      {c.email && (
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground truncate" title={c.email}>
+                           <Mail className="h-3.5 w-3.5 opacity-70" /> {c.email}
+                        </div>
+                      )}
+                      {c.address && (
+                        <div className="flex items-start gap-2 text-sm text-muted-foreground">
+                           <MapPin className="h-3.5 w-3.5 opacity-70 shrink-0 mt-0.5" /> 
+                           <span className="line-clamp-2" title={c.address}>{c.address}</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  
-                  <h3 className="font-bold text-lg text-foreground group-hover:text-emerald-500 transition-colors">{c.name}</h3>
-                  
-                  <div className="mt-4 space-y-2">
-                    {c.phone && (
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                         <Phone className="h-3.5 w-3.5 opacity-70" /> {c.phone}
-                      </div>
-                    )}
-                    {c.email && (
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground truncate" title={c.email}>
-                         <Mail className="h-3.5 w-3.5 opacity-70" /> {c.email}
-                      </div>
-                    )}
-                    {c.address && (
-                      <div className="flex items-start gap-2 text-sm text-muted-foreground">
-                         <MapPin className="h-3.5 w-3.5 opacity-70 shrink-0 mt-0.5" /> 
-                         <span className="line-clamp-2" title={c.address}>{c.address}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex gap-2 mt-6 pt-4 border-t border-white/5 justify-end">
-                  {hasEdit && (
-                    <>
-                      <Button variant="ghost" size="sm" className="h-8 rounded-lg hover:bg-foreground/10 hover:text-foreground text-muted-foreground transition-all" onClick={() => openEdit(c)}>
-                        <Pencil className="h-3.5 w-3.5 mr-1.5" /> Edit
-                      </Button>
+  
+                  <div className="flex gap-2 mt-6 pt-4 border-t border-white/5 justify-end">
+                    {hasEdit && (
+                      <>
+                        <Button variant="ghost" size="sm" className="h-8 rounded-lg hover:bg-foreground/10 hover:text-foreground text-muted-foreground transition-all" onClick={() => openEdit(c)}>
+                          <Pencil className="h-3.5 w-3.5 mr-1.5" /> Edit
+                        </Button>
                       <Button variant="ghost" size="sm" className="h-8 rounded-lg hover:bg-emerald-500/10 hover:text-emerald-500 text-muted-foreground transition-all" onClick={() => setQrId(c.id)}>
                         <QrCode className="h-3.5 w-3.5 mr-1.5" /> QR Sign
                       </Button>

@@ -9,6 +9,9 @@ import {
   FileSignature, FileText, Building2, Printer, Download, ListFilter
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
+import { usePermissions } from "@/hooks/usePermissions";
+import { canEdit } from "@/lib/permissions";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, CartesianGrid, AreaChart, Area
@@ -45,6 +48,9 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 export default function Dashboard() {
+  const { role } = useAuth();
+  const { permissions } = usePermissions();
+  const hasVehicleEdit = canEdit(role, "vehicles", permissions);
   const [search, setSearch] = useState("");
   const [companySearch, setCompanySearch] = useState("");
   const [greeting, setGreeting] = useState("Welcome back");
@@ -237,9 +243,11 @@ export default function Dashboard() {
             Here's what's happening with your dealership today. Review your latest insights and performance tracking below.
           </p>
         </div>
-        <Button asChild size="lg" className="rounded-2xl shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all group shrink-0">
-          <Link to="/vehicles/new"><PlusCircle className="mr-2 h-5 w-5 group-hover:rotate-90 transition-transform duration-300" /> Add Vehicle</Link>
-        </Button>
+        {hasVehicleEdit && (
+          <Button asChild size="lg" className="rounded-2xl shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all group shrink-0">
+            <Link to="/vehicles/new"><PlusCircle className="mr-2 h-5 w-5 group-hover:rotate-90 transition-transform duration-300" /> Add Vehicle</Link>
+          </Button>
+        )}
       </div>
 
       {(loadingV || loadingS || loadingR) ? (

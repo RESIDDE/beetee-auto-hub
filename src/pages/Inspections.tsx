@@ -24,6 +24,7 @@ import { format } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissions } from "@/hooks/usePermissions";
 import { canEdit } from "@/lib/permissions";
+import { logAction } from "@/lib/logger";
 
 type Inspection = {
   id: string;
@@ -118,6 +119,14 @@ export default function Inspections() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["inspections"] });
+      const veh = (vehicles as any[]).find((v) => v.id === form.vehicle_id);
+      const vehicleLabel = veh ? `${veh.year} ${veh.make} ${veh.model}` : form.vehicle_id;
+      logAction(editId ? "UPDATE" : "CREATE", "Inspection", editId ?? undefined, {
+        vehicle: vehicleLabel,
+        inspector: form.inspector_name,
+        pickup_date: form.pickup_date,
+        returned_ok: form.returned_in_good_condition,
+      });
       toast.success(editId ? "Inspection updated" : "Inspection added");
       clearDraft();
       setForm(emptyForm);
@@ -132,7 +141,12 @@ export default function Inspections() {
       const { error } = await supabase.from("inspections").delete().eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_data, id) => {
+      const deleted = (inspections as any[]).find((i) => i.id === id);
+      const vehicleLabel = deleted?.vehicles
+        ? `${deleted.vehicles.year} ${deleted.vehicles.make} ${deleted.vehicles.model}`
+        : id;
+      logAction("DELETE", "Inspection", id, { vehicle: vehicleLabel, inspector: deleted?.inspector_name });
       queryClient.invalidateQueries({ queryKey: ["inspections"] });
       toast.success("Inspection deleted");
     },
@@ -173,9 +187,11 @@ export default function Inspections() {
           </p>
         </div>
         <div className="shrink-0">
-          <Button onClick={() => setOpen(true)} size="lg" className="rounded-2xl shadow-lg shadow-rose-500/25 hover:shadow-rose-500/40 transition-all bg-rose-500 hover:bg-rose-600 text-white">
-            <PlusCircle className="mr-2 h-5 w-5" /> Add Log
-          </Button>
+          {hasEdit && (
+            <Button onClick={() => setOpen(true)} size="lg" className="rounded-2xl shadow-lg shadow-rose-500/25 hover:shadow-rose-500/40 transition-all bg-rose-500 hover:bg-rose-600 text-white">
+              <PlusCircle className="mr-2 h-5 w-5" /> Add Log
+            </Button>
+          )}
         </div>
       </div>
 
@@ -204,7 +220,9 @@ export default function Inspections() {
              </div>
              <h2 className="text-xl font-bold mb-2">No inspections recorded yet.</h2>
              <p className="text-muted-foreground max-w-sm mb-6">You will see pickup and return reports here once created.</p>
-             <Button onClick={() => setOpen(true)} className="rounded-xl shadow-lg shadow-rose-500/20 bg-rose-500 hover:bg-rose-600 text-white">Record Inspection</Button>
+             {hasEdit && (
+               <Button onClick={() => setOpen(true)} className="rounded-xl shadow-lg shadow-rose-500/20 bg-rose-500 hover:bg-rose-600 text-white">Record Inspection</Button>
+             )}
         </div>
       ) : (
         <div className="space-y-6">
