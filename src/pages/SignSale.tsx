@@ -219,7 +219,9 @@ export default function SignSale() {
              {/* Signature Pad */}
              <div className="p-8 space-y-6">
                 <div className="space-y-4">
-                  <SignaturePad value={signature} onChange={setSignature} />
+                  <div className="rounded-2xl overflow-hidden border border-white/10 bg-background/50 group hover:border-violet-500/30 transition-colors">
+                    <SignaturePad value={signature} onChange={setSignature} />
+                  </div>
                   <p className="text-[10px] text-center text-muted-foreground uppercase tracking-widest font-bold opacity-50">Buyer Digital Signature</p>
                 </div>
 
