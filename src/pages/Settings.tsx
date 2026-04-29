@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useFormPersistence } from "@/hooks/useFormPersistence";
 import { supabase } from "@/integrations/supabase/client";
@@ -22,7 +23,7 @@ import { toast } from "sonner";
 import {
   Shield, ShieldCheck, User, Users, Settings2,
   ToggleLeft, Eye, Pencil, RotateCcw, Crown, Lock, Activity,
-  UserPlus, ArrowRightLeft, AlertTriangle, Trash2,
+  UserPlus, ArrowRightLeft, AlertTriangle, Trash2, ArrowLeft,
 } from "lucide-react";
 import {
   ALL_PAGES, DEFAULT_PERMISSIONS, type AppRole, type PageKey, type PermissionsMap,
@@ -67,6 +68,7 @@ const anonClient = createClient(
 );
 
 export default function Settings() {
+  const navigate = useNavigate();
   const { role, user } = useAuth();
   const queryClient = useQueryClient();
   const [tab, setTab] = useState<Tab>("team");
@@ -342,7 +344,11 @@ export default function Settings() {
     <div className="space-y-8 animate-fade-up max-w-5xl mx-auto pb-10">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <div>
+        <div className="flex items-start gap-3">
+          <Button type="button" variant="ghost" size="icon" onClick={() => navigate(-1)} className="sm:hidden mt-1 h-8 w-8 rounded-full shrink-0 bg-white/5 hover:bg-white/10">
+            <ArrowLeft className="w-4 h-4" />
+          </Button>
+          <div>
           <div className="flex items-center gap-2 mb-1 opacity-80">
             <Crown className="w-4 h-4 text-amber-400" />
             <span className="text-sm font-medium uppercase tracking-wider text-amber-400">Super Admin</span>
@@ -353,6 +359,7 @@ export default function Settings() {
           <p className="text-base text-muted-foreground mt-2 max-w-xl">
             Manage your team's roles, configure page access, invite users, and monitor system activity.
           </p>
+          </div>
         </div>
 
         <div className="flex flex-col gap-2 shrink-0">

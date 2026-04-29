@@ -29,7 +29,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { PlusCircle, FileText, Printer, Trash2, Receipt, Search, Mail } from "lucide-react";
+import { PlusCircle, FileText, Printer, Trash2, Receipt, Search, Mail, ArrowLeft } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissions } from "@/hooks/usePermissions";
 import { canEdit } from "@/lib/permissions";
@@ -624,8 +624,16 @@ export default function Invoices() {
       {/* Create Invoice Dialog */}
       <Dialog open={dialogOpen} onOpenChange={(v) => { if (!v) closeDialog(); }}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto rounded-3xl glass-panel shadow-2xl border-white/10 p-0 bg-background/95 backdrop-blur-3xl">
-          <div className="p-6 border-b border-white/5 bg-foreground/5 pointer-events-none">
-            <DialogHeader><DialogTitle className="text-xl font-bold">Generate New Invoice</DialogTitle></DialogHeader>
+          <div className="p-4 sm:p-6 border-b border-white/5 bg-foreground/5 sticky top-0 z-50 backdrop-blur-md flex items-center gap-3">
+             <Button variant="ghost" size="icon" onClick={closeDialog} className="sm:hidden h-8 w-8 rounded-full shrink-0">
+               <ArrowLeft className="w-4 h-4" />
+             </Button>
+            <DialogHeader className="text-left">
+              <DialogTitle className="text-xl font-bold flex items-center gap-2">
+                <FileText className="w-5 h-5 text-cyan-500" />
+                Generate New Invoice
+              </DialogTitle>
+            </DialogHeader>
           </div>
           <div className="p-6 space-y-5">
             <div className="space-y-2">

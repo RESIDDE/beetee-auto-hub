@@ -20,10 +20,10 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { Card, CardContent } from "@/components/ui/card";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { 
   PlusCircle, Search, Eye, Pencil, Trash2, Download, FileText, Printer, 
-  Car, ListFilter, BarChart as BarChartIcon, Clock, Package, ShieldCheck, AlertTriangle, PieChart as PieChartIcon, ChevronRight
+  Car, ListFilter, BarChart as BarChartIcon, Clock, Package, ShieldCheck, AlertTriangle, PieChart as PieChartIcon, ChevronRight, ArrowLeft
 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -58,6 +58,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 const PAGE_SIZE = 20;
 
 export default function ResaleVehicles() {
+  const navigate = useNavigate();
   const { role } = useAuth();
   const { permissions } = usePermissions();
   const hasEdit = canEdit(role, "vehicles", permissions);
@@ -192,17 +193,22 @@ export default function ResaleVehicles() {
     <div className="space-y-8 animate-fade-up pb-10 max-w-6xl mx-auto">
       {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 mb-1 opacity-80">
-            <Car className="w-4 h-4 text-emerald-500" />
-            <span className="text-sm font-medium uppercase tracking-wider text-emerald-500">Fleet Management</span>
-          </div>
+        <div className="flex items-start gap-3">
+          <Button type="button" variant="ghost" size="icon" onClick={() => navigate(-1)} className="sm:hidden mt-1 h-8 w-8 rounded-full shrink-0 bg-white/5 hover:bg-white/10">
+            <ArrowLeft className="w-4 h-4" />
+          </Button>
+          <div>
+            <div className="flex items-center gap-2 mb-1 opacity-80">
+              <Car className="w-4 h-4 text-emerald-500" />
+              <span className="text-sm font-medium uppercase tracking-wider text-emerald-500">Fleet Management</span>
+            </div>
           <h1 className="text-4xl md:text-5xl font-heading font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-foreground via-foreground to-foreground/70 tracking-tight">
             Resale Vehicles <span className="text-[10px] opacity-30 font-mono">v2.1</span>
           </h1>
           <p className="text-base text-muted-foreground mt-2 max-w-xl">
             Manage your resale inventory cars.
           </p>
+          </div>
         </div>
         <div className="flex flex-row flex-wrap gap-2 shrink-0">
           <Button 

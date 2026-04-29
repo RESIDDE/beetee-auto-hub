@@ -21,7 +21,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { PlusCircle, Pencil, Trash2, MessageSquare, Car, Users, Search } from "lucide-react";
+import { PlusCircle, Pencil, Trash2, MessageSquare, Car, Users, Search, ArrowLeft } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
@@ -424,9 +424,15 @@ export default function Inquiries() {
 
       <Dialog open={dialogOpen} onOpenChange={(open) => { if (!open) closeDialog(); }}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto rounded-3xl glass-panel shadow-2xl border-white/10 p-0 bg-background/95 backdrop-blur-3xl">
-          <div className="p-6 border-b border-white/5 bg-foreground/5 pointer-events-none">
-            <DialogHeader>
-              <DialogTitle className="text-xl font-bold">{editId ? "Edit Inquiry Details" : "Log New Inquiry"}</DialogTitle>
+          <div className="p-4 sm:p-6 border-b border-white/5 bg-foreground/5 sticky top-0 z-50 backdrop-blur-md flex items-center gap-3">
+             <Button variant="ghost" size="icon" onClick={closeDialog} className="sm:hidden h-8 w-8 rounded-full shrink-0">
+               <ArrowLeft className="w-4 h-4" />
+             </Button>
+            <DialogHeader className="text-left">
+              <DialogTitle className="text-xl font-bold flex items-center gap-2">
+                <MessageSquare className="w-5 h-5 text-indigo-500" />
+                {editId ? "Edit Inquiry Details" : "Log New Inquiry"}
+              </DialogTitle>
             </DialogHeader>
           </div>
           <div className="p-6 space-y-5">

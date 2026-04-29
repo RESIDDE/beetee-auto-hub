@@ -1,4 +1,5 @@
 import { useState, useRef, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useFormPersistence } from "@/hooks/useFormPersistence";
 import { supabase } from "@/integrations/supabase/client";
@@ -61,6 +62,7 @@ const EMPTY_FORM = {
 };
 
 export default function AuthorityToSell() {
+  const navigate = useNavigate();
   const { user, role } = useAuth();
   const { permissions } = usePermissions();
   const hasEdit = canEdit(role, "authority-to-sell", permissions);
@@ -436,15 +438,20 @@ export default function AuthorityToSell() {
     <div className="max-w-6xl mx-auto animate-fade-up pb-10 px-4 sm:px-0">
       {/* Page Header */}
       <div className="flex flex-col md:flex-row items-start justify-between gap-6 mb-8">
-        <div>
-          <div className="flex items-center gap-2 mb-2 opacity-70">
-            <FileText className="w-4 h-4 text-sky-500" />
-            <span className="text-xs font-bold uppercase tracking-widest text-sky-500">Legal Documents</span>
+        <div className="flex items-start gap-3">
+          <Button type="button" variant="ghost" size="icon" onClick={() => navigate(-1)} className="sm:hidden mt-1 h-8 w-8 rounded-full shrink-0 bg-white/5 hover:bg-white/10">
+            <ArrowLeft className="w-4 h-4" />
+          </Button>
+          <div>
+            <div className="flex items-center gap-2 mb-2 opacity-70">
+              <FileText className="w-4 h-4 text-sky-500" />
+              <span className="text-xs font-bold uppercase tracking-widest text-sky-500">Legal Documents</span>
+            </div>
+            <h1 className="text-4xl md:text-5xl font-heading font-black text-foreground tracking-tight">Authority to Sell</h1>
+            <p className="text-muted-foreground mt-2 text-base max-w-lg">
+              Create, manage, and search Bee Tee Automobile authorization agreements.
+            </p>
           </div>
-          <h1 className="text-4xl md:text-5xl font-heading font-black text-foreground tracking-tight">Authority to Sell</h1>
-          <p className="text-muted-foreground mt-2 text-base max-w-lg">
-            Create, manage, and search Bee Tee Automobile authorization agreements.
-          </p>
         </div>
       </div>
 

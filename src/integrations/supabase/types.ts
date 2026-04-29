@@ -218,6 +218,11 @@ export type Database = {
           signature_data: string | null
           updated_at: string
           vehicle_id: string
+          sent_by: string | null
+          picker_name: string | null
+          picker_phone: string | null
+          picker_date: string | null
+          picker_signature: string | null
         }
         Insert: {
           condition_at_pickup: string
@@ -231,6 +236,11 @@ export type Database = {
           signature_data?: string | null
           updated_at?: string
           vehicle_id: string
+          sent_by?: string | null
+          picker_name?: string | null
+          picker_phone?: string | null
+          picker_date?: string | null
+          picker_signature?: string | null
         }
         Update: {
           condition_at_pickup?: string
@@ -244,6 +254,11 @@ export type Database = {
           signature_data?: string | null
           updated_at?: string
           vehicle_id?: string
+          sent_by?: string | null
+          picker_name?: string | null
+          picker_phone?: string | null
+          picker_date?: string | null
+          picker_signature?: string | null
         }
         Relationships: [
           {

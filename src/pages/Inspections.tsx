@@ -19,7 +19,10 @@ import { QrSignDialog } from "@/lib/qrHelpers";
 import {
   Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious,
 } from "@/components/ui/pagination";
-import { Pencil, Trash2, PlusCircle, CheckCircle, XCircle, ClipboardCheck, Car, QrCode, Search } from "lucide-react";
+import { Pencil, Trash2, PlusCircle, CheckCircle, XCircle, ClipboardCheck, Car, QrCode, Search, ArrowLeft, Check, ChevronsUpDown, UserPlus, Phone, User, Calendar, FileSignature } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -38,6 +41,11 @@ type Inspection = {
   return_date: string | null;
   created_at: string;
   updated_at: string;
+  sent_by: string | null;
+  picker_name: string | null;
+  picker_phone: string | null;
+  picker_date: string | null;
+  picker_signature: string | null;
   vehicles?: { make: string; model: string; year: number } | null;
 };
 
@@ -50,6 +58,11 @@ const emptyForm = {
   returned_in_good_condition: false,
   return_condition_notes: "",
   return_date: "",
+  sent_by: "",
+  picker_name: "",
+  picker_phone: "",
+  picker_date: new Date().toISOString().slice(0, 16),
+  picker_signature: "",
 };
 
 export default function Inspections() {
@@ -63,6 +76,8 @@ export default function Inspections() {
   const [form, setForm, clearDraft] = useFormPersistence("inspection", emptyForm, !!editId, editId || undefined);
   const [qrId, setQrId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [vehicleSearch, setVehicleSearch] = useState("");
+  const [vehiclePopoverOpen, setVehiclePopoverOpen] = useState(false);
   const [page, setPage] = useState(0);
   const PAGE_SIZE = 9;
 
@@ -105,9 +120,11 @@ export default function Inspections() {
         condition_at_pickup: form.condition_at_pickup,
         pickup_date: form.pickup_date || new Date().toISOString(),
         signature_data: form.signature_data || null,
-        returned_in_good_condition: form.returned_in_good_condition,
-        return_condition_notes: form.returned_in_good_condition ? null : (form.return_condition_notes || null),
-        return_date: form.return_date || null,
+        sent_by: form.sent_by || null,
+        picker_name: form.picker_name || null,
+        picker_phone: form.picker_phone || null,
+        picker_date: form.picker_date || null,
+        picker_signature: form.picker_signature || null,
       };
       if (editId) {
         const { error } = await supabase.from("inspections").update(payload).eq("id", editId);
@@ -165,6 +182,11 @@ export default function Inspections() {
       returned_in_good_condition: i.returned_in_good_condition,
       return_condition_notes: i.return_condition_notes || "",
       return_date: i.return_date ? i.return_date.slice(0, 16) : "",
+      sent_by: i.sent_by || "",
+      picker_name: i.picker_name || "",
+      picker_phone: i.picker_phone || "",
+      picker_date: i.picker_date ? i.picker_date.slice(0, 16) : new Date().toISOString().slice(0, 16),
+      picker_signature: i.picker_signature || "",
     });
     setEditId(i.id);
     setOpen(true);
@@ -246,17 +268,20 @@ export default function Inspections() {
                   </h3>
                   
                   <div className="mt-4 space-y-2">
-                    <p className="text-sm font-medium text-muted-foreground">Inspector: {i.inspector_name}</p>
-                    <p className="text-sm text-foreground/60">{i.pickup_date ? format(new Date(i.pickup_date), "dd MMM yyyy") : "-"}</p>
+                    <p className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                      <User className="w-3.5 h-3.5" /> {i.inspector_name}
+                    </p>
+                    {i.picker_name && (
+                      <p className="text-sm text-indigo-400 font-semibold flex items-center gap-2">
+                        <UserPlus className="w-3.5 h-3.5" /> Picker: {i.picker_name}
+                      </p>
+                    )}
+                    <p className="text-sm text-foreground/60 flex items-center gap-2">
+                      <Calendar className="w-3.5 h-3.5 opacity-60" /> {i.pickup_date ? format(new Date(i.pickup_date), "dd MMM yyyy") : "-"}
+                    </p>
                   </div>
                   
-                  <div className="mt-4">
-                    <span className={`inline-flex items-center gap-1.5 text-xs font-bold uppercase px-3 py-1.5 rounded-xl border ${
-                          i.returned_in_good_condition ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" : "bg-destructive/10 text-destructive border-destructive/20"
-                        }`}>
-                       {i.returned_in_good_condition ? <><CheckCircle className="h-3.5 w-3.5" /> Normal</> : <><XCircle className="h-3.5 w-3.5" /> Issues Found</>}
-                    </span>
-                  </div>
+
                 </div>
 
                 <div className="flex gap-2 mt-6 pt-4 border-t border-white/5 justify-end">
@@ -324,22 +349,69 @@ export default function Inspections() {
       {/* Form Dialog */}
       <Dialog open={open} onOpenChange={(v) => !v && closeDialog()}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto rounded-3xl glass-panel shadow-2xl border-white/10 p-0 bg-background/95 backdrop-blur-3xl">
-          <div className="p-6 border-b border-white/5 bg-foreground/5 pointer-events-none">
-            <DialogHeader>
-              <DialogTitle className="text-xl font-bold">{editId ? "Edit Inspection Details" : "Record New Inspection"}</DialogTitle>
+          <div className="p-4 sm:p-6 border-b border-white/5 bg-foreground/5 sticky top-0 z-50 backdrop-blur-md flex items-center gap-3">
+             <Button type="button" variant="ghost" size="icon" onClick={closeDialog} className="sm:hidden h-8 w-8 rounded-full shrink-0">
+               <ArrowLeft className="w-4 h-4" />
+             </Button>
+            <DialogHeader className="text-left">
+              <DialogTitle className="text-xl font-bold flex items-center gap-2">
+                <ClipboardCheck className="w-5 h-5 text-indigo-500" />
+                {editId ? "Edit Inspection Details" : "Record New Inspection"}
+              </DialogTitle>
             </DialogHeader>
           </div>
           <form onSubmit={(e) => { e.preventDefault(); upsert.mutate(); }} className="p-6 space-y-5">
             <div className="space-y-2">
               <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Vehicle *</Label>
-              <Select value={form.vehicle_id} onValueChange={(v) => setForm({ ...form, vehicle_id: v })}>
-                <SelectTrigger className="rounded-xl h-11 bg-background/50 border-white/10 focus-visible:ring-rose-500"><SelectValue placeholder="Select vehicle" /></SelectTrigger>
-                <SelectContent className="glass-panel rounded-xl">
-                  {vehicles.map((v) => (
-                    <SelectItem key={v.id} value={v.id} className="rounded-lg">{v.year} {v.make} {v.model}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Popover open={vehiclePopoverOpen} onOpenChange={setVehiclePopoverOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={vehiclePopoverOpen}
+                    className="w-full justify-between rounded-xl h-11 bg-background/50 border-white/10 hover:bg-white/5 font-normal"
+                  >
+                    {form.vehicle_id
+                      ? (() => {
+                          const v = vehicles.find((v) => v.id === form.vehicle_id);
+                          return v ? `${v.year} ${v.make} ${v.model}` : "Select vehicle...";
+                        })()
+                      : "Select vehicle..."}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[--radix-popover-trigger-width] p-0 rounded-xl glass-panel border-white/10 overflow-hidden">
+                  <Command className="bg-transparent">
+                    <CommandInput placeholder="Search vehicle..." className="h-11 border-none focus:ring-0" />
+                    <CommandList className="max-h-[250px]">
+                      <CommandEmpty>No vehicle found.</CommandEmpty>
+                      <CommandGroup>
+                        {vehicles.map((v) => (
+                          <CommandItem
+                            key={v.id}
+                            value={`${v.year} ${v.make} ${v.model}`}
+                            onSelect={() => {
+                              setForm({ ...form, vehicle_id: v.id });
+                              setVehiclePopoverOpen(false);
+                            }}
+                            className="flex items-center gap-2 p-3 aria-selected:bg-rose-500/10 cursor-pointer"
+                          >
+                            <Check
+                              className={cn(
+                                "h-4 w-4 text-rose-500",
+                                form.vehicle_id === v.id ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            <div className="flex flex-col">
+                                <span className="font-semibold">{v.year} {v.make} {v.model}</span>
+                            </div>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -358,30 +430,81 @@ export default function Inspections() {
               <Textarea className="rounded-xl min-h-[80px] bg-background/50 border-white/10 focus-visible:ring-rose-500" value={form.condition_at_pickup} onChange={(e) => setForm({ ...form, condition_at_pickup: e.target.value })} required placeholder="Enter visual or mechanical condition..." />
             </div>
 
+            {/* Picker Information Section */}
+            <div className="space-y-4 p-5 rounded-2xl bg-indigo-500/5 border border-indigo-500/10">
+               <div className="flex items-center gap-2 mb-2">
+                 <UserPlus className="w-4 h-4 text-indigo-400" />
+                 <h4 className="text-sm font-bold text-indigo-400 uppercase tracking-wider">Picker Information</h4>
+               </div>
+               
+               <div className="space-y-2">
+                 <Label className="text-xs font-semibold text-muted-foreground">Who sent the person to pick up? *</Label>
+                 <div className="relative">
+                   <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                   <Input 
+                     className="pl-9 rounded-xl h-10 bg-background/50 border-white/5" 
+                     value={form.sent_by} 
+                     onChange={(e) => setForm({ ...form, sent_by: e.target.value })} 
+                     placeholder="e.g. Company Name or Owner"
+                     required
+                   />
+                 </div>
+               </div>
+
+               <div className="grid grid-cols-2 gap-3">
+                 <div className="space-y-2">
+                   <Label className="text-xs font-semibold text-muted-foreground">Person's Name *</Label>
+                   <Input 
+                     className="rounded-xl h-10 bg-background/50 border-white/5" 
+                     value={form.picker_name} 
+                     onChange={(e) => setForm({ ...form, picker_name: e.target.value })} 
+                     required
+                   />
+                 </div>
+                 <div className="space-y-2">
+                   <Label className="text-xs font-semibold text-muted-foreground">Phone Number *</Label>
+                   <div className="relative">
+                     <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                     <Input 
+                       className="pl-9 rounded-xl h-10 bg-background/50 border-white/5" 
+                       value={form.picker_phone} 
+                       onChange={(e) => setForm({ ...form, picker_phone: e.target.value })} 
+                       required
+                     />
+                   </div>
+                 </div>
+               </div>
+
+               <div className="space-y-2">
+                 <Label className="text-xs font-semibold text-muted-foreground">Pickup Date & Time *</Label>
+                 <div className="relative">
+                   <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                   <Input 
+                     type="datetime-local"
+                     className="pl-9 rounded-xl h-10 bg-background/50 border-white/5" 
+                     value={form.picker_date} 
+                     onChange={(e) => setForm({ ...form, picker_date: e.target.value })} 
+                     required
+                   />
+                 </div>
+               </div>
+
+               <div className="space-y-2">
+                 <Label className="text-xs font-semibold text-muted-foreground">Picker's Signature *</Label>
+                 <div className="rounded-xl overflow-hidden border border-white/10 bg-background/50">
+                    <SignaturePad value={form.picker_signature} onChange={(v) => setForm({ ...form, picker_signature: v })} />
+                 </div>
+               </div>
+            </div>
+
             <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Digital Signature</Label>
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Digital Signature (Staff/Inspector)</Label>
               <div className="rounded-xl overflow-hidden border border-white/10">
                  <SignaturePad value={form.signature_data} onChange={(v) => setForm({ ...form, signature_data: v })} />
               </div>
             </div>
 
-            <div className="flex items-center space-x-3 bg-background/50 border border-white/10 p-4 rounded-xl hover:bg-white/5 transition-colors cursor-pointer" onClick={() => setForm({ ...form, returned_in_good_condition: !form.returned_in_good_condition })}>
-              <Checkbox id="returned_ok" checked={form.returned_in_good_condition} onCheckedChange={(v) => setForm({ ...form, returned_in_good_condition: v === true })} className="data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500" />
-              <Label htmlFor="returned_ok" className="text-sm font-semibold cursor-pointer text-emerald-500">Returned in Good Condition</Label>
-            </div>
 
-            {!form.returned_in_good_condition && (
-              <div className="space-y-4 p-4 border border-destructive/20 bg-destructive/5 rounded-xl">
-                <div className="space-y-2">
-                  <Label className="text-xs font-semibold uppercase tracking-wider text-destructive">Return Condition Issues</Label>
-                  <Textarea className="rounded-xl min-h-[80px] bg-background/80 border-destructive/20 focus-visible:ring-destructive" value={form.return_condition_notes} onChange={(e) => setForm({ ...form, return_condition_notes: e.target.value })} placeholder="Describe what is wrong..." />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs font-semibold uppercase tracking-wider text-destructive">Return Date</Label>
-                  <Input type="datetime-local" className="rounded-xl h-11 bg-background/80 border-destructive/20 focus-visible:ring-destructive" value={form.return_date} onChange={(e) => setForm({ ...form, return_date: e.target.value })} />
-                </div>
-              </div>
-            )}
 
             <div className="pt-4 flex justify-end gap-3 border-t border-white/5">
               <Button type="button" variant="outline" onClick={closeDialog} className="rounded-xl border-white/10 hover:bg-white/5">Cancel</Button>
