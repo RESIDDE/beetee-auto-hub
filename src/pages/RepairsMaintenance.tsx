@@ -146,6 +146,7 @@ const emptyForm = {
   payment_status: "deposit",
   payment_type: "cash",
   brought_in_by: "",
+  company: "",
   handed_to: "",
   signature_data: "",
   rep_name: "",
@@ -480,6 +481,8 @@ export default function RepairsMaintenance() {
         customer_id: finalCustomerId || null,
         replacement_parts_list: form.replacement_parts_list,
         bank_account: form.bank_account,
+        company: form.company,
+        brought_in_by: form.brought_in_by,
       };
       if (editId) {
         const { error } = await supabase.from("repairs").update(payload).eq("id", editId);
@@ -554,6 +557,7 @@ export default function RepairsMaintenance() {
       payment_status: r.payment_status || "deposit",
       payment_type: r.payment_type || "cash",
       brought_in_by: r.brought_in_by || "",
+      company: r.company || "",
       handed_to: r.handed_to || "",
       signature_data: r.signature_data || "",
       rep_name: r.rep_name || "",
@@ -651,6 +655,8 @@ export default function RepairsMaintenance() {
       <p style="font-weight: 900;">BILL TO:</p>
       <p><strong>${cust?.name || 'Cash Customer'}</strong></p>
       <p>Tel: ${cust?.phone || r.registration_no || ''}</p>
+      ${r.company ? `<p>Company: <strong>${r.company.toUpperCase()}</strong></p>` : ''}
+      ${r.brought_in_by ? `<p>By: <strong>${r.brought_in_by.toUpperCase()}</strong></p>` : ''}
     </div>
 
     <div class="main-container">
@@ -776,6 +782,8 @@ export default function RepairsMaintenance() {
         <div>
           <div class="field"><span class="field-label">Customer Name:</span> ${cust?.name || '—'}</div>
           <div class="field"><span class="field-label">Phone Number:</span> ${cust?.phone || '—'}</div>
+          <div class="field"><span class="field-label">Company:</span> ${r.company || '—'}</div>
+          <div class="field"><span class="field-label">Brought In By:</span> ${r.brought_in_by || '—'}</div>
         </div>
         <div>
           <div class="field"><span class="field-label">Email:</span> ${cust?.email || '—'}</div>
@@ -1388,8 +1396,8 @@ export default function RepairsMaintenance() {
                       <h3 className="font-bold text-lg text-foreground truncate group-hover:text-primary transition-colors" title={getVehicleLabel(r)}>{getVehicleLabel(r)}</h3>
                       
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
-                        {r.company && <span className="text-xs text-muted-foreground">Company: {r.company}</span>}
-                        {r.brought_in_by && <span className="text-xs text-muted-foreground">By: {r.brought_in_by}</span>}
+                        {r.company && <span className="text-xs text-muted-foreground font-medium">Company: {r.company}</span>}
+                        {r.brought_in_by && <span className="text-xs text-muted-foreground font-medium">By: {r.brought_in_by}</span>}
                       </div>
 
                       <div className="flex flex-wrap items-center gap-2 mt-3">
@@ -1630,6 +1638,17 @@ export default function RepairsMaintenance() {
                         </div>
                       </div>
                     )}
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-bold uppercase tracking-tight opacity-60">Company Name (If applicable)</Label>
+                      <Input className="rounded-xl h-11 bg-background/50 border-white/10" value={form.company} onChange={(e) => setForm({ ...form, company: e.target.value })} placeholder="e.g. Kconect" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-bold uppercase tracking-tight opacity-60">Brought In By</Label>
+                      <Input className="rounded-xl h-11 bg-background/50 border-white/10" value={form.brought_in_by} onChange={(e) => setForm({ ...form, brought_in_by: e.target.value })} placeholder="e.g. Sammy" />
+                    </div>
                   </div>
 
                   <div className="bg-foreground/5 p-5 rounded-2xl space-y-4">
