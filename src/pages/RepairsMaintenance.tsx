@@ -656,7 +656,7 @@ export default function RepairsMaintenance() {
       <p><strong>${cust?.name || 'Cash Customer'}</strong></p>
       <p>Tel: ${cust?.phone || r.registration_no || ''}</p>
       ${r.company ? `<p>Company: <strong>${r.company.toUpperCase()}</strong></p>` : ''}
-      ${r.brought_in_by ? `<p>By: <strong>${r.brought_in_by.toUpperCase()}</strong></p>` : ''}
+      ${r.brought_in_by ? `<p>Brought In By: <strong>${r.brought_in_by.toUpperCase()}</strong></p>` : ''}
     </div>
 
     <div class="main-container">
@@ -1397,7 +1397,7 @@ export default function RepairsMaintenance() {
                       
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
                         {r.company && <span className="text-xs text-muted-foreground font-medium">Company: {r.company}</span>}
-                        {r.brought_in_by && <span className="text-xs text-muted-foreground font-medium">By: {r.brought_in_by}</span>}
+                        {r.brought_in_by && <span className="text-xs text-muted-foreground font-medium">Brought In By: {r.brought_in_by}</span>}
                       </div>
 
                       <div className="flex flex-wrap items-center gap-2 mt-3">
