@@ -664,18 +664,23 @@ export default function Sales() {
             Track vehicle sales, generate receipts, and manage sales history.
           </p>
         </div>
-        <div className="flex flex-row flex-wrap gap-2 shrink-0">
+        <div className="flex flex-row flex-wrap items-center gap-3 shrink-0">
+          {hasEdit && (
+            <Button onClick={() => { setEditId(null); setDialogOpen(true); }} size="lg" className="rounded-2xl shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40 transition-all bg-violet-500 hover:bg-violet-600 text-white">
+              <PlusCircle className="mr-2 h-5 w-5" /> Record Sale
+            </Button>
+          )}
           <Button 
             variant="outline" 
             size="sm" 
             onClick={() => setShowAnalytics(!showAnalytics)}
-            className={`rounded-xl glass-panel border-white/10 transition-all text-xs ${showAnalytics ? 'bg-violet-500/20 text-violet-500 border-violet-500/20' : 'hover:bg-white/5'}`}
+            className={`rounded-xl glass-panel border-white/10 transition-all text-xs h-9 ${showAnalytics ? 'bg-violet-500/20 text-violet-500 border-violet-500/20' : 'hover:bg-white/5'}`}
           >
             <TrendingUp className="mr-1.5 h-3.5 w-3.5" /> {showAnalytics ? "Hide Analytics" : "Analytics"}
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="rounded-xl glass-panel border-white/10 hover:bg-white/5 transition-all text-xs">
+              <Button variant="outline" size="sm" className="rounded-xl glass-panel border-white/10 hover:bg-white/5 transition-all text-xs h-9">
                 <Download className="mr-1.5 h-3.5 w-3.5" /> Export
               </Button>
             </DropdownMenuTrigger>
@@ -686,11 +691,6 @@ export default function Sales() {
               <DropdownMenuItem onClick={handleBulkPrintReceipts} className="rounded-lg cursor-pointer text-violet-500 border-t border-white/5 mt-1 pt-2"><Receipt className="mr-2 h-4 w-4" /> Print All Receipts (PDF)</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          {hasEdit && (
-            <Button onClick={() => { setEditId(null); setDialogOpen(true); }} size="sm" className="rounded-xl shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40 transition-all bg-violet-500 hover:bg-violet-600 text-white text-xs">
-              <PlusCircle className="mr-1.5 h-4 w-4" /> Record Sale
-            </Button>
-          )}
         </div>
       </div>
 
