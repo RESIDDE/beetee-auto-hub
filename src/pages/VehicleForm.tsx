@@ -245,9 +245,9 @@ export default function VehicleForm() {
         condition: form.condition,
         trim: form.trim.trim() || null,
         inventory_type: form.inventory_type,
-        accepted_by_name: form.inventory_type === 'resale' ? (form.accepted_by_name.trim() || null) : null,
-        accepted_date: form.inventory_type === 'resale' ? (form.accepted_date || null) : null,
-        accepted_signature: form.inventory_type === 'resale' ? (form.accepted_signature || null) : null,
+        accepted_by_name: form.accepted_by_name?.trim() || null,
+        accepted_date: form.accepted_date || null,
+        accepted_signature: form.accepted_signature || null,
       };
 
       if (isEdit) {
@@ -482,13 +482,12 @@ export default function VehicleForm() {
           </CardContent>
         </Card>
 
-        {form.inventory_type === 'resale' && (
-          <Card className="border-emerald-500/20 bg-emerald-500/5 animate-fade-down">
-            <CardHeader>
-              <CardTitle className="text-emerald-500 flex items-center gap-2">
-                <FileSignature className="h-5 w-5" /> Resale Acceptance Details
-              </CardTitle>
-            </CardHeader>
+        <Card className="border-rose-500/20 bg-rose-500/5 animate-fade-down">
+          <CardHeader>
+            <CardTitle className="text-rose-500 flex items-center gap-2 text-base">
+              <FileSignature className="h-5 w-5" /> Recording / Acceptance Details
+            </CardTitle>
+          </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid gap-4 md:grid-cols-2">
                 {field("accepted_by_name", "Accepted By (Staff Name)")}
@@ -505,7 +504,6 @@ export default function VehicleForm() {
               </div>
             </CardContent>
           </Card>
-        )}
 
         <Card>
           <CardHeader>
