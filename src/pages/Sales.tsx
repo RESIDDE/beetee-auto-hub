@@ -1155,7 +1155,7 @@ export default function Sales() {
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-64 overflow-y-auto pr-1">
                   {vehicles
-                    .filter((v) => `${v.year} ${v.make} ${v.model}`.toLowerCase().includes(vehicleSearch.toLowerCase()))
+                    .filter((v) => `${v.year} ${v.make} ${v.model} ${v.vin || ''}`.toLowerCase().includes(vehicleSearch.toLowerCase()))
                     .map((v) => (
                     <div 
                       key={v.id} 
@@ -1172,10 +1172,13 @@ export default function Sales() {
                       }}
                     >
                       <Checkbox checked={form.selected_vehicle_ids.includes(v.id)} className="data-[state=checked]:bg-violet-500 pointer-events-none" />
-                      <span className="text-[13px] font-medium leading-tight">{v.year} {v.make} {v.model}</span>
+                      <div className="flex flex-col leading-tight">
+                        <span className="text-[13px] font-medium">{v.year} {v.make} {v.model}</span>
+                        {v.vin && <span className="text-[10px] text-muted-foreground font-mono">VIN: {v.vin}</span>}
+                      </div>
                     </div>
                   ))}
-                  {vehicles.filter((v) => `${v.year} ${v.make} ${v.model}`.toLowerCase().includes(vehicleSearch.toLowerCase())).length === 0 && (
+                  {vehicles.filter((v) => `${v.year} ${v.make} ${v.model} ${v.vin || ''}`.toLowerCase().includes(vehicleSearch.toLowerCase())).length === 0 && (
                      <div className="col-span-1 sm:col-span-2 text-center text-sm text-muted-foreground py-4 italic">No matching vehicles found.</div>
                   )}
                 </div>
