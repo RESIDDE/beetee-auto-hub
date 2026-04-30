@@ -19,7 +19,7 @@ import { QrSignDialog } from "@/lib/qrHelpers";
 import {
   Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious,
 } from "@/components/ui/pagination";
-import { Pencil, Trash2, PlusCircle, CheckCircle, XCircle, ClipboardCheck, Car, QrCode, Search, ArrowLeft, Check, ChevronsUpDown, UserPlus, Phone, User, Calendar, FileSignature } from "lucide-react";
+import { Pencil, Trash2, PlusCircle, CheckCircle, XCircle, ClipboardCheck, Car, QrCode, Search, ArrowLeft, Check, ChevronsUpDown, UserPlus, Phone, User, Calendar, FileSignature, Eye } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
@@ -75,6 +75,7 @@ export default function Inspections() {
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm, clearDraft] = useFormPersistence("inspection", emptyForm, !!editId, editId || undefined);
   const [qrId, setQrId] = useState<string | null>(null);
+  const [viewId, setViewId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [vehicleSearch, setVehicleSearch] = useState("");
   const [vehiclePopoverOpen, setVehiclePopoverOpen] = useState(false);
@@ -285,6 +286,9 @@ export default function Inspections() {
                 </div>
 
                 <div className="flex gap-2 mt-6 pt-4 border-t border-white/5 justify-end">
+                  <Button variant="ghost" size="sm" className="h-8 rounded-lg hover:bg-sky-500/10 hover:text-sky-500 text-muted-foreground transition-all" onClick={() => setViewId(i.id)}>
+                    <Eye className="h-3.5 w-3.5 mr-1.5" /> View
+                  </Button>
                   {hasEdit && (
                     <>
                       <Button variant="ghost" size="sm" className="h-8 rounded-lg hover:bg-foreground/10 hover:text-foreground text-muted-foreground transition-all" onClick={() => openEdit(i)}>
@@ -342,6 +346,114 @@ export default function Inspections() {
           )}
         </div>
       )}
+
+      {/* View Dialog */}
+      <Dialog open={!!viewId} onOpenChange={() => setViewId(null)}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl glass-panel shadow-2xl border-white/10 p-0 bg-background/95 backdrop-blur-3xl">
+          {(() => {
+            const i = inspections.find(x => x.id === viewId);
+            if (!i) return null;
+            return (
+              <>
+                <div className="p-6 border-b border-white/5 bg-foreground/5 sticky top-0 z-50 backdrop-blur-md flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-rose-500/10 rounded-xl">
+                      <ClipboardCheck className="w-5 h-5 text-rose-500" />
+                    </div>
+                    <div>
+                      <DialogTitle className="text-xl font-bold">Inspection Record</DialogTitle>
+                      <p className="text-xs text-muted-foreground uppercase tracking-widest font-semibold mt-0.5">QC REPORT</p>
+                    </div>
+                  </div>
+                  <Button variant="ghost" size="icon" onClick={() => setViewId(null)} className="rounded-full">
+                    <XCircle className="w-5 h-5 opacity-50 hover:opacity-100" />
+                  </Button>
+                </div>
+
+                <div className="p-8 space-y-8">
+                  {/* Vehicle & Inspector */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-1">
+                      <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Vehicle Details</p>
+                      <p className="text-lg font-bold">{i.vehicles ? `${i.vehicles.year} ${i.vehicles.make} ${i.vehicles.model}` : "Unknown Vehicle"}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Staff / Inspector</p>
+                      <p className="text-lg font-bold">{i.inspector_name}</p>
+                    </div>
+                  </div>
+
+                  {/* Pickup Info */}
+                  <div className="bg-foreground/5 border border-white/5 rounded-3xl p-6 space-y-4">
+                    <div className="flex items-center gap-2">
+                      <Car className="w-4 h-4 text-rose-400" />
+                      <h4 className="font-bold text-sm uppercase tracking-wider">Pickup Status</h4>
+                    </div>
+                    <div className="grid grid-cols-2 gap-6">
+                       <div>
+                         <p className="text-[10px] uppercase font-bold text-muted-foreground">Date & Time</p>
+                         <p className="text-sm font-medium">{i.pickup_date ? format(new Date(i.pickup_date), "dd MMM yyyy HH:mm") : "N/A"}</p>
+                       </div>
+                    </div>
+                    <div>
+                       <p className="text-[10px] uppercase font-bold text-muted-foreground">Initial Condition Notes</p>
+                       <p className="text-sm bg-background/50 p-4 rounded-xl mt-1 leading-relaxed border border-white/5">{i.condition_at_pickup}</p>
+                    </div>
+                    {i.signature_data && (
+                      <div>
+                        <p className="text-[10px] uppercase font-bold text-muted-foreground mb-2">Staff Signature</p>
+                        <div className="bg-white/5 rounded-2xl p-4 border border-white/10 w-fit">
+                          <img src={i.signature_data} alt="Staff Signature" className="max-h-24 dark:invert" />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Picker Info */}
+                  {i.picker_name && (
+                    <div className="bg-indigo-500/5 border border-indigo-500/10 rounded-3xl p-6 space-y-4">
+                      <div className="flex items-center gap-2">
+                        <UserPlus className="w-4 h-4 text-indigo-400" />
+                        <h4 className="font-bold text-sm uppercase tracking-wider text-indigo-400">Picker Information</h4>
+                      </div>
+                      <div className="grid grid-cols-2 gap-6">
+                         <div>
+                           <p className="text-[10px] uppercase font-bold text-muted-foreground">Sent By</p>
+                           <p className="text-sm font-medium">{i.sent_by || "—"}</p>
+                         </div>
+                         <div>
+                           <p className="text-[10px] uppercase font-bold text-muted-foreground">Name</p>
+                           <p className="text-sm font-medium">{i.picker_name}</p>
+                         </div>
+                         <div>
+                           <p className="text-[10px] uppercase font-bold text-muted-foreground">Phone</p>
+                           <p className="text-sm font-medium">{i.picker_phone || "—"}</p>
+                         </div>
+                         <div>
+                           <p className="text-[10px] uppercase font-bold text-muted-foreground">Pickup Date</p>
+                           <p className="text-sm font-medium">{i.picker_date ? format(new Date(i.picker_date), "dd MMM yyyy HH:mm") : "—"}</p>
+                         </div>
+                      </div>
+                      {i.picker_signature && (
+                        <div>
+                          <p className="text-[10px] uppercase font-bold text-muted-foreground mb-2">Picker Signature</p>
+                          <div className="bg-white/5 rounded-2xl p-4 border border-white/10 w-fit">
+                            <img src={i.picker_signature} alt="Picker Signature" className="max-h-24 dark:invert" />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <div className="p-6 border-t border-white/5 bg-foreground/5 flex justify-end">
+                  <Button onClick={() => setViewId(null)} className="rounded-xl px-8 bg-rose-500 hover:bg-rose-600 text-white">Close</Button>
+                </div>
+              </>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
 
       {/* QR Dialog */}
       <QrSignDialog open={!!qrId} onOpenChange={() => setQrId(null)} type="inspection" id={qrId} />
