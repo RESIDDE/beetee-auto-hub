@@ -100,7 +100,7 @@ export default function Inspections() {
         .select("*, vehicles(make, model, year, vin, color, mileage, engine_no, registration_no, source_company)")
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data as Inspection[];
+      return data as any as Inspection[];
     },
   });
 
