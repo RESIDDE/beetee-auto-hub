@@ -665,11 +665,9 @@ export default function Sales() {
           </p>
         </div>
         <div className="flex flex-row flex-wrap items-center gap-3 shrink-0">
-          {hasEdit && (
-            <Button onClick={() => { setEditId(null); setDialogOpen(true); }} size="lg" className="rounded-2xl shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40 transition-all bg-violet-500 hover:bg-violet-600 text-white">
-              <PlusCircle className="mr-2 h-5 w-5" /> Record Sale
-            </Button>
-          )}
+          <Button onClick={() => { setEditId(null); setDialogOpen(true); }} size="lg" className="rounded-2xl shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40 transition-all bg-violet-500 hover:bg-violet-600 text-white">
+            <PlusCircle className="mr-2 h-5 w-5" /> Record Sale
+          </Button>
           <Button 
             variant="outline" 
             size="sm" 
