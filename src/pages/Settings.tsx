@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useFormPersistence } from "@/hooks/useFormPersistence";
@@ -23,7 +23,7 @@ import { toast } from "sonner";
 import {
   Shield, ShieldCheck, User, Users, Settings2,
   ToggleLeft, Eye, Pencil, RotateCcw, Crown, Lock, Activity,
-  UserPlus, ArrowRightLeft, AlertTriangle, Trash2, ArrowLeft, Bell, Save,
+  UserPlus, ArrowRightLeft, AlertTriangle, Trash2, ArrowLeft, Bell, Save, Car,
 } from "lucide-react";
 import {
   ALL_PAGES, DEFAULT_PERMISSIONS, type AppRole, type PageKey, type PermissionsMap,
@@ -101,6 +101,7 @@ export default function Settings() {
 
   // ── Service Interval State ─────────────────────────────────────────────────
   const [serviceInterval, setServiceInterval] = useState<string>("3");
+  const [serviceIntervalDays, setServiceIntervalDays] = useState<string>("0");
   const [intervalSaving, setIntervalSaving] = useState(false);
 
   if (role !== "super_admin") {
@@ -141,18 +142,86 @@ export default function Settings() {
   });
 
   // ── App Settings Query ─────────────────────────────────────────────────────
-  useQuery({
+  const { data: appSettings } = useQuery({
     queryKey: ["app_settings"],
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("app_settings")
         .select("*");
       if (error) throw error;
-      const intervalRow = (data as any[]).find((r: any) => r.key === "service_interval_months");
-      if (intervalRow) setServiceInterval(intervalRow.value);
-      return data;
+      return data as any[];
     },
   });
+
+  useEffect(() => {
+    if (appSettings) {
+      const intervalRow = appSettings.find((r: any) => r.key === "service_interval_months");
+      const daysRow = appSettings.find((r: any) => r.key === "service_interval_days");
+      if (intervalRow) setServiceInterval(intervalRow.value);
+      if (daysRow) setServiceIntervalDays(daysRow.value);
+    }
+  }, [appSettings]);
+
+  // ── Repairs & Customers for Preview ─────────────────────────────────────────
+  const { data: repairs = [] } = useQuery({
+    queryKey: ["repairs-preview"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("repairs")
+        .select("*, vehicles(make, model, year)")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+    enabled: tab === "system",
+  });
+
+  const { data: customers = [] } = useQuery({
+    queryKey: ["customers-preview"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("customers").select("id, name");
+      if (error) throw error;
+      return data;
+    },
+    enabled: tab === "system",
+  });
+
+  const previewReminders = useMemo(() => {
+    if (!repairs.length) return [];
+    const now = new Date();
+    const months = parseInt(serviceInterval) || 0;
+    const days = parseInt(serviceIntervalDays) || 0;
+    
+    const latestByVehicle = new Map<string, { label: string; customer: string; lastDate: Date }>();
+    for (const r of repairs) {
+      const key = r.vehicle_id || `manual:${r.manual_make}:${r.manual_model}:${r.manual_year}`;
+      const label = r.vehicles 
+        ? `${r.vehicles.year} ${r.vehicles.make} ${r.vehicles.model}`
+        : `${r.manual_year || ""} ${r.manual_make || ""} ${r.manual_model || ""}`.trim() || "Unknown Vehicle";
+      const cust = (customers as any[]).find((c: any) => c.id === r.customer_id);
+      const custName = cust ? cust.name : (r.brought_in_by || "Unknown Customer");
+      const repairDate = new Date(r.created_at);
+      const existing = latestByVehicle.get(key);
+      if (!existing || repairDate > existing.lastDate) {
+        latestByVehicle.set(key, { label, customer: custName, lastDate: repairDate });
+      }
+    }
+
+    const result: any[] = [];
+    for (const [key, entry] of latestByVehicle.entries()) {
+      const dueDate = new Date(entry.lastDate);
+      dueDate.setMonth(dueDate.getMonth() + months);
+      dueDate.setDate(dueDate.getDate() + days);
+      
+      const soonThreshold = new Date(now);
+      soonThreshold.setDate(soonThreshold.getDate() + 14);
+      
+      if (dueDate <= soonThreshold) {
+        result.push({ ...entry, dueDate, status: dueDate < now ? "overdue" : "soon" });
+      }
+    }
+    return result.sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
+  }, [repairs, customers, serviceInterval, serviceIntervalDays]);
 
   // ── Audit Logs Query ───────────────────────────────────────────────────────
   const { data: logs = [], isLoading: isLoadingLogs } = useQuery({
@@ -357,19 +426,36 @@ export default function Settings() {
 
   const saveServiceInterval = async () => {
     const months = parseInt(serviceInterval);
-    if (isNaN(months) || months < 1 || months > 24) {
-      toast.error("Please enter a value between 1 and 24 months");
+    const days = parseInt(serviceIntervalDays);
+    
+    if (isNaN(months) || months < 0 || months > 24) {
+      toast.error("Please enter months between 0 and 24");
       return;
     }
+    if (isNaN(days) || days < 0 || days > 31) {
+      toast.error("Please enter days between 0 and 31");
+      return;
+    }
+    if (months === 0 && days === 0) {
+      toast.error("Interval cannot be 0 months and 0 days");
+      return;
+    }
+
     setIntervalSaving(true);
     try {
-      const { error } = await (supabase as any)
-        .from("app_settings")
-        .upsert({ key: "service_interval_months", value: serviceInterval, updated_at: new Date().toISOString() }, { onConflict: "key" });
-      if (error) throw error;
+      const now = new Date().toISOString();
+      await Promise.all([
+        (supabase as any).from("app_settings").upsert({ key: "service_interval_months", value: serviceInterval, updated_at: now }, { onConflict: "key" }),
+        (supabase as any).from("app_settings").upsert({ key: "service_interval_days", value: serviceIntervalDays, updated_at: now }, { onConflict: "key" })
+      ]);
+      
       queryClient.invalidateQueries({ queryKey: ["app_settings"] });
-      await logAction("UPDATE", "app_settings", "service_interval_months", { new_value: serviceInterval });
-      toast.success(`✅ Service reminder interval set to every ${serviceInterval} month(s)`);
+      await logAction("UPDATE", "app_settings", "service_interval_settings", { months: serviceInterval, days: serviceIntervalDays });
+      
+      let msg = `✅ Service reminder interval set to every `;
+      if (months > 0) msg += `${months} month(s) `;
+      if (days > 0) msg += `${days} day(s)`;
+      toast.success(msg);
     } catch (e: any) {
       toast.error("Failed to save: " + e.message);
     } finally {
@@ -466,20 +552,37 @@ export default function Settings() {
                   <div className="w-2 h-2 rounded-full bg-amber-400" />
                   <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Interval Setting</span>
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-4">
                   <Label className="text-sm font-semibold">Remind every</Label>
-                  <div className="flex items-center gap-3">
-                    <Input
-                      type="number"
-                      min="1"
-                      max="24"
-                      value={serviceInterval}
-                      onChange={(e) => setServiceInterval(e.target.value)}
-                      className="w-24 rounded-xl h-11 bg-background/50 border-white/10 text-center text-lg font-bold focus-visible:ring-amber-500"
-                    />
-                    <span className="text-muted-foreground font-medium">months</span>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-3">
+                        <Input
+                          type="number"
+                          min="0"
+                          max="24"
+                          value={serviceInterval}
+                          onChange={(e) => setServiceInterval(e.target.value)}
+                          className="w-full rounded-xl h-11 bg-background/50 border-white/10 text-center text-lg font-bold focus-visible:ring-amber-500"
+                        />
+                        <span className="text-muted-foreground font-medium text-xs uppercase tracking-tighter shrink-0">Months</span>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-3">
+                        <Input
+                          type="number"
+                          min="0"
+                          max="31"
+                          value={serviceIntervalDays}
+                          onChange={(e) => setServiceIntervalDays(e.target.value)}
+                          className="w-full rounded-xl h-11 bg-background/50 border-white/10 text-center text-lg font-bold focus-visible:ring-amber-500"
+                        />
+                        <span className="text-muted-foreground font-medium text-xs uppercase tracking-tighter shrink-0">Days</span>
+                      </div>
+                    </div>
                   </div>
-                  <p className="text-xs text-muted-foreground">Enter a value between 1 and 24 months.</p>
+                  <p className="text-xs text-muted-foreground">The system will combine both months and days for the reminder. (e.g., 3 months and 15 days)</p>
                 </div>
                 <Button
                   onClick={saveServiceInterval}
@@ -516,6 +619,59 @@ export default function Settings() {
                   </li>
                 </ul>
               </div>
+            </div>
+
+            {/* Preview Section */}
+            <div className="mt-8 pt-8 border-t border-white/5 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 bg-sky-500/10 rounded-lg">
+                    <Car className="w-4 h-4 text-sky-400" />
+                  </div>
+                  <h3 className="font-bold">Reminders Preview</h3>
+                </div>
+                <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest bg-foreground/5 px-2 py-0.5 rounded-full">
+                  Live Test
+                </span>
+              </div>
+              
+              <div className="bg-background/30 rounded-2xl border border-white/5 p-1">
+                {previewReminders.length === 0 ? (
+                  <div className="p-8 text-center text-muted-foreground text-sm italic">
+                    No vehicles would be due for service with these settings.
+                  </div>
+                ) : (
+                  <div className="divide-y divide-white/5">
+                    {previewReminders.slice(0, 5).map((rem, i) => (
+                      <div key={i} className="flex items-center justify-between p-4">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-2 h-2 rounded-full ${rem.status === 'overdue' ? 'bg-red-500' : 'bg-amber-400'}`} />
+                          <div>
+                            <p className="text-sm font-bold">{rem.label}</p>
+                            <p className="text-[10px] text-muted-foreground">{rem.customer}</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className={`text-xs font-bold ${rem.status === 'overdue' ? 'text-red-400' : 'text-amber-400'}`}>
+                            Due: {rem.dueDate.toLocaleDateString(undefined, { dateStyle: 'medium' })}
+                          </p>
+                          <p className="text-[9px] text-muted-foreground uppercase tracking-tight">
+                            Last: {rem.lastDate.toLocaleDateString(undefined, { dateStyle: 'short' })}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                    {previewReminders.length > 5 && (
+                      <div className="p-3 text-center text-[10px] text-muted-foreground italic">
+                        + {previewReminders.length - 5} more vehicles due...
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+              <p className="text-[10px] text-muted-foreground leading-relaxed">
+                <strong className="text-foreground/70">Note:</strong> This preview shows which vehicles would appear in the reminder list based on your current unsaved changes. Changes here only take effect globally after you click <strong>Save Interval</strong>.
+              </p>
             </div>
           </div>
         </div>
