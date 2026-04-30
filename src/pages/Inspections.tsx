@@ -53,9 +53,8 @@ type Inspection = {
     vin?: string;
     color?: string;
     mileage?: number;
-    engine_no?: string;
-    registration_no?: string;
     source_company?: string;
+    trim?: string;
   } | null;
 };
 
@@ -97,7 +96,7 @@ export default function Inspections() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("inspections")
-        .select("*, vehicles(make, model, year, vin, color, mileage, engine_no, registration_no, source_company)")
+        .select("*, vehicles(make, model, year, vin, color, mileage, source_company, trim)")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data as unknown as Inspection[];
@@ -400,12 +399,8 @@ export default function Inspections() {
                           <p className="text-sm font-semibold">{i.vehicles?.mileage ? `${i.vehicles.mileage.toLocaleString()} KM` : "—"}</p>
                         </div>
                         <div className="space-y-0.5">
-                          <p className="text-[9px] uppercase font-bold text-muted-foreground">Reg No.</p>
-                          <p className="text-sm font-semibold">{i.vehicles?.registration_no || "—"}</p>
-                        </div>
-                        <div className="space-y-0.5">
-                          <p className="text-[9px] uppercase font-bold text-muted-foreground">Engine No.</p>
-                          <p className="text-sm font-semibold">{i.vehicles?.engine_no || "—"}</p>
+                          <p className="text-[9px] uppercase font-bold text-muted-foreground">Trim</p>
+                          <p className="text-sm font-semibold">{i.vehicles?.trim || "—"}</p>
                         </div>
                       </div>
                     </div>
