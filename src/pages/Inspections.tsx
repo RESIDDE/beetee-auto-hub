@@ -422,7 +422,7 @@ export default function Inspections() {
                            <p className="text-sm font-medium">{i.sent_by || "—"}</p>
                          </div>
                          <div>
-                           <p className="text-[10px] uppercase font-bold text-muted-foreground">Name</p>
+                           <p className="text-[10px] uppercase font-bold text-muted-foreground">Name of Person picking up</p>
                            <p className="text-sm font-medium">{i.picker_name}</p>
                          </div>
                          <div>
@@ -561,7 +561,7 @@ export default function Inspections() {
 
                <div className="grid grid-cols-2 gap-3">
                  <div className="space-y-2">
-                   <Label className="text-xs font-semibold text-muted-foreground">Person's Name *</Label>
+                   <Label className="text-xs font-semibold text-muted-foreground">Name of Person picking up the vehicle *</Label>
                    <Input 
                      className="rounded-xl h-10 bg-background/50 border-white/5" 
                      value={form.picker_name} 
