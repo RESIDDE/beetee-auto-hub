@@ -46,7 +46,17 @@ type Inspection = {
   picker_phone: string | null;
   picker_date: string | null;
   picker_signature: string | null;
-  vehicles?: { make: string; model: string; year: number } | null;
+  vehicles?: { 
+    make: string; 
+    model: string; 
+    year: number;
+    vin?: string;
+    color?: string;
+    mileage?: number;
+    engine_no?: string;
+    registration_no?: string;
+    source_company?: string;
+  } | null;
 };
 
 const emptyForm = {
@@ -87,7 +97,7 @@ export default function Inspections() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("inspections")
-        .select("*, vehicles(make, model, year)")
+        .select("*, vehicles(make, model, year, vin, color, mileage, engine_no, registration_no, source_company)")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data as Inspection[];
@@ -107,7 +117,7 @@ export default function Inspections() {
   const { data: vehicles = [] } = useQuery({
     queryKey: ["vehicles-list"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("vehicles").select("id, make, model, year").order("make");
+      const { data, error } = await supabase.from("vehicles").select("id, make, model, year, vin").order("make");
       if (error) throw error;
       return data;
     },
@@ -372,14 +382,44 @@ export default function Inspections() {
 
                 <div className="p-8 space-y-8">
                   {/* Vehicle & Inspector */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-1">
-                      <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Vehicle Details</p>
-                      <p className="text-lg font-bold">{i.vehicles ? `${i.vehicles.year} ${i.vehicles.make} ${i.vehicles.model}` : "Unknown Vehicle"}</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div className="space-y-4">
+                      <div className="space-y-1">
+                        <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Vehicle Details</p>
+                        <p className="text-xl font-black">{i.vehicles ? `${i.vehicles.year} ${i.vehicles.make} ${i.vehicles.model}` : "Unknown Vehicle"}</p>
+                        {i.vehicles?.vin && <p className="text-[10px] font-mono text-muted-foreground bg-foreground/5 px-2 py-0.5 rounded-md w-fit border border-white/5">VIN: {i.vehicles.vin}</p>}
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-4 pt-4 border-t border-white/5">
+                        <div className="space-y-0.5">
+                          <p className="text-[9px] uppercase font-bold text-muted-foreground">Color</p>
+                          <p className="text-sm font-semibold">{i.vehicles?.color || "—"}</p>
+                        </div>
+                        <div className="space-y-0.5">
+                          <p className="text-[9px] uppercase font-bold text-muted-foreground">Mileage</p>
+                          <p className="text-sm font-semibold">{i.vehicles?.mileage ? `${i.vehicles.mileage.toLocaleString()} KM` : "—"}</p>
+                        </div>
+                        <div className="space-y-0.5">
+                          <p className="text-[9px] uppercase font-bold text-muted-foreground">Reg No.</p>
+                          <p className="text-sm font-semibold">{i.vehicles?.registration_no || "—"}</p>
+                        </div>
+                        <div className="space-y-0.5">
+                          <p className="text-[9px] uppercase font-bold text-muted-foreground">Engine No.</p>
+                          <p className="text-sm font-semibold">{i.vehicles?.engine_no || "—"}</p>
+                        </div>
+                      </div>
                     </div>
-                    <div className="space-y-1">
-                      <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Staff / Inspector</p>
-                      <p className="text-lg font-bold">{i.inspector_name}</p>
+
+                    <div className="space-y-6">
+                      <div className="space-y-1">
+                        <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Staff / Inspector</p>
+                        <p className="text-lg font-bold">{i.inspector_name}</p>
+                      </div>
+                      
+                      <div className="p-4 rounded-2xl bg-foreground/5 border border-white/5 space-y-1">
+                         <p className="text-[9px] uppercase font-bold text-muted-foreground">Source Company</p>
+                         <p className="text-sm font-semibold">{i.vehicles?.source_company || "N/A"}</p>
+                      </div>
                     </div>
                   </div>
 
@@ -486,7 +526,12 @@ export default function Inspections() {
                     {form.vehicle_id
                       ? (() => {
                           const v = vehicles.find((v) => v.id === form.vehicle_id);
-                          return v ? `${v.year} ${v.make} ${v.model}` : "Select vehicle...";
+                          return v ? (
+                            <div className="flex flex-col items-start text-left leading-tight">
+                              <span className="font-semibold">{v.year} {v.make} {v.model}</span>
+                              {v.vin && <span className="text-[10px] text-muted-foreground font-mono">VIN: {v.vin}</span>}
+                            </div>
+                          ) : "Select vehicle...";
                         })()
                       : "Select vehicle..."}
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -514,8 +559,9 @@ export default function Inspections() {
                                 form.vehicle_id === v.id ? "opacity-100" : "opacity-0"
                               )}
                             />
-                            <div className="flex flex-col">
+                            <div className="flex flex-col leading-tight">
                                 <span className="font-semibold">{v.year} {v.make} {v.model}</span>
+                                {v.vin && <span className="text-[10px] text-muted-foreground font-mono">VIN: {v.vin}</span>}
                             </div>
                           </CommandItem>
                         ))}
