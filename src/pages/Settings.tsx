@@ -23,14 +23,14 @@ import { toast } from "sonner";
 import {
   Shield, ShieldCheck, User, Users, Settings2,
   ToggleLeft, Eye, Pencil, RotateCcw, Crown, Lock, Activity,
-  UserPlus, ArrowRightLeft, AlertTriangle, Trash2, ArrowLeft,
+  UserPlus, ArrowRightLeft, AlertTriangle, Trash2, ArrowLeft, Bell, Save,
 } from "lucide-react";
 import {
   ALL_PAGES, DEFAULT_PERMISSIONS, type AppRole, type PageKey, type PermissionsMap,
 } from "@/lib/permissions";
 import { logAction, describeLog } from "@/lib/logger";
 
-type Tab = "team" | "permissions" | "audit";
+type Tab = "team" | "permissions" | "audit" | "system";
 
 const ROLE_CONFIG: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
   super_admin: { label: "Super Admin", color: "text-amber-400",   icon: <Crown className="w-3.5 h-3.5" /> },
@@ -99,6 +99,10 @@ export default function Settings() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
 
+  // ── Service Interval State ─────────────────────────────────────────────────
+  const [serviceInterval, setServiceInterval] = useState<string>("3");
+  const [intervalSaving, setIntervalSaving] = useState(false);
+
   if (role !== "super_admin") {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center gap-4 animate-fade-up">
@@ -133,6 +137,20 @@ export default function Settings() {
           profile: p,
         };
       });
+    },
+  });
+
+  // ── App Settings Query ─────────────────────────────────────────────────────
+  useQuery({
+    queryKey: ["app_settings"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("app_settings")
+        .select("*");
+      if (error) throw error;
+      const intervalRow = (data as any[]).find((r: any) => r.key === "service_interval_months");
+      if (intervalRow) setServiceInterval(intervalRow.value);
+      return data;
     },
   });
 
@@ -337,6 +355,28 @@ export default function Settings() {
     }
   };
 
+  const saveServiceInterval = async () => {
+    const months = parseInt(serviceInterval);
+    if (isNaN(months) || months < 1 || months > 24) {
+      toast.error("Please enter a value between 1 and 24 months");
+      return;
+    }
+    setIntervalSaving(true);
+    try {
+      const { error } = await (supabase as any)
+        .from("app_settings")
+        .upsert({ key: "service_interval_months", value: serviceInterval, updated_at: new Date().toISOString() }, { onConflict: "key" });
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ["app_settings"] });
+      await logAction("UPDATE", "app_settings", "service_interval_months", { new_value: serviceInterval });
+      toast.success(`✅ Service reminder interval set to every ${serviceInterval} month(s)`);
+    } catch (e: any) {
+      toast.error("Failed to save: " + e.message);
+    } finally {
+      setIntervalSaving(false);
+    }
+  };
+
   const configurableRoles: Exclude<AppRole, "super_admin">[] = ["admin", "sales", "mechanic"];
   const otherUsers = usersData.filter((u: any) => u.user_id !== user?.id);
 
@@ -382,8 +422,13 @@ export default function Settings() {
       </div>
 
       {/* Tabs */}
-      <div className="flex p-1.5 bg-foreground/5 rounded-2xl gap-1 max-w-md overflow-x-auto">
-        {([["team", "Team", <Users className="w-4 h-4 shrink-0" />], ["permissions", "Permissions", <Shield className="w-4 h-4 shrink-0" />], ["audit", "Audit Logs", <Activity className="w-4 h-4 shrink-0" />]] as const).map(([key, label, icon]) => (
+      <div className="flex p-1.5 bg-foreground/5 rounded-2xl gap-1 w-full md:max-w-lg overflow-x-auto">
+        {([
+          ["team",        "Team",       <Users     className="w-4 h-4 shrink-0" />],
+          ["permissions", "Permissions",<Shield    className="w-4 h-4 shrink-0" />],
+          ["system",      "System",     <Bell      className="w-4 h-4 shrink-0" />],
+          ["audit",       "Audit Logs", <Activity  className="w-4 h-4 shrink-0" />],
+        ] as const).map(([key, label, icon]) => (
           <button
             key={key}
             onClick={() => setTab(key)}
@@ -395,6 +440,86 @@ export default function Settings() {
           </button>
         ))}
       </div>
+
+      {/* ── SYSTEM TAB ── */}
+      {tab === "system" && (
+        <div className="space-y-6 animate-fade-up">
+          {/* Service Reminder Card */}
+          <div className="glass-panel p-6 sm:p-8 rounded-3xl border border-white/5 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/5 rounded-full blur-[80px] pointer-events-none" />
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-2.5 bg-amber-500/10 rounded-2xl">
+                <Bell className="h-5 w-5 text-amber-400" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold">Service Reminder Interval</h2>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  Controls how frequently the system reminds you to service vehicles based on their last recorded repair date.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Interval Input */}
+              <div className="bg-background/50 border border-white/10 rounded-2xl p-5 space-y-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-amber-400" />
+                  <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Interval Setting</span>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold">Remind every</Label>
+                  <div className="flex items-center gap-3">
+                    <Input
+                      type="number"
+                      min="1"
+                      max="24"
+                      value={serviceInterval}
+                      onChange={(e) => setServiceInterval(e.target.value)}
+                      className="w-24 rounded-xl h-11 bg-background/50 border-white/10 text-center text-lg font-bold focus-visible:ring-amber-500"
+                    />
+                    <span className="text-muted-foreground font-medium">months</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Enter a value between 1 and 24 months.</p>
+                </div>
+                <Button
+                  onClick={saveServiceInterval}
+                  disabled={intervalSaving}
+                  className="w-full rounded-xl bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-500/25 gap-2"
+                >
+                  <Save className="w-4 h-4" />
+                  {intervalSaving ? "Saving..." : "Save Interval"}
+                </Button>
+              </div>
+
+              {/* Info Card */}
+              <div className="bg-amber-500/5 border border-amber-500/20 rounded-2xl p-5 space-y-4">
+                <div className="flex items-center gap-2">
+                  <Bell className="w-4 h-4 text-amber-400" />
+                  <span className="text-xs font-bold uppercase tracking-wider text-amber-400">How It Works</span>
+                </div>
+                <ul className="space-y-3 text-sm text-muted-foreground">
+                  <li className="flex items-start gap-2">
+                    <span className="text-amber-400 mt-0.5 shrink-0">•</span>
+                    When a repair is recorded, the system notes the date.
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-amber-400 mt-0.5 shrink-0">•</span>
+                    After <strong className="text-foreground">{serviceInterval} month(s)</strong>, that vehicle appears in the <strong className="text-foreground">Service Reminders</strong> banner on the Repairs page.
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-amber-400 mt-0.5 shrink-0">•</span>
+                    Vehicles due within <strong className="text-foreground">14 days</strong> are highlighted in amber; overdue ones in red.
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-amber-400 mt-0.5 shrink-0">•</span>
+                    The reminder resets automatically each time a new repair is logged for that vehicle.
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── TEAM TAB ── */}
       {tab === "team" && (

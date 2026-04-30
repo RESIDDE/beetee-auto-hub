@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { 
-  ChevronRight, ArrowRight, ArrowLeft, Receipt, ClipboardCheck, Wrench, PlusCircle, Clock, DollarSign, PieChart as PieChartIcon, Search, Car, Pencil, QrCode, FileOutput, Trash2, History as HistoryIcon, Check, ChevronsUpDown, Mail, Printer, CreditCard, CheckCircle 
+  ChevronRight, ArrowRight, ArrowLeft, Receipt, ClipboardCheck, Wrench, PlusCircle, Clock, DollarSign, PieChart as PieChartIcon, Search, Car, Pencil, QrCode, FileOutput, Trash2, History as HistoryIcon, Check, ChevronsUpDown, Mail, Printer, CreditCard, CheckCircle, Bell, X as XIcon, AlertTriangle as AlertTriangleIcon
 } from "lucide-react";
 import {
   Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList
@@ -189,6 +189,9 @@ export default function RepairsMaintenance() {
   const [historyVehicleLabel, setHistoryVehicleLabel] = useState("");
   const [page, setPage] = useState(0);
   const [openCustomerSelect, setOpenCustomerSelect] = useState(false);
+  const [reminderDismissed, setReminderDismissed] = useState(() =>
+    sessionStorage.getItem("service_reminder_dismissed") === "true"
+  );
   const PAGE_SIZE = 10;
 
   // Auto-calculate parts_total from replacement_parts_list
@@ -256,7 +259,54 @@ export default function RepairsMaintenance() {
     },
   });
 
+  const { data: serviceIntervalMonths = 3 } = useQuery({
+    queryKey: ["app_settings"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).from("app_settings").select("*");
+      if (error) return 3;
+      const row = (data as any[]).find((r: any) => r.key === "service_interval_months");
+      return row ? parseInt(row.value) || 3 : 3;
+    },
+  });
+
   // 2. Data Calculations
+  const serviceReminders = useMemo(() => {
+    const now = new Date();
+    const soonThreshold = new Date(now);
+    soonThreshold.setDate(soonThreshold.getDate() + 14);
+
+    // Group repairs by a unique vehicle key — prefer vehicle_id, fall back to manual make/model
+    const latestByVehicle = new Map<string, { label: string; customer: string; lastDate: Date; repairId: string }>();
+    for (const r of repairs) {
+      const key = r.vehicle_id || `manual:${r.manual_make}:${r.manual_model}:${r.manual_year}`;
+      const label = getVehicleLabel(r);
+      const cust = customers.find((c: any) => c.id === r.customer_id);
+      const custName = cust ? cust.name : (r.brought_in_by || "Unknown Customer");
+      const repairDate = new Date(r.created_at);
+      const existing = latestByVehicle.get(key);
+      if (!existing || repairDate > existing.lastDate) {
+        latestByVehicle.set(key, { label, customer: custName, lastDate: repairDate, repairId: r.id });
+      }
+    }
+
+    const reminders: { key: string; label: string; customer: string; lastDate: Date; dueDate: Date; status: "overdue" | "soon" }[] = [];
+    for (const [key, entry] of latestByVehicle.entries()) {
+      const dueDate = new Date(entry.lastDate);
+      dueDate.setMonth(dueDate.getMonth() + (serviceIntervalMonths as number));
+      if (dueDate <= soonThreshold) {
+        reminders.push({
+          key,
+          label: entry.label,
+          customer: entry.customer,
+          lastDate: entry.lastDate,
+          dueDate,
+          status: dueDate < now ? "overdue" : "soon",
+        });
+      }
+    }
+    return reminders.sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
+  }, [repairs, customers, serviceIntervalMonths]);
+
   const stats = useMemo(() => {
     const total = repairs.length;
     const active = repairs.filter(r => r.payment_status !== 'paid_in_full').length;
@@ -1005,6 +1055,66 @@ export default function RepairsMaintenance() {
           </div>
         )}
       </div>
+
+      {/* ── SERVICE REMINDER BANNER ── */}
+      {!reminderDismissed && serviceReminders.length > 0 && (
+        <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-3.5 border-b border-amber-500/20 bg-amber-500/10">
+            <div className="flex items-center gap-2">
+              <Bell className="w-4 h-4 text-amber-400 animate-pulse" />
+              <span className="font-bold text-sm text-amber-400 uppercase tracking-wider">
+                Service Reminders
+              </span>
+              <span className="ml-1 bg-amber-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                {serviceReminders.length}
+              </span>
+            </div>
+            <button
+              onClick={() => {
+                setReminderDismissed(true);
+                sessionStorage.setItem("service_reminder_dismissed", "true");
+              }}
+              className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded-lg hover:bg-white/5"
+              title="Dismiss for this session"
+            >
+              <XIcon className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="divide-y divide-white/5">
+            {serviceReminders.map((r) => (
+              <div key={r.key} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-5 py-3.5 hover:bg-white/[0.02] transition-colors">
+                <div className="flex items-center gap-3">
+                  <div className={`w-2 h-2 rounded-full shrink-0 ${
+                    r.status === "overdue" ? "bg-red-500" : "bg-amber-400"
+                  }`} />
+                  <div>
+                    <p className="font-semibold text-sm text-foreground">{r.label}</p>
+                    <p className="text-xs text-muted-foreground">{r.customer}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-4 pl-5 sm:pl-0">
+                  <div className="text-right">
+                    <p className="text-[11px] text-muted-foreground">Last serviced</p>
+                    <p className="text-xs font-semibold">{r.lastDate.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}</p>
+                  </div>
+                  <div className={`text-right px-3 py-1.5 rounded-xl border ${
+                    r.status === "overdue"
+                      ? "bg-red-500/10 border-red-500/30 text-red-400"
+                      : "bg-amber-500/10 border-amber-500/30 text-amber-400"
+                  }`}>
+                    <p className="text-[10px] font-bold uppercase tracking-wider">
+                      {r.status === "overdue" ? "Overdue" : "Due Soon"}
+                    </p>
+                    <p className="text-xs font-bold">
+                      {r.dueDate.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Stats Dashboard */}
       {!isLoading && repairs.length > 0 && (
