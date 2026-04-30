@@ -192,6 +192,7 @@ export default function RepairsMaintenance() {
   const [reminderDismissed, setReminderDismissed] = useState(() =>
     sessionStorage.getItem("service_reminder_dismissed") === "true"
   );
+  const [viewTab, setViewTab] = useState<"all" | "service_due">("all");
   const PAGE_SIZE = 10;
 
   // Auto-calculate parts_total from replacement_parts_list
@@ -1202,17 +1203,125 @@ export default function RepairsMaintenance() {
         </div>
       )}
 
-      {/* Search and List Section */}
-      <div className="flex flex-col md:flex-row gap-4 mb-4">
-        <div className="relative group flex-1">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground group-focus-within:text-amber-500 transition-colors" />
-          <Input 
-             placeholder="Search vehicles, customers, or companies under repair..." 
-             className="pl-12 h-14 rounded-2xl bg-card border-white/10 focus-visible:ring-amber-500 text-lg shadow-xl"
-             value={search}
-             onChange={(e) => { setSearch(e.target.value); setPage(0); }} 
-          />
+      {/* View Tab Switcher */}
+      <div className="flex items-center gap-2 p-1.5 bg-foreground/5 rounded-2xl w-fit">
+        <button
+          onClick={() => setViewTab("all")}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+            viewTab === "all" ? "bg-amber-500 text-white shadow-lg shadow-amber-500/30" : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <Wrench className="w-4 h-4" /> All Repairs
+        </button>
+        <button
+          onClick={() => setViewTab("service_due")}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all relative ${
+            viewTab === "service_due" ? "bg-red-500 text-white shadow-lg shadow-red-500/30" : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <Bell className="w-4 h-4" />
+          Service Due
+          {serviceReminders.length > 0 && (
+            <span className={`ml-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+              viewTab === "service_due" ? "bg-white/20 text-white" : "bg-red-500 text-white"
+            }`}>
+              {serviceReminders.length}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {/* ── SERVICE DUE TAB ── */}
+      {viewTab === "service_due" && (
+        <div className="space-y-4 animate-fade-up">
+          {serviceReminders.length === 0 ? (
+            <div className="bento-card p-12 flex flex-col items-center justify-center text-center">
+              <div className="bg-emerald-500/10 p-5 rounded-full mb-4">
+                <CheckCircle className="h-10 w-10 text-emerald-500" />
+              </div>
+              <h2 className="text-xl font-bold mb-2">All clear! No services due.</h2>
+              <p className="text-muted-foreground max-w-sm">
+                No vehicles are overdue or coming up for service in the next 14 days.
+              </p>
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-muted-foreground">
+                  Showing <strong className="text-foreground">{serviceReminders.length}</strong> vehicle{serviceReminders.length !== 1 ? "s" : ""} requiring attention
+                </span>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {serviceReminders.map((rem) => (
+                  <div
+                    key={rem.key}
+                    className={`bento-card p-6 flex flex-col gap-4 border-l-4 ${
+                      rem.status === "overdue" ? "border-l-red-500" : "border-l-amber-400"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className={`p-3 rounded-2xl shrink-0 ${
+                          rem.status === "overdue" ? "bg-red-500/10" : "bg-amber-500/10"
+                        }`}>
+                          <Car className={`h-5 w-5 ${
+                            rem.status === "overdue" ? "text-red-400" : "text-amber-400"
+                          }`} />
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-foreground">{rem.label}</h3>
+                          <p className="text-sm text-muted-foreground">{rem.customer}</p>
+                        </div>
+                      </div>
+                      <span className={`text-xs font-bold uppercase tracking-wider px-3 py-1.5 rounded-xl border shrink-0 ${
+                        rem.status === "overdue"
+                          ? "bg-red-500/10 border-red-500/30 text-red-400"
+                          : "bg-amber-500/10 border-amber-500/30 text-amber-400"
+                      }`}>
+                        {rem.status === "overdue" ? "⚠ Overdue" : "⏰ Due Soon"}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 pt-2 border-t border-white/5">
+                      <div className="bg-background/50 rounded-xl p-3">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Last Serviced</p>
+                        <p className="text-sm font-semibold">
+                          {rem.lastDate.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
+                        </p>
+                      </div>
+                      <div className={`rounded-xl p-3 ${
+                        rem.status === "overdue" ? "bg-red-500/5" : "bg-amber-500/5"
+                      }`}>
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Service Due</p>
+                        <p className={`text-sm font-bold ${
+                          rem.status === "overdue" ? "text-red-400" : "text-amber-400"
+                        }`}>
+                          {rem.dueDate.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </div>
+      )}
+
+      {/* ── ALL REPAIRS TAB ── */}
+      {viewTab === "all" && (
+        <>
+          {/* Search and List Section */}
+          <div className="flex flex-col md:flex-row gap-4 mb-4">
+            <div className="relative group flex-1">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground group-focus-within:text-amber-500 transition-colors" />
+              <Input 
+                 placeholder="Search vehicles, customers, or companies under repair..." 
+                 className="pl-12 h-14 rounded-2xl bg-card border-white/10 focus-visible:ring-amber-500 text-lg shadow-xl"
+                 value={search}
+                 onChange={(e) => { setSearch(e.target.value); setPage(0); }} 
+              />
+            </div>
         <div className="flex gap-2 sm:gap-4 shrink-0 overflow-x-auto pb-2 md:pb-0">
           <Select value={dateFilter} onValueChange={(v) => { setDateFilter(v); setPage(0); }}>
             <SelectTrigger className="w-[160px] h-14 rounded-2xl bg-card border-white/10 focus-visible:ring-amber-500 text-base shadow-xl whitespace-nowrap">
@@ -1387,6 +1496,8 @@ export default function RepairsMaintenance() {
             </div>
           )}
         </div>
+      )}
+      </>
       )}
 
       {/* QR Dialog */}
