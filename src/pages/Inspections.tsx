@@ -414,11 +414,7 @@ export default function Inspections() {
               </Popover>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-               <div className="space-y-2">
-                 <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Inspector Name *</Label>
-                 <Input className="rounded-xl h-11 bg-background/50 border-white/10 focus-visible:ring-rose-500" value={form.inspector_name} onChange={(e) => setForm({ ...form, inspector_name: e.target.value })} required />
-               </div>
+            <div className="grid grid-cols-1 gap-4">
                <div className="space-y-2">
                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Pickup Date *</Label>
                  <Input type="datetime-local" className="rounded-xl h-11 bg-background/50 border-white/10 focus-visible:ring-rose-500" value={form.pickup_date} onChange={(e) => setForm({ ...form, pickup_date: e.target.value })} />
@@ -497,10 +493,28 @@ export default function Inspections() {
                </div>
             </div>
 
-            <div className="space-y-2">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Digital Signature (Staff/Inspector)</Label>
-              <div className="rounded-xl overflow-hidden border border-white/10">
+            <div className="space-y-4 p-5 rounded-2xl bg-rose-500/5 border border-rose-500/10">
+              <div className="flex items-center gap-2 mb-2">
+                <FileSignature className="w-4 h-4 text-rose-400" />
+                <h4 className="text-sm font-bold text-rose-400 uppercase tracking-wider text-xs">Staff Signature</h4>
+              </div>
+
+              <div className="rounded-xl overflow-hidden border border-white/10 bg-background/50">
                  <SignaturePad value={form.signature_data} onChange={(v) => setForm({ ...form, signature_data: v })} />
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs font-semibold text-muted-foreground">Staff / Inspector Name *</Label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input 
+                    className="pl-9 rounded-xl h-10 bg-background/50 border-white/5" 
+                    value={form.inspector_name} 
+                    onChange={(e) => setForm({ ...form, inspector_name: e.target.value })} 
+                    placeholder="Enter staff name..."
+                    required
+                  />
+                </div>
               </div>
             </div>
 
