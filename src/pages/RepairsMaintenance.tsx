@@ -260,13 +260,17 @@ export default function RepairsMaintenance() {
     },
   });
 
-  const { data: serviceIntervalMonths = 3 } = useQuery({
+  const { data: serviceInterval = { months: 3, days: 0 } } = useQuery({
     queryKey: ["app_settings"],
     queryFn: async () => {
       const { data, error } = await (supabase as any).from("app_settings").select("*");
-      if (error) return 3;
-      const row = (data as any[]).find((r: any) => r.key === "service_interval_months");
-      return row ? parseInt(row.value) || 3 : 3;
+      if (error) return { months: 3, days: 0 };
+      const mRow = (data as any[]).find((r: any) => r.key === "service_interval_months");
+      const dRow = (data as any[]).find((r: any) => r.key === "service_interval_days");
+      return { 
+        months: mRow ? parseInt(mRow.value) || 0 : 3, 
+        days: dRow ? parseInt(dRow.value) || 0 : 0 
+      };
     },
   });
 
@@ -293,7 +297,9 @@ export default function RepairsMaintenance() {
     const reminders: { key: string; label: string; customer: string; lastDate: Date; dueDate: Date; status: "overdue" | "soon" }[] = [];
     for (const [key, entry] of latestByVehicle.entries()) {
       const dueDate = new Date(entry.lastDate);
-      dueDate.setMonth(dueDate.getMonth() + (serviceIntervalMonths as number));
+      dueDate.setMonth(dueDate.getMonth() + (serviceInterval.months));
+      dueDate.setDate(dueDate.getDate() + (serviceInterval.days));
+      
       if (dueDate <= soonThreshold) {
         reminders.push({
           key,
@@ -306,7 +312,7 @@ export default function RepairsMaintenance() {
       }
     }
     return reminders.sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
-  }, [repairs, customers, serviceIntervalMonths]);
+  }, [repairs, customers, serviceInterval]);
 
   const stats = useMemo(() => {
     const total = repairs.length;

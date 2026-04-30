@@ -443,7 +443,7 @@ export default function PerformanceQuotes() {
                 const v = item.vehicles;
                 const basePrice = Number(item.base_price) || 0;
                 const qty = Number(item.quantity) || 1;
-                const vehicleDesc = `${v?.year || ''} ${v?.make || ''} ${v?.model || ''} ${v?.trim || ''} ${v?.vin ? `(VIN: ${v.vin})` : ''}`.trim();
+                const vehicleDesc = `${v?.year || ''} ${v?.make || ''} ${v?.model || ''} ${v?.trim || ''}`.trim();
 
                 rowsHtml += `
                 <tr>
@@ -835,8 +835,16 @@ export default function PerformanceQuotes() {
                             <Input 
                               type="number" 
                               min="1" 
-                              value={sv.quantity} 
-                              onChange={e => updateVehicleData(sv.id, "quantity", parseInt(e.target.value) || 1)} 
+                              value={sv.quantity === 0 ? "0" : sv.quantity || ""} 
+                              onChange={e => {
+                                const val = e.target.value;
+                                if (val === "") {
+                                  updateVehicleData(sv.id, "quantity", "");
+                                } else {
+                                  const parsed = parseInt(val);
+                                  if (!isNaN(parsed)) updateVehicleData(sv.id, "quantity", parsed);
+                                }
+                              }}
                               className="bg-background/50 border-white/10"
                             />
                           </div>

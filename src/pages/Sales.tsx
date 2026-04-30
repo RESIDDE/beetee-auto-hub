@@ -428,9 +428,9 @@ export default function Sales() {
     const html = `<html><head><title>Receipt - ${sale.id.slice(0, 8).toUpperCase()}</title>
     <style>
       @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap');
-      body { font-family: 'Roboto', 'Arial', sans-serif; padding: 10px; max-width: 800px; margin: 0 auto; color: #1a1a1a; line-height: 1.2; }
-      .date-section { text-align: right; font-weight: 800; font-size: 13px; margin-bottom: 5px; text-transform: uppercase; }
-      .bill-to { margin-bottom: 10px; }
+      body { font-family: 'Roboto', 'Arial', sans-serif; padding: 40px; max-width: 800px; margin: 0 auto; color: #1a1a1a; line-height: 1.2; }
+      .date-section { text-align: right; font-weight: 800; font-size: 13px; margin-bottom: 5px; text-transform: uppercase; padding: 0 20px; }
+      .bill-to { margin-bottom: 10px; padding: 0 20px; }
       .bill-to p { margin: 1px 0; font-size: 13px; }
       .main-container {
         background-color: transparent;
@@ -488,8 +488,8 @@ export default function Sales() {
         <style>
           @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap');
           body { font-family: 'Roboto', 'Arial', sans-serif; padding: 40px; width: 750px; background: #fff; color: #1a1a1a; line-height: 1.4; }
-          .date-section { text-align: right; font-weight: 800; font-size: 14px; margin-bottom: 20px; text-transform: uppercase; }
-          .bill-to { margin-bottom: 30px; }
+          .date-section { text-align: right; font-weight: 800; font-size: 14px; margin-bottom: 20px; text-transform: uppercase; padding: 0 30px; }
+          .bill-to { margin-bottom: 30px; padding: 0 30px; }
           .bill-to p { margin: 2px 0; font-size: 14px; }
           .main-container { border-radius: 40px; padding: 40px; min-height: 600px; position: relative; border: 1px solid #94a3b8; }
           .content-wrapper { position: relative; z-index: 1; }
