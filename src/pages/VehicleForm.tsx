@@ -495,7 +495,7 @@ export default function VehicleForm() {
               </div>
               <div className="space-y-2">
                 <Label>Staff Digital Signature</Label>
-                <div className="rounded-2xl overflow-hidden border border-white/10 bg-background/50 h-[180px]">
+                <div className="rounded-2xl border border-white/10 bg-background/50 p-4">
                   <SignaturePad 
                     value={form.accepted_signature} 
                     onChange={(v) => setForm({ ...form, accepted_signature: v })} 

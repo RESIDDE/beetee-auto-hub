@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { XCircle } from "lucide-react";
 
 interface SignaturePadProps {
   value?: string;
@@ -104,7 +105,14 @@ export function SignaturePad({ value, onChange }: SignaturePadProps) {
         onTouchMove={draw}
         onTouchEnd={endDraw}
       />
-      <Button type="button" variant="outline" size="sm" onClick={clear}>
+      <Button 
+        type="button" 
+        variant="ghost" 
+        size="sm" 
+        onClick={clear}
+        className="text-xs font-semibold text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all gap-2"
+      >
+        <XCircle className="w-3.5 h-3.5" />
         Clear Signature
       </Button>
     </div>

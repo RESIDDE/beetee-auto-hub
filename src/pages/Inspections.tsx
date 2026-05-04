@@ -640,7 +640,7 @@ export default function Inspections() {
 
                <div className="space-y-2">
                  <Label className="text-xs font-semibold text-muted-foreground">Picker's Signature *</Label>
-                 <div className="rounded-xl overflow-hidden border border-white/10 bg-background/50">
+                 <div className="rounded-xl border border-white/10 bg-background/50 p-2">
                     <SignaturePad value={form.picker_signature} onChange={(v) => setForm({ ...form, picker_signature: v })} />
                  </div>
                </div>
@@ -652,7 +652,7 @@ export default function Inspections() {
                 <h4 className="text-sm font-bold text-rose-400 uppercase tracking-wider text-xs">Staff Signature</h4>
               </div>
 
-              <div className="rounded-xl overflow-hidden border border-white/10 bg-background/50">
+              <div className="rounded-xl border border-white/10 bg-background/50 p-2">
                  <SignaturePad value={form.signature_data} onChange={(v) => setForm({ ...form, signature_data: v })} />
               </div>
 

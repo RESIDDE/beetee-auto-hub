@@ -1991,13 +1991,13 @@ export default function RepairsMaintenance() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <Label className="text-[10px] font-bold uppercase tracking-tight opacity-60">Customer Signature</Label>
-                    <div className="rounded-xl overflow-hidden border border-white/10">
+                    <div className="rounded-xl border border-white/10 p-2">
                       <SignaturePad value={form.signature_data} onChange={(v) => setForm({ ...form, signature_data: v })} />
                     </div>
                   </div>
                   <div className="space-y-2">
                     <Label className="text-[10px] font-bold uppercase tracking-tight opacity-60">Supervisor Signature</Label>
-                    <div className="rounded-xl overflow-hidden border border-white/10">
+                    <div className="rounded-xl border border-white/10 p-2">
                       <SignaturePad value={form.rep_signature} onChange={(v) => setForm({ ...form, rep_signature: v })} />
                     </div>
                   </div>
