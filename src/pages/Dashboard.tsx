@@ -116,11 +116,38 @@ export default function Dashboard() {
     },
   });
 
+  const { data: invoices = [] } = useQuery({
+    queryKey: ["dash-invoices"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("invoices").select("*");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: inquiries = [] } = useQuery({
+    queryKey: ["dash-inquiries"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("inquiries").select("*");
+      if (error) throw error;
+      return data;
+    },
+  });
+
   const totalQuotesValue = performanceQuotes.reduce((sum, q) => sum + Number(q.total_amount || 0), 0);
 
   const totalSalesRevenue = sales.reduce((sum, s) => sum + Number(s.sale_price || 0), 0);
   const totalRepairsRevenue = repairs.reduce((sum, r) => sum + Number(r.repair_cost || 0), 0);
   const totalRevenue = totalSalesRevenue + totalRepairsRevenue;
+  
+  const totalSalesProfit = sales.reduce((sum, s) => {
+    const cost = Number((s as any).vehicles?.cost_price || 0);
+    const sale = Number(s.sale_price || 0);
+    return sum + (sale - cost);
+  }, 0);
+
+  const openInvoicesAmount = invoices.filter(i => i.status !== 'paid').reduce((sum, i) => sum + Number(i.total || 0), 0);
+  const pendingInquiriesCount = inquiries.filter(i => i.status === 'pending').length;
 
   // 1. Monthly Revenue Trend (Last 6 Months)
   const monthlyTimeline = useMemo(() => {
@@ -256,8 +283,8 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-12 gap-4 md:gap-6 auto-rows-max">
 
           {/* MAIN KPI PANEL - 8 Cols */}
-          <div className="lg:col-span-8 grid grid-cols-1 md:grid-cols-5 gap-4 md:gap-6 relative">
-            <Link to="/sales" className="md:col-span-2 group">
+          <div className="lg:col-span-8 grid grid-cols-1 md:grid-cols-6 gap-4 md:gap-6 relative">
+            <Link to="/sales" className="md:col-span-3 group">
               <div className="bento-card h-full p-6 sm:p-8 flex flex-col justify-between overflow-hidden relative min-h-[160px]">
                 <div className="absolute -top-24 -right-24 w-64 h-64 bg-primary/20 blur-3xl rounded-full pointer-events-none group-hover:bg-primary/30 transition-colors duration-500"></div>
                 <div className="flex justify-between items-start z-10 relative">
@@ -266,52 +293,99 @@ export default function Dashboard() {
                 </div>
                 <div className="mt-6 z-10 relative">
                   <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-1">Company Lifetime Revenue</p>
-                  <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground tracking-tight truncate" title={`₦${totalRevenue.toLocaleString()}`}>₦{totalRevenue.toLocaleString()}</h2>
+                  <h2 className="text-3xl sm:text-4xl font-bold text-foreground tracking-tight">₦{totalRevenue.toLocaleString()}</h2>
                 </div>
               </div>
             </Link>
 
-            <Link to="/sales" className="md:col-span-1 group">
-               <div className="bento-card p-5 sm:p-6 flex flex-col justify-between relative overflow-hidden h-full min-h-[160px]">
+            <Link to="/sales" className="md:col-span-3 group">
+              <div className="bento-card h-full p-6 sm:p-8 flex flex-col justify-between overflow-hidden relative min-h-[160px] border-l-4 border-l-emerald-500">
+                <div className="absolute -top-24 -right-24 w-64 h-64 bg-emerald-500/10 blur-3xl rounded-full pointer-events-none group-hover:bg-emerald-500/20 transition-colors duration-500"></div>
+                <div className="flex justify-between items-start z-10 relative">
+                  <div className="p-3 bg-emerald-500/10 rounded-2xl"><TrendingUp className="h-6 w-6 text-emerald-500" /></div>
+                  <div className="flex items-center gap-1 text-xs font-semibold text-emerald-500 bg-emerald-500/10 px-2 py-1 rounded-full">Gross Profit</div>
+                </div>
+                <div className="mt-6 z-10 relative">
+                  <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-1">Total Estimated Profit</p>
+                  <h2 className="text-3xl sm:text-4xl font-bold text-foreground tracking-tight">₦{totalSalesProfit.toLocaleString()}</h2>
+                </div>
+              </div>
+            </Link>
+
+            <Link to="/sales" className="md:col-span-2 group">
+               <div className="bento-card p-5 sm:p-6 flex flex-col justify-between relative overflow-hidden h-full min-h-[130px]">
                  <div className="absolute top-0 right-0 w-32 h-32 bg-violet-500/10 blur-2xl rounded-full pointer-events-none transition-colors duration-500 group-hover:bg-violet-500/20" />
                  <div className="p-2 sm:p-3 bg-violet-500/10 w-fit rounded-xl sm:rounded-2xl mb-2 sm:mb-4 group-hover:bg-violet-500/20"><DollarSign className="h-5 w-5 sm:h-6 sm:w-6 text-violet-500" /></div>
                  <div className="z-10 relative">
-                    <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-foreground">₦{totalSalesRevenue >= 1000000 ? (totalSalesRevenue / 1000000).toFixed(1) + 'M' : totalSalesRevenue >= 1000 ? (totalSalesRevenue / 1000).toFixed(1) + 'k' : totalSalesRevenue}</h2>
-                    <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wider mt-1 sm:mt-2 font-semibold line-clamp-1">Sales Rev.</p>
+                    <h2 className="text-xl sm:text-2xl font-bold text-foreground">₦{totalSalesRevenue.toLocaleString()}</h2>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wider mt-1 sm:mt-2 font-semibold line-clamp-1">Sales Revenue</p>
                  </div>
                </div>
             </Link>
 
-            <Link to="/repairs" className="md:col-span-1 group">
-               <div className="bento-card p-5 sm:p-6 flex flex-col justify-between relative overflow-hidden h-full min-h-[160px]">
+            <Link to="/repairs" className="md:col-span-2 group">
+               <div className="bento-card p-5 sm:p-6 flex flex-col justify-between relative overflow-hidden h-full min-h-[130px]">
                  <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 blur-2xl rounded-full pointer-events-none transition-colors duration-500 group-hover:bg-amber-500/20" />
                  <div className="p-2 sm:p-3 bg-amber-500/10 w-fit rounded-xl sm:rounded-2xl mb-2 sm:mb-4 group-hover:bg-amber-500/20"><Wrench className="h-5 w-5 sm:h-6 sm:w-6 text-amber-500" /></div>
                  <div className="z-10 relative">
-                    <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-foreground">₦{totalRepairsRevenue >= 1000000 ? (totalRepairsRevenue / 1000000).toFixed(1) + 'M' : totalRepairsRevenue >= 1000 ? (totalRepairsRevenue / 1000).toFixed(1) + 'k' : totalRepairsRevenue}</h2>
-                    <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wider mt-1 sm:mt-2 font-semibold line-clamp-1">Repairs Rev.</p>
+                    <h2 className="text-xl sm:text-2xl font-bold text-foreground">₦{totalRepairsRevenue.toLocaleString()}</h2>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wider mt-1 sm:mt-2 font-semibold line-clamp-1">Repairs Revenue</p>
+                 </div>
+               </div>
+            </Link>
+
+            <Link to="/invoices" className="md:col-span-2 group">
+               <div className="bento-card p-5 sm:p-6 flex flex-col justify-between relative overflow-hidden h-full min-h-[130px]">
+                 <div className="absolute top-0 right-0 w-32 h-32 bg-rose-500/10 blur-2xl rounded-full pointer-events-none transition-colors duration-500 group-hover:bg-rose-500/20" />
+                 <div className="p-2 sm:p-3 bg-rose-500/10 w-fit rounded-xl sm:rounded-2xl mb-2 sm:mb-4 group-hover:bg-rose-500/20"><FileText className="h-5 w-5 sm:h-6 sm:w-6 text-rose-500" /></div>
+                 <div className="z-10 relative">
+                    <h2 className="text-xl sm:text-2xl font-bold text-foreground">₦{openInvoicesAmount.toLocaleString()}</h2>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wider mt-1 sm:mt-2 font-semibold line-clamp-1">Unpaid Invoices</p>
+                 </div>
+               </div>
+            </Link>
+
+            <Link to="/inquiries" className="md:col-span-1 group">
+               <div className="bento-card p-5 flex flex-col justify-between relative overflow-hidden h-full min-h-[130px]">
+                 <div className="absolute top-0 right-0 w-24 h-24 bg-sky-500/10 blur-xl rounded-full pointer-events-none transition-colors duration-500 group-hover:bg-sky-500/20" />
+                 <div className="p-2 bg-sky-500/10 w-fit rounded-xl mb-2 group-hover:bg-sky-500/20"><Search className="h-5 w-5 text-sky-500" /></div>
+                 <div className="z-10 relative">
+                    <h2 className="text-xl font-bold text-foreground">{pendingInquiriesCount}</h2>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider mt-1 font-semibold line-clamp-1">Inquiries</p>
                  </div>
                </div>
             </Link>
 
             <Link to="/performance-quotes" className="md:col-span-1 group">
-               <div className="bento-card p-5 sm:p-6 flex flex-col justify-between relative overflow-hidden h-full min-h-[160px]">
-                 <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 blur-2xl rounded-full pointer-events-none transition-colors duration-500 group-hover:bg-emerald-500/20" />
-                 <div className="p-2 sm:p-3 bg-emerald-500/10 w-fit rounded-xl sm:rounded-2xl mb-2 sm:mb-4 group-hover:bg-emerald-500/20"><FileSignature className="h-5 w-5 sm:h-6 sm:w-6 text-emerald-500" /></div>
+               <div className="bento-card p-5 flex flex-col justify-between relative overflow-hidden h-full min-h-[130px]">
+                 <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/10 blur-xl rounded-full pointer-events-none transition-colors duration-500 group-hover:bg-emerald-500/20" />
+                 <div className="p-2 bg-emerald-500/10 w-fit rounded-xl mb-2 group-hover:bg-emerald-500/20"><FileSignature className="h-5 w-5 text-emerald-500" /></div>
                  <div className="z-10 relative">
-                    <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-foreground">{performanceQuotes.length}</h2>
-                    <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wider mt-1 sm:mt-2 font-semibold line-clamp-1">Perf. Quotes</p>
+                    <h2 className="text-xl font-bold text-foreground">{performanceQuotes.length}</h2>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider mt-1 font-semibold line-clamp-1">Perf. Quotes</p>
                  </div>
                </div>
             </Link>
 
-            <div className="md:col-span-1 bento-card p-5 sm:p-6 flex flex-col justify-between relative overflow-hidden group h-full min-h-[160px]">
-               <div className="absolute top-0 right-0 w-32 h-32 bg-sky-500/10 blur-2xl rounded-full pointer-events-none transition-colors duration-500 group-hover:bg-sky-500/20" />
-               <div className="p-2 sm:p-3 bg-sky-500/10 w-fit rounded-xl sm:rounded-2xl mb-2 sm:mb-4 group-hover:bg-sky-500/20"><Clock className="h-5 w-5 sm:h-6 sm:w-6 text-sky-500" /></div>
+            <div className="md:col-span-2 bento-card p-5 flex flex-col justify-between relative overflow-hidden group h-full min-h-[130px]">
+               <div className="absolute top-0 right-0 w-24 h-24 bg-slate-500/10 blur-xl rounded-full pointer-events-none transition-colors duration-500 group-hover:bg-slate-500/20" />
+               <div className="p-2 bg-slate-500/10 w-fit rounded-xl mb-2 group-hover:bg-slate-500/20"><Clock className="h-5 w-5 text-slate-500" /></div>
                <div className="z-10 relative">
-                  <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-foreground">{turnaroundWait} <span className="text-sm sm:text-lg text-muted-foreground font-medium">days</span></h2>
-                  <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wider mt-1 sm:mt-2 font-semibold line-clamp-1">Avg Turnaround</p>
+                  <h2 className="text-xl font-bold text-foreground">{turnaroundWait} <span className="text-xs text-muted-foreground font-medium">days</span></h2>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider mt-1 font-semibold line-clamp-1">Avg Turnaround</p>
                </div>
             </div>
+
+            <Link to="/customers" className="md:col-span-2 group">
+               <div className="bento-card p-5 flex flex-col justify-between relative overflow-hidden h-full min-h-[130px]">
+                 <div className="absolute top-0 right-0 w-24 h-24 bg-violet-500/10 blur-xl rounded-full pointer-events-none transition-colors duration-500 group-hover:bg-violet-500/20" />
+                 <div className="p-2 bg-violet-500/10 w-fit rounded-xl mb-2 group-hover:bg-violet-500/20"><Users className="h-5 w-5 text-violet-500" /></div>
+                 <div className="z-10 relative">
+                    <h2 className="text-xl font-bold text-foreground">{customers.length}</h2>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider mt-1 font-semibold line-clamp-1">Total Customers</p>
+                 </div>
+               </div>
+            </Link>
 
             {/* MONTHLY REVENUE LINE CHART - 4 Cols */}
             <div className="md:col-span-4 bento-card p-6 flex flex-col min-h-[350px]">
@@ -459,6 +533,36 @@ export default function Dashboard() {
                         </div>
                         <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0" />
                       </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Recent Inquiries */}
+            <div className="glass-panel p-0 flex flex-col overflow-hidden bg-card/20 border-white/10 flex-1">
+              <div className="p-5 border-b border-white/5 flex items-center justify-between bg-card/40">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 bg-sky-500/10 rounded-lg"><Search className="h-4 w-4 text-sky-500" /></div>
+                  <h3 className="font-semibold text-foreground">Recent Inquiries</h3>
+                </div>
+                <Link to="/inquiries" className="text-xs text-primary hover:underline font-bold">View All</Link>
+              </div>
+              <div className="p-3">
+                {inquiries.length === 0 ? (
+                  <p className="text-sm text-center text-muted-foreground py-8">No inquiries found.</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {inquiries.slice(0, 3).map((inq: any) => (
+                      <div key={inq.id} className="flex flex-col gap-1 rounded-xl p-3 bg-white/5 border border-white/5">
+                        <div className="flex justify-between items-start">
+                          <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${inq.status === 'pending' ? 'bg-amber-500/10 text-amber-500' : 'bg-emerald-500/10 text-emerald-500'}`}>
+                            {inq.status}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground">{new Date(inq.created_at).toLocaleDateString()}</span>
+                        </div>
+                        <p className="text-xs text-foreground line-clamp-2 mt-1">{inq.message}</p>
+                      </div>
                     ))}
                   </div>
                 )}
