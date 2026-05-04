@@ -113,6 +113,7 @@ type Repair = {
   created_at: string;
   updated_at: string;
   vehicles?: { make: string; model: string; year: number; trim?: string; color?: string; vin?: string } | null;
+  customers?: { name: string } | null;
 };
 
 const emptyForm = {
@@ -239,7 +240,7 @@ export default function RepairsMaintenance() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("repairs")
-        .select("*, vehicles(make, model, year, trim, color, vin)")
+        .select("*, vehicles(make, model, year, trim, color, vin), customers(name)")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data as any[] as Repair[];
@@ -421,7 +422,7 @@ export default function RepairsMaintenance() {
       const cust = customers.find(c => c.id === r.customer_id);
       setHistoryCustomerId(r.customer_id);
       setHistoryVehicleId(null);
-      setHistoryCustomerName(cust?.name || r.manual_customer_name || "Customer");
+      setHistoryCustomerName(cust?.name || r.customers?.name || "Customer");
       setHistoryVehicleLabel(getVehicleLabel(r));
     } else {
       if (!r.vehicle_id) {
@@ -432,7 +433,7 @@ export default function RepairsMaintenance() {
       setHistoryCustomerId(null);
       setHistoryVehicleLabel(getVehicleLabel(r));
       const cust = customers.find(c => c.id === r.customer_id);
-      setHistoryCustomerName(cust?.name || r.manual_customer_name || "Customer");
+      setHistoryCustomerName(cust?.name || r.customers?.name || "Customer");
     }
     setHistoryOpen(true);
   };
