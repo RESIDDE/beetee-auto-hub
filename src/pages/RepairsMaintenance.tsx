@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { 
-  ChevronRight, ArrowRight, ArrowLeft, Receipt, ClipboardCheck, Wrench, PlusCircle, Clock, DollarSign, PieChart as PieChartIcon, Search, Car, Pencil, QrCode, FileOutput, Trash2, History as HistoryIcon, Check, ChevronsUpDown, Mail, Printer, CreditCard, CheckCircle, Bell, X as XIcon, AlertTriangle as AlertTriangleIcon
+  ChevronRight, ArrowRight, ArrowLeft, Receipt, ClipboardCheck, Wrench, PlusCircle, Clock, DollarSign, PieChart as PieChartIcon, Search, Car, Pencil, QrCode, FileOutput, Trash2, History as HistoryIcon, Check, ChevronsUpDown, Mail, Printer, CreditCard, CheckCircle, Bell, X as XIcon, AlertTriangle as AlertTriangleIcon, Eye
 } from "lucide-react";
 import {
   Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList
@@ -186,9 +186,12 @@ export default function RepairsMaintenance() {
   const [dateFilter, setDateFilter] = useState("all");
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyCustomerId, setHistoryCustomerId] = useState<string | null>(null);
+  const [historyVehicleId, setHistoryVehicleId] = useState<string | null>(null);
+  const [historyMode, setHistoryMode] = useState<"customer" | "vehicle">("customer");
   const [historyCustomerName, setHistoryCustomerName] = useState("");
   const [historyVehicleLabel, setHistoryVehicleLabel] = useState("");
   const [page, setPage] = useState(0);
+  const [previewRepair, setPreviewRepair] = useState<Repair | null>(null);
   const [openCustomerSelect, setOpenCustomerSelect] = useState(false);
   const [reminderDismissed, setReminderDismissed] = useState(() =>
     sessionStorage.getItem("service_reminder_dismissed") === "true"
@@ -398,20 +401,39 @@ export default function RepairsMaintenance() {
   console.log("RepairsMaintenance loaded with pagination support", { page, totalResults: filteredRepairs.length, totalPages });
 
 
-  const customerHistory = useMemo(() => {
-    if (!historyCustomerId) return [];
-    return repairs.filter(r => r.customer_id === historyCustomerId).sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-  }, [repairs, historyCustomerId]);
-
-  const openHistory = (r: Repair) => {
-    if (!r.customer_id) {
-      toast.error("No customer information for this repair");
-      return;
+  const historyItems = useMemo(() => {
+    if (historyMode === "customer") {
+      if (!historyCustomerId) return [];
+      return repairs.filter(r => r.customer_id === historyCustomerId).sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    } else {
+      if (!historyVehicleId) return [];
+      return repairs.filter(r => r.vehicle_id === historyVehicleId).sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     }
-    const cust = customers.find(c => c.id === r.customer_id);
-    setHistoryCustomerId(r.customer_id);
-    setHistoryCustomerName(cust?.name || "Customer");
-    setHistoryVehicleLabel(getVehicleLabel(r));
+  }, [repairs, historyCustomerId, historyVehicleId, historyMode]);
+
+  const openHistory = (r: Repair, mode: "customer" | "vehicle" = "customer") => {
+    setHistoryMode(mode);
+    if (mode === "customer") {
+      if (!r.customer_id) {
+        toast.error("No customer information for this repair");
+        return;
+      }
+      const cust = customers.find(c => c.id === r.customer_id);
+      setHistoryCustomerId(r.customer_id);
+      setHistoryVehicleId(null);
+      setHistoryCustomerName(cust?.name || r.manual_customer_name || "Customer");
+      setHistoryVehicleLabel(getVehicleLabel(r));
+    } else {
+      if (!r.vehicle_id) {
+        toast.error("This repair is not linked to a system vehicle");
+        return;
+      }
+      setHistoryVehicleId(r.vehicle_id);
+      setHistoryCustomerId(null);
+      setHistoryVehicleLabel(getVehicleLabel(r));
+      const cust = customers.find(c => c.id === r.customer_id);
+      setHistoryCustomerName(cust?.name || r.manual_customer_name || "Customer");
+    }
     setHistoryOpen(true);
   };
 
@@ -1455,11 +1477,17 @@ export default function RepairsMaintenance() {
                       </Button>
                     </>
                   )}
+                  <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-sky-500/10 text-muted-foreground hover:text-sky-500 transition-all" title="View Preview" onClick={() => setPreviewRepair(r)}>
+                    <Eye className="h-3.5 w-3.5" />
+                  </Button>
                   <Button variant="ghost" size="sm" className="h-8 rounded-lg hover:bg-amber-500/10 hover:text-amber-500 text-muted-foreground transition-all" onClick={() => setQrId(r.id)}>
                     <QrCode className="h-3.5 w-3.5 mr-1.5" /> QR Sign
                   </Button>
-                  <Button variant="ghost" size="sm" className="h-8 rounded-lg hover:bg-indigo-500/10 hover:text-indigo-500 text-muted-foreground transition-all" onClick={() => openHistory(r)}>
-                    <HistoryIcon className="h-3.5 w-3.5 mr-1.5" /> History
+                  <Button variant="ghost" size="sm" className="h-8 rounded-lg hover:bg-indigo-500/10 hover:text-indigo-500 text-muted-foreground transition-all" onClick={() => openHistory(r, 'customer')}>
+                    <HistoryIcon className="h-3.5 w-3.5 mr-1.5" /> Cust. History
+                  </Button>
+                  <Button variant="ghost" size="sm" className="h-8 rounded-lg hover:bg-rose-500/10 hover:text-rose-500 text-muted-foreground transition-all" onClick={() => openHistory(r, 'vehicle')}>
+                    <HistoryIcon className="h-3.5 w-3.5 mr-1.5" /> Car History
                   </Button>
                   <Button variant="ghost" size="sm" className="h-8 rounded-lg hover:bg-sky-500/10 hover:text-sky-500 text-muted-foreground transition-all" title="Generate Invoice"
                     onClick={() => {
@@ -1562,9 +1590,26 @@ export default function RepairsMaintenance() {
 
               {/* SECTION 2: CUSTOMER / VEHICLE */}
               <div className="space-y-4 pt-4 border-t border-white/5">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="w-6 h-6 rounded-full bg-amber-500/20 text-amber-500 flex items-center justify-center text-[10px] font-bold">2</span>
-                  <h3 className="text-sm font-bold uppercase tracking-widest text-foreground/70">Customer & Vehicle Details</h3>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="w-6 h-6 rounded-full bg-amber-500/20 text-amber-500 flex items-center justify-center text-[10px] font-bold">2</span>
+                    <h3 className="text-sm font-bold uppercase tracking-widest text-foreground/70">Customer & Vehicle Details</h3>
+                  </div>
+                  {form.vehicle_id && (
+                    <Button 
+                      type="button" 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-8 text-[10px] font-bold uppercase text-indigo-500 hover:text-indigo-600 hover:bg-indigo-500/5"
+                      onClick={() => {
+                        const veh = repairs.find(r => r.vehicle_id === form.vehicle_id);
+                        if (veh) openHistory(veh, 'vehicle');
+                        else toast.error("No history found for this vehicle");
+                      }}
+                    >
+                      <HistoryIcon className="w-3.5 h-3.5 mr-1.5" /> View Vehicle History
+                    </Button>
+                  )}
                 </div>
                 <div className="space-y-4">
                   <div className="space-y-4">
@@ -2022,16 +2067,16 @@ export default function RepairsMaintenance() {
              <DialogHeader>
                 <DialogTitle className="text-xl font-bold flex items-center gap-2">
                    <HistoryIcon className="h-5 w-5 text-amber-500" />
-                   Repair History: {historyCustomerName}
+                   {historyMode === "customer" ? `Customer History: ${historyCustomerName}` : `Vehicle History: ${historyVehicleLabel}`}
                 </DialogTitle>
              </DialogHeader>
           </div>
           <div className="p-6 space-y-6">
-             {customerHistory.length === 0 ? (
-                <div className="text-center py-10 opacity-50">No history found for this customer.</div>
+             {historyItems.length === 0 ? (
+                <div className="text-center py-10 opacity-50">No history found.</div>
              ) : (
                 <div className="space-y-4 relative before:absolute before:inset-0 before:left-[19px] before:w-0.5 before:bg-gradient-to-b before:from-amber-500/50 before:to-transparent before:pointer-events-none">
-                   {customerHistory.map((h, i) => (
+                   {historyItems.map((h, i) => (
                       <div key={h.id} className="relative pl-12">
                          {/* Timeline Marker */}
                          <div className={`absolute left-0 top-1 w-10 h-10 rounded-full border-4 border-background flex items-center justify-center z-10 ${i === 0 ? 'bg-amber-500 text-white' : 'bg-muted text-muted-foreground'}`}>
@@ -2084,6 +2129,38 @@ export default function RepairsMaintenance() {
           <DialogFooter className="p-6 border-t border-white/5 bg-foreground/5">
              <Button variant="outline" onClick={() => setHistoryOpen(false)} className="rounded-xl border-white/10">Close History</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* Preview Dialog */}
+      <Dialog open={!!previewRepair} onOpenChange={(v) => !v && setPreviewRepair(null)}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto rounded-3xl glass-panel shadow-2xl border-white/10 p-0 bg-white">
+          <div className="p-4 border-b flex items-center justify-between bg-gray-50 sticky top-0 z-10">
+            <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+              <Eye className="h-5 w-5 text-sky-500" />
+              Job Card Preview: {previewRepair?.job_card_no}
+            </h2>
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" onClick={() => previewRepair && printJobCard(previewRepair)}>
+                <Printer className="h-4 w-4 mr-2" /> Print
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setPreviewRepair(null)}>
+                <XIcon className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+          <div className="p-8 bg-white min-h-screen text-black overflow-x-hidden">
+            <style dangerouslySetInnerHTML={{ __html: `
+              .preview-container {
+                font-family: 'Inter', sans-serif;
+              }
+              .preview-container .section { margin-bottom: 20px; }
+              .preview-container .section-title { font-weight: bold; font-size: 12px; margin-bottom: 8px; border-bottom: 1px solid #eee; padding-bottom: 4px; }
+              .preview-container .sig-line { border-bottom: 1px solid #000; width: 100px; display: inline-block; margin-right: 10px; }
+            `}} />
+            {previewRepair && (
+              <div dangerouslySetInnerHTML={{ __html: getJobCardHTML(previewRepair) }} className="preview-container" />
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>
