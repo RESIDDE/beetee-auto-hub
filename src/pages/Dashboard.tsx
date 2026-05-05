@@ -19,6 +19,7 @@ import {
 import { differenceInDays } from "date-fns";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { exportToExcel, printTable } from "@/lib/exportHelpers";
+import { logAction } from "@/lib/logger";
 
 const COLORS = ["hsl(var(--primary))", "hsl(142 76% 36%)", "hsl(0 84% 60%)", "hsl(262 83% 58%)", "hsl(38 92% 50%)", "hsl(199 89% 48%)"];
 
@@ -563,10 +564,16 @@ export default function Dashboard() {
                       className="pl-8 h-8 rounded-lg bg-background/50 border-white/5 text-xs"
                     />
                   </div>
-                  <Button variant="outline" size="sm" className="h-8 rounded-lg" onClick={() => exportToExcel(filteredCompanyStats, "sourced_companies_inventory")}>
+                  <Button variant="outline" size="sm" className="h-8 rounded-lg" onClick={() => {
+                    logAction("EXPORT", "Dashboard Sourced Companies", "bulk", { format: "Excel", count: filteredCompanyStats.length });
+                    exportToExcel(filteredCompanyStats, "sourced_companies_inventory");
+                  }}>
                     <Download className="h-3.5 w-3.5" />
                   </Button>
-                  <Button variant="outline" size="sm" className="h-8 rounded-lg" onClick={() => printTable("Sourced Companies Inventory", filteredCompanyStats, [{key: 'name', label: 'Company'}, {key: 'inventory', label: 'In Stock'}, {key: 'total', label: 'Total Sourced'}])}>
+                  <Button variant="outline" size="sm" className="h-8 rounded-lg" onClick={() => {
+                    logAction("PRINT", "Dashboard Sourced Companies", "bulk", { count: filteredCompanyStats.length });
+                    printTable("Sourced Companies Inventory", filteredCompanyStats, [{key: 'name', label: 'Company'}, {key: 'inventory', label: 'In Stock'}, {key: 'total', label: 'Total Sourced'}]);
+                  }}>
                     <Printer className="h-3.5 w-3.5" />
                   </Button>
                 </div>

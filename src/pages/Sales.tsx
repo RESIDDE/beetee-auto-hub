@@ -324,10 +324,12 @@ export default function Sales() {
       "Sale Date": s.sale_date,
       Notes: s.notes || "",
     }));
+    logAction("EXPORT", "Sales", "bulk", { format: "Excel", count: rows.length });
     exportToExcel(rows, "sales_export");
   };
 
   const handleExportJSON = () => {
+    logAction("EXPORT", "Sales", "bulk", { format: "JSON", count: filtered.length });
     exportToJSON(filtered, "sales_export");
   };
 
@@ -339,6 +341,7 @@ export default function Sales() {
       sale_date: new Date(s.sale_date).toLocaleDateString(),
       notes: s.notes || "",
     }));
+    logAction("PRINT", "Sales List", "bulk", { count: rows.length });
     printTable("Sales Report — Beetee Autos", rows, [
       { key: "vehicle", label: "Vehicle" },
       { key: "customer", label: "Customer" },

@@ -172,6 +172,7 @@ export default function ResaleVehicles() {
       "Source Company": v.source_company || "", "Date Arrived": v.date_arrived || "",
       "Accepted By": v.accepted_by_name || "", "Accepted Date": v.accepted_date || "",
     }));
+    logAction("EXPORT", "Resale Vehicle", "bulk", { format: "Excel", count: rows.length });
     exportToExcel(rows, "resale_vehicles_export");
   };
 
@@ -181,6 +182,7 @@ export default function ResaleVehicles() {
       Price: v.price, Status: v.status, Condition: v.condition || "",
       Source: v.source_company || "", Date: v.date_arrived || "",
     }));
+    logAction("EXPORT", "Resale Vehicle", "bulk", { format: "CSV", count: rows.length });
     exportToCSV(rows, "resale_vehicles_export");
   };
 
@@ -192,6 +194,7 @@ export default function ResaleVehicles() {
       status: v.status, 
       condition: v.condition || "—",
     }));
+    logAction("EXPORT", "Resale Vehicle", "bulk", { format: "PDF", count: rows.length });
     exportToPDF("Resale Vehicles Inventory", rows, [
       { key: "vehicle", label: "Vehicle Description" }, 
       { key: "vin", label: "VIN/Chassis" },
@@ -201,13 +204,17 @@ export default function ResaleVehicles() {
     ]);
   };
 
-  const handleExportJSON = () => exportToJSON(filtered, "resale_vehicles_export");
+  const handleExportJSON = () => {
+    logAction("EXPORT", "Resale Vehicle", "bulk", { format: "JSON", count: filtered.length });
+    exportToJSON(filtered, "resale_vehicles_export");
+  };
 
   const handlePrint = () => {
     const rows = filtered.map((v) => ({
       vehicle: `${v.year} ${v.make} ${v.model}`, vin: v.vin || "—", price: `₦${Number(v.price).toLocaleString()}`,
       status: v.status, accepted_by: v.accepted_by_name || "—", accepted_date: v.accepted_date || "—",
     }));
+    logAction("PRINT", "Resale Vehicle List", "bulk", { count: filtered.length });
     printTable("Resale Vehicles Inventory — Beetee Autos", rows, [
       { key: "vehicle", label: "Vehicle" }, { key: "vin", label: "VIN" },
       { key: "price", label: "Price" }, { key: "status", label: "Status" }, 

@@ -13,6 +13,7 @@ import {
 import { useState, useMemo } from "react";
 import { exportToExcel, exportToJSON, printTable } from "@/lib/exportHelpers";
 import { Input } from "@/components/ui/input";
+import { logAction } from "@/lib/logger";
 
 export default function SourceCompanyDetails() {
   const { name } = useParams();
@@ -50,6 +51,7 @@ export default function SourceCompanyDetails() {
       Price: v.price, Status: v.status, Condition: v.condition || "",
       "Date Arrived": v.date_arrived || "",
     }));
+    logAction("EXPORT", "Source Company Details", name, { format: "Excel", count: rows.length });
     exportToExcel(rows, `vehicles_${name}`);
   };
 
@@ -58,6 +60,7 @@ export default function SourceCompanyDetails() {
       vehicle: `${v.year} ${v.make} ${v.model}`, vin: v.vin || "—", price: `₦${Number(v.price).toLocaleString()}`,
       status: v.status, condition: v.condition || "—",
     }));
+    logAction("PRINT", "Source Company Details", name, { count: rows.length });
     printTable(`${name} Vehicles List`, rows, [
       { key: "vehicle", label: "Vehicle" }, { key: "vin", label: "VIN" },
       { key: "price", label: "Price" }, { key: "status", label: "Status" }, { key: "condition", label: "Condition" },
