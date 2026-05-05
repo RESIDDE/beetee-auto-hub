@@ -32,7 +32,7 @@ import {
   PlusCircle, Pencil, Trash2, Receipt, Download, FileText, Printer, FileOutput, 
   DollarSign, Calendar, Search, Car, Users, QrCode, CheckCircle, Image, FileDown,
   TrendingUp, TrendingDown, ShoppingBag, Target, ArrowUpRight, BarChart3, PieChart as PieChartIcon,
-  Mail, ListFilter, ArrowLeft
+  Mail, ListFilter, ArrowLeft, AlertCircle, BadgeCheck, Banknote
 } from "lucide-react";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
@@ -43,7 +43,7 @@ import { toast } from "sonner";
 import { exportToExcel, exportToJSON, printTable } from "@/lib/exportHelpers";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissions } from "@/hooks/usePermissions";
-import { canEdit } from "@/lib/permissions";
+import { canEdit, canCreate } from "@/lib/permissions";
 import { getPrintHeaderHTML, getPrintWatermarkHTML } from "@/components/PrintHeader";
 import { getPrintFooterHTML } from "@/components/PrintFooter";
 import { numberToWords } from "@/lib/numberToWords";
@@ -89,7 +89,8 @@ const emptyForm = {
   manual_customer_name: "",
   manual_customer_phone: "",
   manual_customer_email: "",
-  manual_customer_address: ""
+  manual_customer_address: "",
+  initial_payment: "",
 };
 
 export default function Sales() {
@@ -108,13 +109,20 @@ export default function Sales() {
   const [vehicleSearch, setVehicleSearch] = useState("");
   const [page, setPage] = useState(0);
   const [showAnalytics, setShowAnalytics] = useState(true);
-  const [selectedMonth, setSelectedMonth] = useState<string>(format(new Date(), 'yyyy-MM'));
+  const [selectedMonth, setSelectedMonth] = useState<string>("all");
   const [selectedWeek, setSelectedWeek] = useState<string>("all");
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState<string>("all");
   const PAGE_SIZE = 15;
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
-  const { data: sales = [], isLoading } = useQuery({
+  const [paymentSaleId, setPaymentSaleId] = useState<string | null>(null);
+  const [newPaymentAmount, setNewPaymentAmount] = useState("");
+  const [newPaymentMethod, setNewPaymentMethod] = useState("cash");
+  const [newPaymentNote, setNewPaymentNote] = useState("");
+  const [printPaymentId, setPrintPaymentId] = useState<string | null>(null);
+
+  const { data: sales = [], isLoading, isError } = useQuery({
     queryKey: ["sales"],
     queryFn: async () => {
       const { data, error } = await supabase.from("sales").select("*, sale_vehicles(*)").order("created_at", { ascending: false });
@@ -151,6 +159,43 @@ export default function Sales() {
       if (error) throw error;
       return data;
     },
+  });
+
+  const { data: salePayments = [] } = useQuery({
+    queryKey: ["sale_payments", paymentSaleId],
+    queryFn: async () => {
+      if (!paymentSaleId) return [];
+      const { data, error } = await supabase
+        .from("sale_payments" as any)
+        .select("*")
+        .eq("sale_id", paymentSaleId)
+        .order("payment_date", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!paymentSaleId,
+  });
+
+  const addPaymentMutation = useMutation({
+    mutationFn: async () => {
+      if (!paymentSaleId || !newPaymentAmount) return;
+      const { error } = await supabase.from("sale_payments" as any).insert({
+        sale_id: paymentSaleId,
+        amount: parseFloat(newPaymentAmount),
+        payment_method: newPaymentMethod,
+        notes: newPaymentNote || "Balance payment",
+        payment_date: new Date().toISOString()
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["sale_payments", paymentSaleId] });
+      queryClient.invalidateQueries({ queryKey: ["sales"] });
+      setNewPaymentAmount("");
+      setNewPaymentNote("");
+      toast.success("Payment recorded successfully");
+    },
+    onError: () => toast.error("Failed to record payment")
   });
 
   const vehicleMap = Object.fromEntries(vehicles.map((v) => [
@@ -194,6 +239,10 @@ export default function Sales() {
       if (!hasSourceMatch) return false;
     }
 
+    if (paymentStatusFilter !== "all") {
+      if (s.payment_status !== paymentStatusFilter) return false;
+    }
+
     return !q || vName.includes(q) || cName.includes(q);
   });
 
@@ -229,7 +278,7 @@ export default function Sales() {
         buyer_signature_date: form.buyer_signature_date || null,
         notes: form.notes || null,
         // For backward compatibility, also keep first vehicle_id if any
-        vehicle_id: form.selected_vehicle_ids[0] || null,
+        vehicle_id: form.selected_vehicle_ids.filter(vid => vehicles.some(v => v.id === vid))[0] || null,
       };
 
       let saleId = editId;
@@ -245,11 +294,13 @@ export default function Sales() {
         saleId = data.id;
       }
 
-      if (form.selected_vehicle_ids.length > 0) {
-        const links = form.selected_vehicle_ids.map(vid => ({
+      const validSelectedIds = form.selected_vehicle_ids.filter(vid => vehicles.some(v => v.id === vid));
+
+      if (validSelectedIds.length > 0) {
+        const links = validSelectedIds.map(vid => ({
           sale_id: saleId,
           vehicle_id: vid,
-          price: parseFloat(form.sale_price) / form.selected_vehicle_ids.length // Provisional split
+          price: parseFloat(form.sale_price) / validSelectedIds.length // Provisional split
         }));
         const { error } = await supabase.from("sale_vehicles").insert(links);
         if (error) throw error;
@@ -258,8 +309,20 @@ export default function Sales() {
         const { error: vError } = await supabase
           .from("vehicles")
           .update({ status: "Sold" })
-          .in("id", form.selected_vehicle_ids);
+          .in("id", validSelectedIds);
         if (vError) throw vError;
+      }
+
+      // Record initial payment if provided
+      if (!editId && form.initial_payment && parseFloat(form.initial_payment) > 0) {
+        const { error: pErr } = await supabase.from("sale_payments" as any).insert({
+          sale_id: saleId,
+          amount: parseFloat(form.initial_payment),
+          payment_date: new Date().toISOString(),
+          payment_method: form.payment_type,
+          notes: "Initial payment at time of sale"
+        });
+        if (pErr) throw pErr;
       }
     },
     onSuccess: (_, variables: any) => {
@@ -273,7 +336,10 @@ export default function Sales() {
       setEditId(null);
       setDialogOpen(false);
     },
-    onError: () => toast.error("Failed to save sale"),
+    onError: (error: any) => {
+      console.error("Sale Save Error:", error);
+      toast.error(`Failed to save sale: ${error.message || "Unknown error"}`);
+    },
   });
 
   const deleteMutation = useMutation({
@@ -310,6 +376,7 @@ export default function Sales() {
       manual_customer_phone: "",
       manual_customer_email: "",
       manual_customer_address: "",
+      initial_payment: "",
     });
     setDialogOpen(true);
   };
@@ -377,48 +444,44 @@ export default function Sales() {
         <div class="content-wrapper">
           <h2 class="bill-title" style="margin-bottom: 15px;">VEHICLE SALES RECEIPT</h2>
           
-          <div style="margin-bottom: 20px;">
+          <div style="margin-bottom: 10px;">
             ${saleVehicleObjects.map((v: any) => `
-              <div style="margin-bottom: 15px; border-bottom: 1px solid #e2e8f0; padding-bottom: 15px;">
-                <h3 style="font-size: 16px; font-weight: 900; margin-bottom: 10px; color: #0f172a; text-transform: uppercase;">Vehicle Specification</h3>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+              <div style="margin-bottom: 8px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">
+                <h3 style="font-size: 14px; font-weight: 900; margin-bottom: 6px; color: #0f172a; text-transform: uppercase;">Vehicle Specification</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                   <div>
-                    <p style="font-size: 11px; color: #64748b; font-weight: 800; margin: 0; text-transform: uppercase;">Make</p>
-                    <p style="font-size: 15px; font-weight: 700; margin: 2px 0 0 0;">${v.make}</p>
+                    <p style="font-size: 10px; color: #64748b; font-weight: 800; margin: 0; text-transform: uppercase;">Make</p>
+                    <p style="font-size: 13px; font-weight: 700; margin: 2px 0 0 0;">${v.make}</p>
                   </div>
                   <div>
-                    <p style="font-size: 11px; color: #64748b; font-weight: 800; margin: 0; text-transform: uppercase;">Model</p>
-                    <p style="font-size: 15px; font-weight: 700; margin: 2px 0 0 0;">${v.model}</p>
+                    <p style="font-size: 10px; color: #64748b; font-weight: 800; margin: 0; text-transform: uppercase;">Model</p>
+                    <p style="font-size: 13px; font-weight: 700; margin: 2px 0 0 0;">${v.model}</p>
                   </div>
                   <div>
-                    <p style="font-size: 11px; color: #64748b; font-weight: 800; margin: 0; text-transform: uppercase;">Year</p>
-                    <p style="font-size: 15px; font-weight: 700; margin: 2px 0 0 0;">${v.year}</p>
+                    <p style="font-size: 10px; color: #64748b; font-weight: 800; margin: 0; text-transform: uppercase;">Year</p>
+                    <p style="font-size: 13px; font-weight: 700; margin: 2px 0 0 0;">${v.year}</p>
                   </div>
                   <div>
-                    <p style="font-size: 11px; color: #64748b; font-weight: 800; margin: 0; text-transform: uppercase;">Trim / Edition</p>
-                    <p style="font-size: 15px; font-weight: 700; margin: 2px 0 0 0;">${v.trim || "Standard"}</p>
+                    <p style="font-size: 10px; color: #64748b; font-weight: 800; margin: 0; text-transform: uppercase;">Trim / Edition</p>
+                    <p style="font-size: 13px; font-weight: 700; margin: 2px 0 0 0;">${v.trim || "Standard"}</p>
                   </div>
                   <div style="grid-column: span 2;">
-                    <p style="font-size: 11px; color: #64748b; font-weight: 800; margin: 0; text-transform: uppercase;">Chassis No (VIN)</p>
-                    <p style="font-size: 15px; font-weight: 700; margin: 2px 0 0 0; font-family: monospace;">${v.vin || "—"}</p>
-                  </div>
-                  <div>
-                    <p style="font-size: 11px; color: #64748b; font-weight: 800; margin: 0; text-transform: uppercase;">Color</p>
-                    <p style="font-size: 15px; font-weight: 700; margin: 2px 0 0 0;">${v.color || "—"}</p>
+                    <p style="font-size: 10px; color: #64748b; font-weight: 800; margin: 0; text-transform: uppercase;">Chassis No (VIN)</p>
+                    <p style="font-size: 13px; font-weight: 700; margin: 2px 0 0 0; font-family: monospace;">${v.vin || "—"}</p>
                   </div>
                 </div>
               </div>
             `).join("")}
           </div>
 
-          <div style="background: transparent; padding: 10px 20px; border-radius: 15px; border: 2px solid #e2e8f0; margin-bottom: 10px;">
+          <div style="background: transparent; padding: 8px 20px; border-radius: 15px; border: 2px solid #e2e8f0; margin-bottom: 8px;">
             <div style="display: flex; justify-content: space-between; align-items: center;">
-              <span style="font-size: 16px; font-weight: 800; color: #64748b;">TOTAL AMOUNT PAID</span>
-              <span style="font-size: 24px; font-weight: 900; color: #0f172a;">₦${totalAmount.toLocaleString()}</span>
+              <span style="font-size: 15px; font-weight: 800; color: #64748b;">TOTAL AMOUNT PAID</span>
+              <span style="font-size: 22px; font-weight: 900; color: #0f172a;">₦${totalAmount.toLocaleString()}</span>
             </div>
-            <div style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed #cbd5e1;">
-              <p style="font-size: 12px; font-weight: 800; color: #64748b; margin: 0; text-transform: uppercase;">Amount in Words</p>
-              <p style="font-size: 14px; font-weight: 700; color: #0f172a; margin: 5px 0 0 0; line-height: 1.4;">${numberToWords(totalAmount).toUpperCase()}</p>
+            <div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed #cbd5e1;">
+              <p style="font-size: 11px; font-weight: 800; color: #64748b; margin: 0; text-transform: uppercase;">Amount in Words</p>
+              <p style="font-size: 13px; font-weight: 700; color: #0f172a; margin: 4px 0 0 0; line-height: 1.3;">${numberToWords(totalAmount).toUpperCase()}</p>
             </div>
           </div>
 
@@ -428,17 +491,173 @@ export default function Sales() {
 
           <div class="signature-area">
             <div class="sig-box">
-              ${sale.buyer_signature ? `<img src="${sale.buyer_signature}" class="signature-img" />` : '<div style="height:50px"></div>'}
-              <p style="border-top: 1px solid #1a1a1a; padding-top: 5px;"><strong>CUSTOMER SIGNATURE</strong></p>
+              ${sale.buyer_signature ? `<img src="${sale.buyer_signature}" class="signature-img" />` : '<div style="height:40px"></div>'}
+              <p style="border-top: 1px solid #1a1a1a; padding-top: 4px; margin-top: 0;"><strong>CUSTOMER SIGNATURE</strong></p>
             </div>
             <div class="sig-box">
-               ${sale.rep_signature ? `<img src="${sale.rep_signature}" class="signature-img" />` : '<div style="height:50px"></div>'}
-              <p style="border-top: 1px solid #1a1a1a; padding-top: 5px;"><strong>FOR: BEE TEE AUTOMOBILE</strong></p>
+               ${sale.rep_signature ? `<img src="${sale.rep_signature}" class="signature-img" />` : '<div style="height:40px"></div>'}
+              <p style="border-top: 1px solid #1a1a1a; padding-top: 4px; margin-top: 0;"><strong>FOR: BEE TEE AUTOMOBILE</strong></p>
             </div>
           </div>
         </div>
       </div>
     </div>`;
+  };
+
+  const printPaymentReceipt = (sale: any, payment: any, paymentIndex: number, allPayments: any[]) => {
+    const cust = customerObjMap[sale.customer_id];
+    const totalSalePrice = Number(sale.sale_price) || 0;
+    const paymentAmount = Number(payment.amount) || 0;
+    const totalPaidBefore = allPayments
+      .filter((_: any, i: number) => i > paymentIndex) // payments are desc order, so > index = earlier
+      .reduce((sum: number, p: any) => sum + (Number(p.amount) || 0), 0);
+    const totalPaidIncludingThis = totalPaidBefore + paymentAmount;
+    const balance = totalSalePrice - totalPaidIncludingThis;
+    const isFullPayment = balance <= 0;
+    
+    // Determine payment label (1st, 2nd, 3rd, etc.)
+    const ordinalLabels = ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th", "10th"];
+    const positionFromEnd = allPayments.length - 1 - paymentIndex; // since desc
+    const ordinal = ordinalLabels[positionFromEnd] || `${positionFromEnd + 1}th`;
+    const paymentLabel = isFullPayment 
+      ? "FULL PAYMENT RECEIPT" 
+      : positionFromEnd === 0 
+        ? "DEPOSIT RECEIPT" 
+        : `${ordinal} PAYMENT RECEIPT`;
+    const badgeColor = isFullPayment ? "#059669" : "#d97706";
+    const badgeText = isFullPayment ? "FULLY PAID" : "PART PAYMENT";
+
+    const saleVehicleIds = sale.sale_vehicles?.length > 0
+      ? sale.sale_vehicles.map((sv: any) => sv.vehicle_id)
+      : [sale.vehicle_id];
+    const saleVehicleObjects = vehicles.filter(v => saleVehicleIds.includes(v.id));
+
+    const html = `<html><head><title>${paymentLabel} - ${sale.id.slice(0, 8).toUpperCase()}</title>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap');
+      body { font-family: 'Roboto', 'Arial', sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; color: #1a1a1a; line-height: 1.1; }
+      .date-section { text-align: right; font-weight: 800; font-size: 12px; margin-bottom: 4px; text-transform: uppercase; padding: 0 20px; }
+      .bill-to { margin-bottom: 8px; padding: 0 20px; }
+      .bill-to p { margin: 1px 0; font-size: 12px; }
+      .main-container { background-color: transparent; border-radius: 20px; padding: 0px 20px; position: relative; border: none; }
+      .content-wrapper { position: relative; z-index: 1; }
+      .bill-title { text-align: center; text-decoration: underline; font-weight: 900; font-size: 16px; margin-bottom: 8px; color: #1e293b; text-transform: uppercase; }
+      .deposit-badge { display: inline-block; background: ${badgeColor}; color: #fff; font-weight: 900; font-size: 10px; padding: 3px 12px; border-radius: 20px; letter-spacing: 2px; text-transform: uppercase; margin: 0 auto 8px; }
+      .badge-wrap { text-align: center; margin-bottom: 8px; }
+      .payment-ref { background: transparent; border: 2px dashed #cbd5e1; padding: 8px 14px; border-radius: 12px; margin-bottom: 12px; font-size: 11px; color: #64748b; }
+      .amount-box { border: 2px solid #0f172a; border-radius: 12px; padding: 8px 18px; margin-bottom: 8px; background: transparent; }
+      .amount-box .label { font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase; }
+      .amount-box .value { font-size: 20px; font-weight: 900; color: #0f172a; }
+      .balance-box { border: 2px solid ${isFullPayment ? '#059669' : '#ef4444'}; border-radius: 12px; padding: 6px 18px; margin-bottom: 8px; background: ${isFullPayment ? 'rgba(5,150,105,0.02)' : 'rgba(239,68,68,0.02)'}; }
+      .balance-box .label { font-size: 11px; font-weight: 800; color: ${isFullPayment ? '#059669' : '#ef4444'}; text-transform: uppercase; }
+      .balance-box .value { font-size: 18px; font-weight: 900; color: ${isFullPayment ? '#059669' : '#ef4444'}; }
+      .history-table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 11px; }
+      .history-table th { background: transparent; text-align: left; padding: 4px 8px; font-weight: 800; text-transform: uppercase; font-size: 9px; border-bottom: 1px solid #cbd5e1; }
+      .history-table td { padding: 4px 8px; border-bottom: 1px solid #e2e8f0; background: transparent; }
+      .history-table .current { background: rgba(254, 249, 195, 0.3); font-weight: 900; }
+      .refund-note { margin-top: 4px; padding: 4px; background: rgba(254,226,226,0.2); border: 2px solid #ef4444; border-radius: 10px; color: #b91c1c; font-weight: 900; font-size: 12px; text-align: center; margin-bottom: 8px; }
+      .signature-area { display: flex; justify-content: space-between; margin-top: 8px; border-top: 2px solid #94a3b8; padding-top: 8px; }
+      .sig-box { width: 45%; text-align: center; font-size: 11px; }
+      .signature-img { max-height: 30px; display: block; margin: 0 auto 4px; }
+    </style></head><body>
+    ${getPrintHeaderHTML()}
+    <div class="date-section">
+      RECEIPT NO: ${sale.id.slice(0, 8).toUpperCase()} | PAYMENT REF: ${payment.id.slice(0, 8).toUpperCase()}<br/>
+      DATE: ${new Date(payment.payment_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+    </div>
+    <div class="bill-to">
+      <p style="font-weight: 900;">CUSTOMER:</p>
+      <p><strong>${cust?.name || "—"}</strong></p>
+      ${cust?.phone ? `<p>Tel: ${cust.phone}</p>` : ""}
+    </div>
+    <div class="main-container">
+      ${getPrintWatermarkHTML()}
+      <div class="content-wrapper">
+        <h2 class="bill-title">${paymentLabel}</h2>
+        <div class="badge-wrap"><span class="deposit-badge">${badgeText}</span></div>
+
+        <div class="payment-ref">
+          <strong>Sale Date:</strong> ${new Date(sale.sale_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+          &nbsp;&nbsp;|&nbsp;&nbsp;
+          <strong>Payment Method:</strong> ${(payment.payment_method || 'Cash').toUpperCase()}
+          &nbsp;&nbsp;|&nbsp;&nbsp;
+          <strong>Payment No.:</strong> ${ordinal}
+          ${payment.notes ? `<br/><strong>Note:</strong> ${payment.notes}` : ""}
+        </div>
+
+        ${saleVehicleObjects.map((v: any) => `
+          <div style="margin-bottom: 12px; border: 1px solid #e2e8f0; padding: 10px 14px; border-radius: 10px;">
+            <p style="font-size: 11px; font-weight: 800; color: #64748b; margin: 0 0 6px; text-transform: uppercase;">Vehicle</p>
+            <p style="font-size: 15px; font-weight: 700; margin: 0;">${v.year} ${v.make} ${v.model}${v.trim ? ' ' + v.trim : ''}${v.color ? ' (' + v.color + ')' : ''}</p>
+            ${v.vin ? `<p style="font-size: 12px; font-family: monospace; color: #64748b; margin: 2px 0 0;">VIN: ${v.vin}</p>` : ''}
+          </div>
+        `).join("")}
+
+        <div class="amount-box">
+          <p class="label">Amount Paid (This Payment)</p>
+          <p class="value">₦${paymentAmount.toLocaleString()}</p>
+          <p style="font-size: 11px; color: #94a3b8; margin: 2px 0 0;">${numberToWords(paymentAmount).toUpperCase()}</p>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+          <div style="border: 1px solid #e2e8f0; border-radius: 10px; padding: 8px 14px;">
+            <p style="font-size: 10px; font-weight: 800; color: #64748b; margin: 0; text-transform: uppercase;">Total Sale Price</p>
+            <p style="font-size: 16px; font-weight: 900; color: #0f172a; margin: 2px 0 0;">₦${totalSalePrice.toLocaleString()}</p>
+          </div>
+          <div style="border: 1px solid #e2e8f0; border-radius: 10px; padding: 8px 14px;">
+            <p style="font-size: 10px; font-weight: 800; color: #64748b; margin: 0; text-transform: uppercase;">Total Paid To Date</p>
+            <p style="font-size: 16px; font-weight: 900; color: #0f172a; margin: 2px 0 0;">₦${totalPaidIncludingThis.toLocaleString()}</p>
+          </div>
+        </div>
+
+        <div class="balance-box">
+          <p class="label">${isFullPayment ? "✓ Balance Outstanding" : "Balance Remaining"}</p>
+          <p class="value">${isFullPayment ? "NIL — FULLY PAID" : "₦" + balance.toLocaleString()}</p>
+        </div>
+
+        ${allPayments.length > 1 ? `
+        <div style="margin-bottom: 10px;">
+          <p style="font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase; margin-bottom: 4px;">Payment History</p>
+          <table class="history-table">
+            <thead><tr><th>#</th><th>Date</th><th>Method</th><th>Note</th><th style="text-align:right;">Amount</th></tr></thead>
+            <tbody>
+              ${[...allPayments].reverse().map((p: any, i: number) => `
+                <tr class="${p.id === payment.id ? 'current' : ''}">
+                  <td>${ordinalLabels[i] || (i + 1) + 'th'}</td>
+                  <td>${new Date(p.payment_date).toLocaleDateString('en-GB')}</td>
+                  <td>${(p.payment_method || 'cash').toUpperCase()}</td>
+                  <td>${p.notes || '—'}</td>
+                  <td style="text-align:right; font-weight: 700;">₦${Number(p.amount).toLocaleString()}</td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        </div>` : ""}
+
+        <div class="refund-note">NOTICE: NO REFUND AFTER PAYMENT</div>
+        <div class="signature-area">
+          <div class="sig-box">
+            ${sale.buyer_signature ? `<img src="${sale.buyer_signature}" class="signature-img" />` : '<div style="height:45px"></div>'}
+            <p style="border-top: 1px solid #1a1a1a; padding-top: 5px;"><strong>CUSTOMER SIGNATURE</strong></p>
+          </div>
+          <div class="sig-box">
+            ${sale.rep_signature ? `<img src="${sale.rep_signature}" class="signature-img" />` : '<div style="height:45px"></div>'}
+            <p style="border-top: 1px solid #1a1a1a; padding-top: 5px;"><strong>FOR: BEE TEE AUTOMOBILE</strong></p>
+          </div>
+        </div>
+      </div>
+    </div>
+    ${getPrintFooterHTML()}
+    </body></html>`;
+
+    const win = window.open("", "_blank");
+    if (win) {
+      win.document.write(html);
+      win.document.close();
+      setTimeout(() => { win.focus(); win.print(); }, 500);
+    } else {
+      toast.error("Pop-up blocked! Please allow pop-ups for this site.");
+    }
   };
 
   const handlePrintReceipt = (sale: any) => {
@@ -447,10 +666,10 @@ export default function Sales() {
     const html = `<html><head><title>Receipt - ${sale.id.slice(0, 8).toUpperCase()}</title>
     <style>
       @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap');
-      body { font-family: 'Roboto', 'Arial', sans-serif; padding: 40px; max-width: 800px; margin: 0 auto; color: #1a1a1a; line-height: 1.2; }
-      .date-section { text-align: right; font-weight: 800; font-size: 13px; margin-bottom: 5px; text-transform: uppercase; padding: 0 20px; }
-      .bill-to { margin-bottom: 10px; padding: 0 20px; }
-      .bill-to p { margin: 1px 0; font-size: 13px; }
+      body { font-family: 'Roboto', 'Arial', sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; color: #1a1a1a; line-height: 1.1; }
+      .date-section { text-align: right; font-weight: 800; font-size: 12px; margin-bottom: 4px; text-transform: uppercase; padding: 0 20px; }
+      .bill-to { margin-bottom: 8px; padding: 0 20px; }
+      .bill-to p { margin: 1px 0; font-size: 12px; }
       .main-container {
         background-color: transparent;
         border-radius: 20px;
@@ -460,11 +679,11 @@ export default function Sales() {
         border: none;
       }
       .content-wrapper { position: relative; z-index: 1; }
-      .bill-title { text-align: center; text-decoration: underline; font-weight: 900; font-size: 18px; margin-bottom: 10px; color: #1e293b; text-transform: uppercase; }
-      .refund-note { margin-top: 5px; padding: 5px; background: rgba(254, 226, 226, 0.4); border: 2px solid #ef4444; border-radius: 10px; color: #b91c1c; font-weight: 900; font-size: 13px; text-align: center; margin-bottom: 10px; }
-      .signature-area { display: flex; justify-content: space-between; margin-top: 10px; border-top: 2px solid #94a3b8; padding-top: 10px; }
-      .sig-box { width: 45%; text-align: center; font-size: 12px; }
-      .signature-img { max-height: 35px; display: block; margin: 0 auto 5px; }
+      .bill-title { text-align: center; text-decoration: underline; font-weight: 900; font-size: 16px; margin-bottom: 8px; color: #1e293b; text-transform: uppercase; }
+      .refund-note { margin-top: 4px; padding: 4px; background: rgba(254, 226, 226, 0.2); border: 2px solid #ef4444; border-radius: 10px; color: #b91c1c; font-weight: 900; font-size: 12px; text-align: center; margin-bottom: 8px; }
+      .signature-area { display: flex; justify-content: space-between; margin-top: 8px; border-top: 2px solid #94a3b8; padding-top: 8px; }
+      .sig-box { width: 45%; text-align: center; font-size: 11px; }
+      .signature-img { max-height: 30px; display: block; margin: 0 auto 4px; }
     </style></head><body>
     ${getPrintHeaderHTML()}
     ${printReceipt(sale)}
@@ -684,9 +903,11 @@ export default function Sales() {
           </p>
         </div>
         <div className="flex flex-row flex-wrap items-center gap-3 shrink-0">
-          <Button onClick={() => { setEditId(null); setDialogOpen(true); }} size="lg" className="rounded-2xl shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40 transition-all bg-violet-500 hover:bg-violet-600 text-white">
-            <PlusCircle className="mr-2 h-5 w-5" /> Record Sale
-          </Button>
+          {canCreate(role, "sales", permissions) && (
+            <Button onClick={() => { setEditId(null); setDialogOpen(true); }} size="lg" className="rounded-2xl shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40 transition-all bg-violet-500 hover:bg-violet-600 text-white">
+              <PlusCircle className="mr-2 h-5 w-5" /> Record Sale
+            </Button>
+          )}
           <Button 
             variant="outline" 
             size="sm" 
@@ -902,6 +1123,22 @@ export default function Sales() {
               </SelectContent>
             </Select>
           </div>
+
+          <div className="w-full sm:w-[180px] shrink-0">
+            <Select value={paymentStatusFilter} onValueChange={(v) => { setPaymentStatusFilter(v); setPage(0); }}>
+              <SelectTrigger className="h-10 rounded-xl bg-background/50 border-white/10 focus:ring-violet-500/50 transition-all">
+                <div className="flex items-center gap-2">
+                  <DollarSign className="h-4 w-4 text-muted-foreground" />
+                  <SelectValue placeholder="Payment Status" />
+                </div>
+              </SelectTrigger>
+              <SelectContent className="rounded-xl glass-panel">
+                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="paid_in_full">Paid in Full</SelectItem>
+                <SelectItem value="deposit">Deposit (Part Payment)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
 
@@ -909,6 +1146,15 @@ export default function Sales() {
       {isLoading ? (
         <div className="space-y-4">
           {[1,2,3,4,5].map(i => <div key={i} className="h-16 w-full rounded-2xl bg-card/40 animate-pulse border border-white/5" />)}
+        </div>
+      ) : isError ? (
+        <div className="bento-card p-12 flex flex-col items-center justify-center text-center border-rose-500/20 bg-rose-500/5">
+          <div className="bg-rose-500/10 p-5 rounded-full mb-4">
+            <AlertCircle className="h-10 w-10 text-rose-500" />
+          </div>
+          <h3 className="text-xl font-bold mb-2">Error Loading Sales</h3>
+          <p className="text-muted-foreground max-w-xs mx-auto mb-6">We couldn't retrieve the sales records. This might be a connection issue or a permissions error.</p>
+          <Button onClick={() => queryClient.invalidateQueries({ queryKey: ["sales"] })} className="rounded-2xl bg-rose-500 hover:bg-rose-600 text-white">Retry Connection</Button>
         </div>
       ) : sales.length === 0 ? (
         <div className="bento-card p-12 flex flex-col items-center justify-center text-center">
@@ -933,7 +1179,19 @@ export default function Sales() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {paged.map((s) => (
+                {filtered.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="py-12 text-center text-muted-foreground">
+                      <div className="flex flex-col items-center justify-center space-y-2">
+                        <Search className="h-8 w-8 opacity-20" />
+                        <p className="font-medium">No sales match your current filters.</p>
+                        <Button variant="link" onClick={() => { setSearch(""); setSelectedMonth("all"); setSelectedWeek("all"); setSourceCompanyFilter("all"); setPaymentStatusFilter("all"); }} className="text-violet-500">
+                          Clear all filters
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ) : paged.map((s) => (
                   <TableRow key={s.id} className="border-border/10 hover:bg-white/5 transition-colors group">
                     <TableCell className="px-6 py-4">
                       <div className="flex items-center gap-2">
@@ -987,6 +1245,9 @@ export default function Sales() {
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
+                        <Button variant="ghost" size="sm" className="h-8 rounded-lg hover:bg-emerald-500/10 hover:text-emerald-500" onClick={() => setPaymentSaleId(s.id)}>
+                          <DollarSign className="h-4 w-4 mr-1.5" /> Payments
+                        </Button>
                         <Button variant="ghost" size="sm" className="h-8 rounded-lg hover:bg-violet-500/10 hover:text-violet-500" onClick={() => navigate(`/invoices?action=create&customer_id=${s.customer_id}&sale_id=${s.id}&type=sale`)}>
                           <FileOutput className="h-4 w-4 mr-1.5" /> Invoice
                         </Button>
@@ -1010,7 +1271,15 @@ export default function Sales() {
 
           {/* Mobile Card View */}
           <div className="md:hidden divide-y divide-white/5">
-            {paged.map((s) => (
+            {filtered.length === 0 ? (
+              <div className="p-12 text-center text-muted-foreground">
+                <Search className="h-8 w-8 opacity-20 mx-auto mb-2" />
+                <p className="font-medium">No sales match your current filters.</p>
+                <Button variant="link" onClick={() => { setSearch(""); setSelectedMonth("all"); setSelectedWeek("all"); setSourceCompanyFilter("all"); setPaymentStatusFilter("all"); }} className="text-violet-500">
+                  Clear all filters
+                </Button>
+              </div>
+            ) : paged.map((s) => (
               <div key={s.id} className="p-4 space-y-4">
                 <div className="flex justify-between items-start">
                   <div>
@@ -1048,6 +1317,14 @@ export default function Sales() {
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setPaymentSaleId(s.id)}
+                      className="h-8 rounded-lg hover:bg-emerald-500/10 hover:text-emerald-500"
+                    >
+                      <DollarSign className="w-3.5 h-3.5" />
+                    </Button>
                   </div>
                   
                   <div className="flex gap-1">
@@ -1279,6 +1556,19 @@ export default function Sales() {
                </div>
             </div>
 
+            {!editId && (
+               <div className="space-y-2 p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/10 animate-fade-in">
+                 <Label className="text-xs font-semibold uppercase tracking-wider text-emerald-600">Initial Payment Amount (Optional)</Label>
+                 <CurrencyInput 
+                   className="rounded-xl h-11 bg-background/50 border-white/10 focus-visible:ring-emerald-500 font-bold text-emerald-600" 
+                   placeholder="0" 
+                   value={form.initial_payment} 
+                   onChange={(e) => setForm({ ...form, initial_payment: e.target.value })} 
+                 />
+                 <p className="text-[10px] text-muted-foreground italic">Leave empty or 0 if no payment has been made yet.</p>
+               </div>
+             )}
+
             <div className="pt-4 border-t border-white/5 grid grid-cols-1 md:grid-cols-2 gap-6">
                <div className="space-y-4">
                   <div className="space-y-2">
@@ -1347,6 +1637,159 @@ export default function Sales() {
         type="sale" 
         id={qrId} 
       />
+
+      <Dialog open={!!paymentSaleId} onOpenChange={(open) => !open && setPaymentSaleId(null)}>
+        <DialogContent className="max-w-2xl rounded-3xl glass-panel shadow-2xl border-white/10 p-0 overflow-hidden">
+          <div className="p-6 border-b border-white/5 bg-foreground/5 flex items-center justify-between">
+            <DialogHeader>
+              <DialogTitle className="text-xl font-bold flex items-center gap-2">
+                <DollarSign className="w-5 h-5 text-emerald-500" /> Payment History & Balance
+              </DialogTitle>
+            </DialogHeader>
+            {paymentSaleId && (() => {
+              const sale = sales.find(s => s.id === paymentSaleId);
+              const totalPaid = salePayments.reduce((sum, p: any) => sum + (Number(p.amount) || 0), 0);
+              const balance = (Number(sale?.sale_price) || 0) - totalPaid;
+              return (
+                <div className="text-right">
+                  <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Total Balance Due</p>
+                  <p className={`text-xl font-black ${balance <= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                    ₦{balance.toLocaleString()}
+                  </p>
+                </div>
+              );
+            })()}
+          </div>
+
+          <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
+            {/* Record New Payment */}
+            {canEdit(role, "sales", permissions) && (
+              <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-4">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                  <PlusCircle className="w-3.5 h-3.5" /> Add New Payment
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] uppercase font-bold text-muted-foreground ml-1">Amount</Label>
+                    <CurrencyInput 
+                      className="rounded-lg h-9 bg-background/50 border-white/10" 
+                      placeholder="0"
+                      value={newPaymentAmount}
+                      onChange={(e) => setNewPaymentAmount(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] uppercase font-bold text-muted-foreground ml-1">Method</Label>
+                    <Select value={newPaymentMethod} onValueChange={setNewPaymentMethod}>
+                      <SelectTrigger className="h-9 rounded-lg bg-background/50 border-white/10"><SelectValue /></SelectTrigger>
+                      <SelectContent className="glass-panel rounded-xl">
+                        <SelectItem value="cash">Cash</SelectItem>
+                        <SelectItem value="transfer">Bank Transfer</SelectItem>
+                        <SelectItem value="pos">POS</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5 flex items-end">
+                    <Button 
+                      className="w-full h-9 rounded-lg bg-emerald-500 hover:bg-emerald-600 shadow-lg shadow-emerald-500/20"
+                      onClick={() => addPaymentMutation.mutate()}
+                      disabled={!newPaymentAmount || parseFloat(newPaymentAmount) <= 0 || addPaymentMutation.isPending}
+                    >
+                      {addPaymentMutation.isPending ? "Recording..." : "Record Payment"}
+                    </Button>
+                  </div>
+                  <div className="sm:col-span-3 space-y-1.5">
+                    <Label className="text-[10px] uppercase font-bold text-muted-foreground ml-1">Notes (Optional)</Label>
+                    <Input 
+                      className="rounded-lg h-9 bg-background/50 border-white/10" 
+                      placeholder="e.g. Balance for vehicle..."
+                      value={newPaymentNote}
+                      onChange={(e) => setNewPaymentNote(e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Payment List */}
+            <div className="space-y-3">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Payment Records</h4>
+              {salePayments.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground italic border border-dashed border-white/10 rounded-2xl bg-white/5">
+                  No payment records found for this sale.
+                </div>
+              ) : (
+                <div className="overflow-hidden border border-white/5 rounded-2xl">
+                  <Table>
+                    <TableHeader className="bg-foreground/5">
+                      <TableRow className="border-white/5">
+                        <TableHead className="text-[10px] font-bold uppercase w-12">#</TableHead>
+                        <TableHead className="text-[10px] font-bold uppercase">Date</TableHead>
+                        <TableHead className="text-[10px] font-bold uppercase">Method</TableHead>
+                        <TableHead className="text-[10px] font-bold uppercase">Notes</TableHead>
+                        <TableHead className="text-right text-[10px] font-bold uppercase">Amount</TableHead>
+                        <TableHead className="text-right text-[10px] font-bold uppercase">Receipt</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {(() => {
+                        const currentSale = sales.find(s => s.id === paymentSaleId);
+                        const ordinalLabels = ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th", "10th"];
+                        return [...salePayments].reverse().map((p: any, i: number) => {
+                          const isFirst = i === 0;
+                          const isLast = i === salePayments.length - 1;
+                          const totalPaidUpToThis = [...salePayments].reverse().slice(0, i + 1).reduce((sum: number, px: any) => sum + Number(px.amount), 0);
+                          const totalSale = Number(currentSale?.sale_price) || 0;
+                          const isFull = totalPaidUpToThis >= totalSale;
+                          const label = isFull ? "Full" : isFirst ? "Deposit" : ordinalLabels[i] || `${i+1}th`;
+                          const badgeClass = isFull 
+                            ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20" 
+                            : isFirst 
+                              ? "bg-amber-500/10 text-amber-600 border border-amber-500/20"
+                              : "bg-sky-500/10 text-sky-500 border border-sky-500/20";
+                          // find the index in the original desc array
+                          const descIndex = salePayments.findIndex((sp: any) => sp.id === p.id);
+                          return (
+                            <TableRow key={p.id} className="border-white/5 hover:bg-white/5">
+                              <TableCell className="py-3">
+                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${badgeClass}`}>{label}</span>
+                              </TableCell>
+                              <TableCell className="text-xs py-3">{new Date(p.payment_date).toLocaleDateString()}</TableCell>
+                              <TableCell className="text-xs py-3 capitalize">{p.payment_method}</TableCell>
+                              <TableCell className="text-xs py-3 max-w-[120px] truncate">{p.notes || "—"}</TableCell>
+                              <TableCell className="text-xs py-3 text-right font-bold">₦{Number(p.amount).toLocaleString()}</TableCell>
+                              <TableCell className="py-2 text-right">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 px-2 rounded-lg text-[10px] font-bold hover:bg-amber-500/10 hover:text-amber-500 gap-1"
+                                  onClick={() => currentSale && printPaymentReceipt(currentSale, p, descIndex, salePayments)}
+                                >
+                                  <Printer className="h-3 w-3" /> Print
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        });
+                      })()}
+                      <TableRow className="bg-emerald-500/5 hover:bg-emerald-500/10 border-t border-white/10">
+                        <TableCell colSpan={4} className="text-xs py-3 font-black text-emerald-500 uppercase tracking-wider">Total Paid To Date</TableCell>
+                        <TableCell className="text-sm py-3 text-right font-black text-emerald-500">
+                          ₦{salePayments.reduce((sum, p: any) => sum + (Number(p.amount) || 0), 0).toLocaleString()}
+                        </TableCell>
+                        <TableCell />
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </div>
+          </div>
+          <DialogFooter className="p-4 bg-foreground/5 border-t border-white/5">
+            <Button variant="outline" onClick={() => setPaymentSaleId(null)} className="rounded-xl border-white/10">Close Window</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

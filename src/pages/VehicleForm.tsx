@@ -24,7 +24,7 @@ import { X, Upload, FileSignature, ArrowLeft } from "lucide-react";
 import VehicleMakeModelSelector from "@/components/VehicleMakeModelSelector";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissions } from "@/hooks/usePermissions";
-import { canEdit } from "@/lib/permissions";
+import { canEdit, canCreate } from "@/lib/permissions";
 import { logAction } from "@/lib/logger";
 import { CurrencyInput } from "@/components/CurrencyInput";
 import { toast } from "sonner";
@@ -47,6 +47,9 @@ interface FormData {
   date_stored: string;
   num_keys: string;
   source_company: string;
+  source_company_phone: string;
+  source_rep_name: string;
+  source_rep_phone: string;
   condition: string;
   trim: string;
   inventory_type: string;
@@ -72,6 +75,9 @@ const emptyForm: FormData = {
   date_stored: "",
   num_keys: "0",
   source_company: "",
+  source_company_phone: "",
+  source_rep_name: "",
+  source_rep_phone: "",
   condition: "Used",
   trim: "",
   inventory_type: "beetee",
@@ -102,10 +108,14 @@ export default function VehicleForm() {
       toast.error("You do not have permission to edit existing vehicles.");
       navigate("/vehicles");
     }
+    if (!isEdit && !canCreate(role, "vehicles", permissions)) {
+      toast.error("You do not have permission to add new vehicles.");
+      navigate("/vehicles");
+    }
     if (!isEdit) {
       setForm(prev => ({ ...prev, inventory_type: defaultType }));
     }
-  }, [isEdit, hasEdit, navigate, defaultType]);
+  }, [isEdit, hasEdit, role, permissions, navigate, defaultType]);
 
   const { data: vehicle } = useQuery({
     queryKey: ["vehicle", id],
@@ -156,6 +166,9 @@ export default function VehicleForm() {
         date_stored: v.date_stored || "",
         num_keys: v.num_keys?.toString() || "0",
         source_company: v.source_company || "",
+        source_company_phone: v.source_company_phone || "",
+        source_rep_name: v.source_rep_name || "",
+        source_rep_phone: v.source_rep_phone || "",
         condition: v.condition || "Used",
         trim: v.trim || "",
         inventory_type: v.inventory_type || "beetee",
@@ -242,6 +255,9 @@ export default function VehicleForm() {
         date_stored: form.date_stored || null,
         num_keys: parseInt(form.num_keys) || 0,
         source_company: form.source_company.trim() || null,
+        source_company_phone: form.source_company_phone?.trim() || null,
+        source_rep_name: form.source_rep_name?.trim() || null,
+        source_rep_phone: form.source_rep_phone?.trim() || null,
         condition: form.condition,
         trim: form.trim.trim() || null,
         inventory_type: form.inventory_type,
@@ -283,8 +299,32 @@ export default function VehicleForm() {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    setImageFiles((prev) => [...prev, ...files]);
-    files.forEach((f) => {
+    const totalCurrentImages = imageFiles.length + existingImages.length;
+    
+    if (totalCurrentImages + files.length > 2) {
+      toast.error("Maximum 2 images allowed per vehicle");
+      return;
+    }
+
+    const validFiles: File[] = [];
+    const MAX_SIZE = 5 * 1024 * 1024; // 5MB
+
+    for (const file of files) {
+      if (!file.type.startsWith("image/")) {
+        toast.error(`${file.name} is not an image file`);
+        continue;
+      }
+      if (file.size > MAX_SIZE) {
+        toast.error(`${file.name} exceeds the 5MB size limit`);
+        continue;
+      }
+      validFiles.push(file);
+    }
+
+    if (validFiles.length === 0) return;
+
+    setImageFiles((prev) => [...prev, ...validFiles]);
+    validFiles.forEach((f) => {
       const reader = new FileReader();
       reader.onload = (ev) => {
         setImagePreviews((prev) => [...prev, ev.target?.result as string]);
@@ -465,6 +505,9 @@ export default function VehicleForm() {
             {field("date_stored", "Date Stored", "date")}
             {field("num_keys", "Number of Keys", "number")}
             {field("source_company", "Company the vehicle is from")}
+            {field("source_company_phone", "Company Phone Number", "tel")}
+            {field("source_rep_name", "Representative Name (Person Sent)")}
+            {field("source_rep_phone", "Representative Phone Number", "tel")}
             
             <div className="space-y-1">
               <Label>Inventory Type</Label>
@@ -539,9 +582,10 @@ export default function VehicleForm() {
                 />
               </label>
               <span className="text-sm text-muted-foreground">
-                {imageFiles.length + existingImages.length} image(s)
+                {imageFiles.length + existingImages.length} / 2 image(s) (Max 5MB each)
               </span>
             </div>
+            <p className="text-[10px] text-muted-foreground italic">Only image formats are allowed. Videos are not permitted.</p>
 
             {(existingImages.length > 0 || imagePreviews.length > 0) && (
               <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">

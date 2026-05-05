@@ -65,6 +65,8 @@ function GuestGuard({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+import Profile from "./pages/Profile";
+
 function AppRoutes() {
   return (
     <Routes>
@@ -84,7 +86,8 @@ function AppRoutes() {
         <AuthGuard>
           <AppLayout>
             <Routes>
-              <Route path="/dashboard"         element={<RoleGuard page="dashboard"><Index /></RoleGuard>} />
+              <Route path="/dashboard"         element={<Index />} />
+              <Route path="/profile"           element={<Profile />} />
               <Route path="/vehicles"          element={<RoleGuard page="vehicles"><VehiclesList /></RoleGuard>} />
               <Route path="/resale-vehicles"   element={<RoleGuard page="resale-vehicles"><ResaleVehicles /></RoleGuard>} />
               <Route path="/vehicles/new"      element={<RoleGuard page="vehicles"><VehicleForm /></RoleGuard>} />

@@ -34,20 +34,23 @@ export const SUPER_ADMIN_PAGES: PageKey[] = ALL_PAGES.map((p) => p.key);
 
 export type PermissionsMap = Record<
   Exclude<AppRole, "super_admin">,
-  { view: PageKey[]; edit: PageKey[] }
+  { view: PageKey[]; create: PageKey[]; edit: PageKey[] }
 >;
 
 export const DEFAULT_PERMISSIONS: PermissionsMap = {
   admin: {
     view: ALL_PAGES.map((p) => p.key),
+    create: ALL_PAGES.map((p) => p.key),
     edit: ALL_PAGES.map((p) => p.key),
   },
   sales: {
     view: ["dashboard", "vehicles", "resale-vehicles", "customers", "sales", "invoices", "inquiries", "performance-quotes", "authority-to-sell"],
+    create: ["vehicles", "resale-vehicles", "customers", "sales", "invoices", "inquiries", "performance-quotes", "authority-to-sell"],
     edit: ["vehicles", "resale-vehicles", "customers", "sales", "invoices", "inquiries", "performance-quotes", "authority-to-sell"],
   },
   mechanic: {
     view: ["dashboard", "vehicles", "resale-vehicles", "repairs", "inspections"],
+    create: ["vehicles", "resale-vehicles", "repairs", "inspections"],
     edit: ["vehicles", "resale-vehicles", "repairs", "inspections"],
   },
 };
@@ -66,6 +69,23 @@ export function canAccess(
   if (!role) return false;
   if (role === "super_admin") return true;
   return (permissions[role as Exclude<AppRole, "super_admin">]?.view ?? []).includes(page);
+}
+
+/**
+ * Returns true if the given role can CREATE (ADD) on the given page.
+ * super_admin always returns true.
+ */
+export function canCreate(
+  role: AppRole | null,
+  page: PageKey,
+  permissions: PermissionsMap = DEFAULT_PERMISSIONS
+): boolean {
+  if (!role) return false;
+  if (role === "super_admin") return true;
+  // Fallback to 'view' if 'create' is missing (for legacy data)
+  const rolePerms = permissions[role as Exclude<AppRole, "super_admin">];
+  if (!rolePerms) return false;
+  return (rolePerms.create ?? []).includes(page);
 }
 
 /**

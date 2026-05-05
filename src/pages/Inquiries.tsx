@@ -26,7 +26,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissions } from "@/hooks/usePermissions";
-import { canEdit } from "@/lib/permissions";
+import { canEdit, canCreate } from "@/lib/permissions";
 import { logAction } from "@/lib/logger";
 import { CustomerSelect } from "@/components/CustomerSelect";
 import { format, subMonths } from "date-fns";
@@ -250,7 +250,7 @@ export default function Inquiries() {
           </p>
         </div>
         <div className="shrink-0">
-          {hasEdit && (
+          {canCreate(role, "inquiries", permissions) && (
             <Button onClick={() => { setEditId(null); setDialogOpen(true); }} size="lg" className="rounded-2xl shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all bg-indigo-500 hover:bg-indigo-600 text-white">
               <PlusCircle className="mr-2 h-5 w-5" /> Add Inquiry
             </Button>

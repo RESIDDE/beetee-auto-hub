@@ -8,6 +8,7 @@ type AuthState = {
   profile: any | null;
   role: "super_admin" | "admin" | "sales" | "mechanic" | null;
   isLoading: boolean;
+  refreshProfile: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthState>({
@@ -15,6 +16,7 @@ const AuthContext = createContext<AuthState>({
   profile: null,
   role: null,
   isLoading: true,
+  refreshProfile: async () => {},
 });
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
@@ -23,38 +25,44 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     profile: null,
     role: null,
     isLoading: true,
+    refreshProfile: async () => {},
   });
   const userIdRef = useRef<string | null>(null);
+
+  const loadExtras = async (userId: string) => {
+    try {
+      const [profileResult, roleResult] = await Promise.all([
+        supabase.from("profiles").select("*").or(`user_id.eq.${userId},id.eq.${userId}`).maybeSingle(),
+        (supabase as any).from("user_roles").select("role").eq("user_id", userId).maybeSingle(),
+      ]);
+
+      setState((prev) => ({
+        ...prev,
+        profile: profileResult.data || null,
+        role: roleResult.data?.role ?? null,
+        isLoading: false,
+      }));
+    } catch (err) {
+      console.warn("Could not load profile/role extras:", err);
+      setState((prev) => ({ ...prev, isLoading: false, role: null }));
+    }
+  };
+
+  const refreshProfile = async () => {
+    if (userIdRef.current) {
+      await loadExtras(userIdRef.current);
+    }
+  };
 
   useEffect(() => {
     let mounted = true;
 
     const setUserAndLoadExtras = (user: User) => {
       if (mounted) {
-        setState((prev) => ({ ...prev, user }));
+        setState((prev) => ({ ...prev, user, refreshProfile }));
         userIdRef.current = user.id;
+        loadExtras(user.id);
       }
-
-      Promise.all([
-        supabase.from("profiles").select("*").eq("user_id", user.id).single(),
-        (supabase as any).from("user_roles").select("role").eq("user_id", user.id).single(),
-      ])
-        .then(([{ data: profile }, { data: roleData }]) => {
-          if (mounted) {
-            setState((prev) => ({
-              ...prev,
-              profile: profile || null,
-              role: roleData?.role ?? null,
-              isLoading: false,
-            }));
-          }
-        })
-        .catch((err) => {
-          console.warn("Could not load profile/role extras:", err);
-          if (mounted) {
-            setState((prev) => ({ ...prev, isLoading: false, role: null }));
-          }
-        });
     };
 
 
@@ -63,7 +71,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (!mounted) return;
       if (error) {
         console.error("getSession error:", error);
-        setState({ user: null, profile: null, role: null, isLoading: false });
+        setState((prev) => ({ ...prev, user: null, profile: null, role: null, isLoading: false }));
         return;
       }
 
@@ -71,7 +79,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         userIdRef.current = session.user.id;
         setUserAndLoadExtras(session.user);
       } else {
-        setState({ user: null, profile: null, role: null, isLoading: false });
+        setState((prev) => ({ ...prev, user: null, profile: null, role: null, isLoading: false }));
       }
     });
 
@@ -93,7 +101,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           logAction("LOGOUT", "Auth", null, {}, userIdRef.current || undefined);
           userIdRef.current = null;
         }
-        setState({ user: null, profile: null, role: null, isLoading: false });
+        setState((prev) => ({ ...prev, user: null, profile: null, role: null, isLoading: false }));
       }
     });
 

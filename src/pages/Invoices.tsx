@@ -32,7 +32,7 @@ import {
 import { PlusCircle, FileText, Printer, Trash2, Receipt, Search, Mail, ArrowLeft } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissions } from "@/hooks/usePermissions";
-import { canEdit } from "@/lib/permissions";
+import { canEdit, canCreate } from "@/lib/permissions";
 import { logAction } from "@/lib/logger";
 import { format, subMonths } from "date-fns";
 
@@ -479,7 +479,7 @@ export default function Invoices() {
           </p>
         </div>
         <div className="shrink-0">
-          {hasEdit && (
+          {canCreate(role, "invoices", permissions) && (
             <Button onClick={() => setDialogOpen(true)} size="lg" className="rounded-2xl shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40 transition-all bg-cyan-500 hover:bg-cyan-600 text-white">
               <PlusCircle className="mr-2 h-5 w-5" /> Create Invoice
             </Button>

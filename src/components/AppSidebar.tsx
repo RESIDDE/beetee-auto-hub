@@ -12,6 +12,7 @@ import {
   SidebarGroupLabel, SidebarMenu, SidebarMenuItem,
   SidebarHeader, useSidebar,
 } from "@/components/ui/sidebar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import logo from "@/assets/logo.png";
 
 type NavItem = {
@@ -38,7 +39,7 @@ const ALL_NAV_ITEMS: NavItem[] = [
 export function AppSidebar() {
   const { state, setOpenMobile } = useSidebar();
   const collapsed = state === "collapsed";
-  const { role } = useAuth();
+  const { role, user, profile } = useAuth();
   const { permissions } = usePermissions();
 
   const isSuperAdmin = role === "super_admin";
@@ -56,15 +57,37 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader className="p-4">
-        <div className="flex items-center gap-2">
-          <img src={logo} alt="Beetee Autos logo" className="h-8 w-8 object-contain" />
+      <SidebarHeader className="p-4 border-b border-sidebar-border/10">
+        <div className="flex items-center gap-3 mb-4">
+          <img src={logo} alt="Beetee Autos logo" className="h-8 w-8 object-contain shrink-0" />
           {!collapsed && (
-            <h1 className="text-lg font-bold text-sidebar-primary uppercase tracking-widest">
-              BEETEE AUTOMOBILE
-            </h1>
+            <div className="min-w-0">
+              <h1 className="text-sm font-black text-sidebar-primary uppercase tracking-[0.2em] leading-tight truncate">
+                BEETEE AUTOMOBILE
+              </h1>
+            </div>
           )}
         </div>
+
+        {/* User Profile Summary */}
+        <NavLink to="/profile" onClick={handleNavClick} className="flex items-center gap-3 p-2 rounded-2xl hover:bg-sidebar-accent/50 transition-all duration-300 group">
+          <Avatar className="h-10 w-10 border-2 border-primary/20 group-hover:border-primary transition-colors shrink-0 shadow-lg">
+            <AvatarImage src={profile?.avatar_url || ""} className="object-cover" />
+            <AvatarFallback className="bg-primary/10 text-primary font-bold text-xs">
+              {profile?.display_name?.substring(0, 2).toUpperCase() || user?.email?.substring(0, 2).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+          {!collapsed && (
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-bold text-sidebar-foreground truncate leading-none">
+                {profile?.display_name || "Set Name"}
+              </p>
+              <p className="text-[10px] text-sidebar-foreground/50 uppercase font-black tracking-widest mt-1.5 truncate">
+                {role?.replace("_", " ") || "Member"}
+              </p>
+            </div>
+          )}
+        </NavLink>
       </SidebarHeader>
 
       <SidebarContent>

@@ -20,7 +20,7 @@ import { PlusCircle, Pencil, Trash2, Users, QrCode, Phone, Mail, MapPin, Search,
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissions } from "@/hooks/usePermissions";
-import { canEdit } from "@/lib/permissions";
+import { canEdit, canCreate } from "@/lib/permissions";
 import { logAction } from "@/lib/logger";
 
 type Customer = {
@@ -133,7 +133,7 @@ export default function Customers() {
           </p>
         </div>
         <div className="shrink-0">
-          {hasEdit && (
+          {canCreate(role, "customers", permissions) && (
             <Button onClick={() => { setEditId(null); setDialogOpen(true); }} size="lg" className="rounded-2xl shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all bg-emerald-500 hover:bg-emerald-600 text-white">
               <PlusCircle className="mr-2 h-5 w-5" /> Add Customer
             </Button>
@@ -166,7 +166,7 @@ export default function Customers() {
           </div>
           <h2 className="text-xl font-bold mb-2">No customers yet.</h2>
           <p className="text-muted-foreground max-w-sm mb-6">Start building your client database by adding your first customer.</p>
-          {hasEdit && (
+          {canCreate(role, "customers", permissions) && (
             <Button onClick={() => { setForm(emptyForm); setEditId(null); setDialogOpen(true); }} className="rounded-xl shadow-lg shadow-emerald-500/20 bg-emerald-500 hover:bg-emerald-600 text-white">Add Customer</Button>
           )}
         </div>

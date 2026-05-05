@@ -22,7 +22,7 @@ import { CustomerSelect } from "@/components/CustomerSelect";
 import { CurrencyInput } from "@/components/CurrencyInput";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissions } from "@/hooks/usePermissions";
-import { canEdit } from "@/lib/permissions";
+import { canEdit, canCreate } from "@/lib/permissions";
 import { toast } from "sonner";
 import { 
   PlusCircle, Search, Printer, Trash2, FileText, FileSignature, Car, 
@@ -584,7 +584,7 @@ export default function PerformanceQuotes() {
             Create and manage multi-vehicle proforma quotes with dynamic duty pricing.
           </p>
         </div>
-        {hasEdit && (
+        {canCreate(role, "performance-quotes", permissions) && (
           <div className="flex gap-2 shrink-0">
             <Button size="lg" onClick={() => setDialogOpen(true)} className="rounded-2xl shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all bg-emerald-500 hover:bg-emerald-600 cursor-pointer">
               <PlusCircle className="mr-2 h-5 w-5" /> New Quote

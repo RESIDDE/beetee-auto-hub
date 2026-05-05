@@ -26,7 +26,7 @@ import { cn } from "@/lib/utils";
 import { format, subMonths } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissions } from "@/hooks/usePermissions";
-import { canEdit } from "@/lib/permissions";
+import { canEdit, canCreate } from "@/lib/permissions";
 import { logAction } from "@/lib/logger";
 
 type Inspection = {
@@ -235,7 +235,7 @@ export default function Inspections() {
           </p>
         </div>
         <div className="shrink-0">
-          {hasEdit && (
+          {canCreate(role, "inspections", permissions) && (
             <Button onClick={() => setOpen(true)} size="lg" className="rounded-2xl shadow-lg shadow-rose-500/25 hover:shadow-rose-500/40 transition-all bg-rose-500 hover:bg-rose-600 text-white">
               <PlusCircle className="mr-2 h-5 w-5" /> Add Log
             </Button>

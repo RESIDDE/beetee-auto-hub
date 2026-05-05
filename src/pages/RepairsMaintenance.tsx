@@ -63,7 +63,7 @@ import { CustomerSelect } from "@/components/CustomerSelect";
 import { logAction } from "@/lib/logger";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissions } from "@/hooks/usePermissions";
-import { canEdit } from "@/lib/permissions";
+import { canEdit, canCreate } from "@/lib/permissions";
 
 type Repair = {
   id: string;
@@ -1113,7 +1113,7 @@ export default function RepairsMaintenance() {
              Manage service logs, parts replacements, and track vehicle repair history across your fleet.
           </p>
         </div>
-        {hasEdit && (
+        {canCreate(role, "repairs", permissions) && (
           <div className="shrink-0">
             <Button onClick={() => { setEditId(null); setOpen(true); }} size="lg" className="rounded-2xl shadow-lg shadow-amber-500/25 hover:shadow-amber-500/40 transition-all bg-amber-500 hover:bg-amber-600 text-white">
               <PlusCircle className="mr-2 h-5 w-5" /> Record Repair

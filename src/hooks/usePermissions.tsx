@@ -28,10 +28,26 @@ async function fetchPermissions(): Promise<PermissionsMap> {
   }
 
   const fetched = data.value as Partial<PermissionsMap>;
+
+  // Migrate legacy role data: if a role has no `create` field, backfill it
+  // from `edit` so existing "Full Access" users retain their Add rights.
+  // If `edit` is also missing, default to empty so View-only stays view-only.
+  function migrateRole(
+    role: { view?: any[]; create?: any[]; edit?: any[] } | undefined,
+    defaults: { view: any[]; create: any[]; edit: any[] }
+  ) {
+    if (!role) return defaults;
+    return {
+      view: role.view ?? defaults.view,
+      create: role.create ?? role.edit ?? [],   // backfill from edit if missing
+      edit: role.edit ?? defaults.edit,
+    };
+  }
+
   return {
-    admin:    fetched.admin    ?? DEFAULT_PERMISSIONS.admin,
-    sales:    fetched.sales    ?? DEFAULT_PERMISSIONS.sales,
-    mechanic: fetched.mechanic ?? DEFAULT_PERMISSIONS.mechanic,
+    admin:    migrateRole(fetched.admin,    DEFAULT_PERMISSIONS.admin)    as any,
+    sales:    migrateRole(fetched.sales,    DEFAULT_PERMISSIONS.sales)    as any,
+    mechanic: migrateRole(fetched.mechanic, DEFAULT_PERMISSIONS.mechanic) as any,
   };
 }
 

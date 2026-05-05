@@ -22,7 +22,7 @@ import {
 import { toast } from "sonner";
 import {
   Shield, ShieldCheck, User, Users, Settings2,
-  ToggleLeft, Eye, Pencil, RotateCcw, Crown, Lock, Activity,
+  ToggleLeft, Eye, Pencil, Plus, RotateCcw, Crown, Lock, Activity,
   UserPlus, ArrowRightLeft, AlertTriangle, Trash2, ArrowLeft, Bell, Save, Car,
 } from "lucide-react";
 import {
@@ -387,15 +387,31 @@ export default function Settings() {
     setLocalPermissions((prev) => {
       const base = prev ?? livePermissions;
       const currentView = base[r]?.view ?? [];
+      const currentCreate = (base[r] as any)?.create ?? [];
       const currentEdit = base[r]?.edit ?? [];
+      
       const hasView = currentView.includes(page);
+      const hasCreate = currentCreate.includes(page);
       const hasEdit = currentEdit.includes(page);
+      
       let nextView = [...currentView];
+      let nextCreate = [...currentCreate];
       let nextEdit = [...currentEdit];
-      if (!hasView && !hasEdit) { nextView.push(page); }
-      else if (hasView && !hasEdit) { nextEdit.push(page); }
-      else { nextView = nextView.filter((p) => p !== page); nextEdit = nextEdit.filter((p) => p !== page); }
-      return { ...base, [r]: { view: nextView, edit: nextEdit } };
+      
+      // Cycle: None -> View -> View+Create -> View+Create+Edit -> None
+      if (!hasView && !hasCreate && !hasEdit) {
+        nextView.push(page);
+      } else if (hasView && !hasCreate && !hasEdit) {
+        nextCreate.push(page);
+      } else if (hasView && hasCreate && !hasEdit) {
+        nextEdit.push(page);
+      } else {
+        nextView = nextView.filter((p) => p !== page);
+        nextCreate = nextCreate.filter((p) => p !== page);
+        nextEdit = nextEdit.filter((p) => p !== page);
+      }
+      
+      return { ...base, [r]: { view: nextView, create: nextCreate, edit: nextEdit } };
     });
     setPermDirty(true);
   };
@@ -783,7 +799,7 @@ export default function Settings() {
             </div>
           </div>
           <p className="text-sm text-muted-foreground mb-6">
-            Click to cycle through: <span className="inline-flex items-center gap-1 mx-1 px-1.5 py-0.5 rounded-md bg-foreground/5 text-muted-foreground"><ToggleLeft className="w-3.5 h-3.5" /> None</span> → <span className="inline-flex items-center gap-1 mx-1 px-1.5 py-0.5 rounded-md bg-blue-500/20 text-blue-500"><Eye className="w-3.5 h-3.5" /> View Only</span> → <span className="inline-flex items-center gap-1 mx-1 px-1.5 py-0.5 rounded-md bg-emerald-500/20 text-emerald-500"><Pencil className="w-3.5 h-3.5" /> Full Access (View/Add/Edit)</span>. <span className="text-amber-400 font-semibold ml-1">Super Admin</span> always has full access.
+            Click to cycle through: <span className="inline-flex items-center gap-1 mx-1 px-1.5 py-0.5 rounded-md bg-foreground/5 text-muted-foreground"><ToggleLeft className="w-3.5 h-3.5" /> None</span> → <span className="inline-flex items-center gap-1 mx-1 px-1.5 py-0.5 rounded-md bg-blue-500/10 text-blue-400"><Eye className="w-3.5 h-3.5" /> View Only</span> → <span className="inline-flex items-center gap-1 mx-1 px-1.5 py-0.5 rounded-md bg-amber-500/10 text-amber-500"><Plus className="w-3.5 h-3.5" /> View & Add</span> → <span className="inline-flex items-center gap-1 mx-1 px-1.5 py-0.5 rounded-md bg-emerald-500/20 text-emerald-500"><Pencil className="w-3.5 h-3.5" /> Full Access</span>. <span className="text-amber-400 font-semibold ml-1">Super Admin</span> always has full access.
           </p>
           <div className="overflow-x-auto table-container">
             <table className="w-full min-w-[480px]">
@@ -808,12 +824,29 @@ export default function Settings() {
                     <td className="py-3.5 pr-6 text-sm font-medium text-foreground">{page.label}</td>
                     {configurableRoles.map((r) => {
                       const hasView = (permissions[r]?.view ?? []).includes(page.key);
+                      const hasCreate = ((permissions[r] as any)?.create ?? []).includes(page.key);
                       const hasEdit = (permissions[r]?.edit ?? []).includes(page.key);
+                      
                       let btnClass = "bg-foreground/5 text-muted-foreground/30 hover:bg-foreground/10";
                       let title = "Grant View access";
                       let icon = <ToggleLeft className="w-5 h-5" />;
-                      if (hasView && !hasEdit) { btnClass = "bg-blue-500/20 text-blue-500 hover:bg-blue-500/30"; title = "Grant Full Access (Add/Edit)"; icon = <Eye className="w-5 h-5" />; }
-                      else if (hasView && hasEdit) { btnClass = "bg-emerald-500/20 text-emerald-500 hover:bg-emerald-500/30"; title = "Revoke all access"; icon = <Pencil className="w-4 h-4" />; }
+                      
+                      if (hasView && !hasCreate && !hasEdit) { 
+                        btnClass = "bg-blue-500/20 text-blue-500 hover:bg-blue-500/30"; 
+                        title = "Grant Add access"; 
+                        icon = <Eye className="w-5 h-5" />; 
+                      }
+                      else if (hasView && hasCreate && !hasEdit) { 
+                        btnClass = "bg-amber-500/20 text-amber-500 hover:bg-amber-500/30"; 
+                        title = "Grant Edit access"; 
+                        icon = <Plus className="w-5 h-5" />; 
+                      }
+                      else if (hasView && hasCreate && hasEdit) { 
+                        btnClass = "bg-emerald-500/20 text-emerald-500 hover:bg-emerald-500/30"; 
+                        title = "Revoke all access"; 
+                        icon = <Pencil className="w-4 h-4" />; 
+                      }
+                      
                       return (
                         <td key={r} className="py-3.5 text-center">
                           <button onClick={() => togglePerm(r, page.key)} className={`inline-flex items-center justify-center w-9 h-9 rounded-xl transition-all ${btnClass}`} title={title}>

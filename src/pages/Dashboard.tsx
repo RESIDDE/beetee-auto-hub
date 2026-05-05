@@ -11,13 +11,14 @@ import {
 import { Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissions } from "@/hooks/usePermissions";
-import { canEdit } from "@/lib/permissions";
+import { canAccess, canEdit, canCreate, getAccessiblePages, type AppRole, ALL_PAGES } from "@/lib/permissions";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, CartesianGrid, AreaChart, Area
 } from "recharts";
 import { differenceInDays } from "date-fns";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { exportToExcel, printTable } from "@/lib/exportHelpers";
 import { logAction } from "@/lib/logger";
 
@@ -48,13 +49,65 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
+const WelcomeLanding = ({ profile, user, role, permissions }: any) => {
+  const accessibleKeys = getAccessiblePages(role as AppRole, permissions);
+  const assignedPages = ALL_PAGES.filter(p => accessibleKeys.includes(p.key) && p.key !== 'dashboard');
+
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[70vh] text-center px-4 animate-fade-up">
+      <div className="relative mb-8">
+        <div className="absolute inset-0 bg-primary/20 blur-3xl rounded-full scale-150 animate-pulse" />
+        <Avatar className="h-32 w-32 border-4 border-background shadow-2xl relative z-10">
+          <AvatarImage src={profile?.avatar_url || ""} className="object-cover" />
+          <AvatarFallback className="bg-primary/10 text-primary text-4xl font-black">
+            {profile?.display_name?.substring(0, 2).toUpperCase() || user?.email?.substring(0, 2).toUpperCase()}
+          </AvatarFallback>
+        </Avatar>
+      </div>
+      
+      <h1 className="text-4xl md:text-6xl font-black tracking-tight mb-4">
+        Welcome, <span className="text-primary">{profile?.display_name?.split(' ')[0] || 'there'}</span>!
+      </h1>
+      <p className="text-lg text-muted-foreground max-w-2xl mb-12 leading-relaxed">
+        You are currently logged in as <span className="text-foreground font-bold uppercase tracking-widest text-sm bg-foreground/5 px-2 py-1 rounded-lg">{role?.replace('_', ' ') || 'Pending Approval'}</span>. 
+        {assignedPages.length > 0 
+          ? "Below are the modules you have been assigned to manage."
+          : "Your account is currently being reviewed. Once assigned a role, your modules will appear here."}
+      </p>
+
+      {assignedPages.length > 0 && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 w-full max-w-4xl">
+          {assignedPages.map((page) => (
+            <Link 
+              key={page.key} 
+              to={page.path}
+              className="group bento-card p-6 flex flex-col items-center gap-4 hover:scale-[1.02] transition-all duration-300 border-white/5 hover:border-primary/20"
+            >
+              <div className="p-4 bg-primary/10 rounded-2xl group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+                <ChevronRight className="w-6 h-6" />
+              </div>
+              <div className="text-center">
+                <h3 className="font-bold text-lg">{page.label}</h3>
+                <p className="text-xs text-muted-foreground uppercase tracking-widest mt-1">Access Granted</p>
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 export default function Dashboard() {
-  const { role } = useAuth();
+  const { role, user, profile } = useAuth();
   const { permissions } = usePermissions();
   const hasVehicleEdit = canEdit(role, "vehicles", permissions);
+  const canAddVehicle = canCreate(role, "vehicles", permissions);
   const [search, setSearch] = useState("");
   const [companySearch, setCompanySearch] = useState("");
   const [greeting, setGreeting] = useState("Welcome back");
+
+  const isAdmin = role === 'super_admin' || role === 'admin';
 
   useEffect(() => {
     const hour = new Date().getHours();
@@ -136,7 +189,6 @@ export default function Dashboard() {
   });
 
   const totalQuotesValue = performanceQuotes.reduce((sum, q) => sum + Number(q.total_amount || 0), 0);
-
   const totalSalesRevenue = sales.reduce((sum, s) => sum + Number(s.sale_price || 0), 0);
   const totalRepairsRevenue = repairs.reduce((sum, r) => sum + Number(r.repair_cost || 0), 0);
   const totalRevenue = totalSalesRevenue + totalRepairsRevenue;
@@ -150,7 +202,6 @@ export default function Dashboard() {
   const openInvoicesAmount = invoices.filter(i => i.status !== 'paid').reduce((sum, i) => sum + Number(i.total || 0), 0);
   const pendingInquiriesCount = inquiries.filter(i => i.status === 'pending').length;
 
-  // 1. Monthly Revenue Trend (Last 6 Months)
   const monthlyTimeline = useMemo(() => {
     const months: any[] = [];
     for (let i = 5; i >= 0; i--) {
@@ -158,16 +209,13 @@ export default function Dashboard() {
       d.setMonth(d.getMonth() - i);
       const label = d.toLocaleString("default", { month: "short" });
       const y = d.getFullYear(); const m = d.getMonth();
-      
       const sRev = sales.filter(s => new Date(s.sale_date || s.created_at).getMonth() === m && new Date(s.sale_date || s.created_at).getFullYear() === y).reduce((sum, s) => sum + Number(s.sale_price || 0), 0);
       const rRev = repairs.filter(r => new Date(r.created_at).getMonth() === m && new Date(r.created_at).getFullYear() === y).reduce((sum, r) => sum + Number(r.repair_cost || 0), 0);
-      
       months.push({ name: label, "Sales Revenue": sRev, "Repairs Revenue": rRev, "Total Revenue": sRev + rRev });
     }
     return months;
   }, [sales, repairs]);
 
-  // 2. Profit Margin per Sold Vehicle (Top 5 Recent)
   const profitMarginData = useMemo(() => {
     return sales
       .filter(s => s.vehicles && s.vehicles.cost_price != null)
@@ -184,7 +232,6 @@ export default function Dashboard() {
       });
   }, [sales]);
 
-  // 3. Repair Turnaround Time
   const turnaroundWait = useMemo(() => {
      const completed = repairs.filter(r => r.payment_status === 'paid_in_full');
      if (completed.length === 0) return 0;
@@ -193,9 +240,8 @@ export default function Dashboard() {
      return avg < 1 ? 1 : Math.round(avg);
   }, [repairs]);
 
-  // 4. Inventory Aging
   const inventoryAging = useMemo(() => {
-     const unsold = vehicles.filter(v => v.status !== 'sold'); // only beetee stock
+     const unsold = vehicles.filter(v => v.status !== 'sold');
      const aging = { "0-30 days": 0, "31-60 days": 0, "61-90 days": 0, "90+ days": 0 };
      unsold.forEach(v => {
        const days = differenceInDays(new Date(), new Date(v.created_at));
@@ -207,13 +253,11 @@ export default function Dashboard() {
      return Object.entries(aging).map(([name, Count]) => ({ name, Count }));
   }, [vehicles]);
 
-  // 5. Sales vs Repairs Revenue
   const revSplit = [
     { name: "Vehicle Sales", value: totalSalesRevenue },
     { name: "Service & Repairs", value: totalRepairsRevenue }
   ].filter(x => x.value > 0);
 
-  // 6. Top Selling Makes
   const topMakes = useMemo(() => {
      const makes = (sales || []).reduce((acc, s) => {
        const make = (s as any).vehicles?.make || 'Unknown';
@@ -224,7 +268,6 @@ export default function Dashboard() {
      return entries.sort((a, b) => b[1] - a[1]).slice(0, 4);
   }, [sales]);
 
-  // 7. Source Company Inventory
   const sourceCompanyStats = useMemo(() => {
     const stats: Record<string, { inventory: number, total: number }> = {};
     vehicles.forEach(v => {
@@ -249,6 +292,14 @@ export default function Dashboard() {
 
   const currentDateInfo = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 
+  // Only show the full analytics dashboard if the user has explicit 'dashboard' view permission.
+  // Otherwise, show the personalized welcome landing with their assigned pages.
+  const hasDashboardAccess = canAccess(role as AppRole, "dashboard", permissions);
+
+  if (!hasDashboardAccess) {
+    return <WelcomeLanding profile={profile} user={user} role={role} permissions={permissions} />;
+  }
+
   return (
     <div className="space-y-8 max-w-7xl mx-auto animate-fade-up pb-10">
       <svg width="0" height="0">
@@ -258,21 +309,29 @@ export default function Dashboard() {
         </defs>
       </svg>
 
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 mb-1 opacity-80">
-            <Calendar className="w-4 h-4 text-primary" />
-            <span className="text-sm font-medium">{currentDateInfo}</span>
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-white/5 pb-8">
+        <div className="flex flex-col sm:flex-row items-center gap-6 text-center sm:text-left">
+          <Avatar className="h-20 w-20 border-4 border-background shadow-xl shrink-0">
+            <AvatarImage src={profile?.avatar_url || ""} className="object-cover" />
+            <AvatarFallback className="bg-primary/10 text-primary text-xl font-bold">
+              {profile?.display_name?.substring(0, 2).toUpperCase() || user?.email?.substring(0, 2).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+          <div>
+            <div className="flex items-center justify-center sm:justify-start gap-2 mb-1 opacity-80">
+              <Calendar className="w-4 h-4 text-primary" />
+              <span className="text-sm font-medium">{currentDateInfo}</span>
+            </div>
+            <h1 className="text-4xl md:text-5xl font-heading font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-foreground via-foreground to-foreground/70 tracking-tight">
+              {greeting}, {profile?.display_name?.split(' ')[0] || 'User'}!
+            </h1>
+            <p className="text-base text-muted-foreground mt-2 max-w-xl">
+              Here's your dealership performance overview and key metrics.
+            </p>
           </div>
-          <h1 className="text-4xl md:text-5xl font-heading font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-foreground via-foreground to-foreground/70 tracking-tight">
-            {greeting}!
-          </h1>
-          <p className="text-base text-muted-foreground mt-2 max-w-xl">
-            Here's what's happening with your dealership today. Review your latest insights and performance tracking below.
-          </p>
         </div>
-        {hasVehicleEdit && (
-          <Button asChild size="lg" className="rounded-2xl shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all group shrink-0">
+        {canAddVehicle && (
+          <Button asChild size="lg" className="rounded-2xl shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all group shrink-0 h-14 px-8 font-bold">
             <Link to="/vehicles/new"><PlusCircle className="mr-2 h-5 w-5 group-hover:rotate-90 transition-transform duration-300" /> Add Vehicle</Link>
           </Button>
         )}

@@ -38,7 +38,7 @@ import { toast } from "sonner";
 import { exportToExcel, exportToJSON, printTable, exportToCSV, exportToPDF } from "@/lib/exportHelpers";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissions } from "@/hooks/usePermissions";
-import { canEdit } from "@/lib/permissions";
+import { canEdit, canCreate } from "@/lib/permissions";
 import { logAction } from "@/lib/logger";
 
 const COLORS = ["hsl(var(--primary))", "hsl(142 76% 36%)", "hsl(38 92% 50%)", "hsl(262 83% 58%)", "hsl(0 84% 60%)", "hsl(199 89% 48%)"];
@@ -169,8 +169,11 @@ export default function ResaleVehicles() {
     const rows = filtered.map((v) => ({
       Make: v.make, Model: v.model, Year: v.year, VIN: v.vin || "", Color: v.color || "",
       Price: v.price, "Cost Price": v.cost_price || "", Status: v.status, Condition: v.condition || "",
-      "Source Company": v.source_company || "", "Date Arrived": v.date_arrived || "",
-      "Accepted By": v.accepted_by_name || "", "Accepted Date": v.accepted_date || "",
+      "Source Company": v.source_company || "", 
+      "Source Phone": (v as any).source_company_phone || "", 
+      "Company Rep": (v as any).source_rep_name || "",
+      "Rep Phone": (v as any).source_rep_phone || "",
+      "Date Arrived": v.date_arrived || "",
     }));
     logAction("EXPORT", "Resale Vehicle", "bulk", { format: "Excel", count: rows.length });
     exportToExcel(rows, "resale_vehicles_export");
@@ -180,7 +183,12 @@ export default function ResaleVehicles() {
     const rows = filtered.map((v) => ({
       Make: v.make, Model: v.model, Year: v.year, VIN: v.vin || "", Color: v.color || "",
       Price: v.price, Status: v.status, Condition: v.condition || "",
-      Source: v.source_company || "", Date: v.date_arrived || "",
+      Source: v.source_company || "", 
+      "Source Phone": (v as any).source_company_phone || "", 
+      "Company Rep": (v as any).source_rep_name || "",
+      "Rep Phone": (v as any).source_rep_phone || "",
+      Date: v.date_arrived || "",
+      "Accepted By": v.accepted_by_name || "", "Accepted Date": v.accepted_date || "",
     }));
     logAction("EXPORT", "Resale Vehicle", "bulk", { format: "CSV", count: rows.length });
     exportToCSV(rows, "resale_vehicles_export");
@@ -193,6 +201,10 @@ export default function ResaleVehicles() {
       price: `₦${Number(v.price).toLocaleString()}`,
       status: v.status, 
       condition: v.condition || "—",
+      source_phone: (v as any).source_company_phone || "—",
+      source_rep: (v as any).source_rep_name || "—",
+      source_rep_phone: (v as any).source_rep_phone || "—",
+      accepted_by: v.accepted_by_name || "—",
     }));
     logAction("EXPORT", "Resale Vehicle", "bulk", { format: "PDF", count: rows.length });
     exportToPDF("Resale Vehicles Inventory", rows, [
@@ -201,6 +213,10 @@ export default function ResaleVehicles() {
       { key: "price", label: "Price" }, 
       { key: "status", label: "Status" }, 
       { key: "condition", label: "Condition" },
+      { key: "source_phone", label: "Source Phone" },
+      { key: "source_rep", label: "Company Rep" },
+      { key: "source_rep_phone", label: "Rep Phone" },
+      { key: "accepted_by", label: "Accepted By" },
     ]);
   };
 
@@ -267,7 +283,7 @@ export default function ResaleVehicles() {
               <DropdownMenuItem onClick={handlePrint} className="rounded-lg cursor-pointer text-primary font-bold"><Printer className="mr-2 h-4 w-4" /> Print View</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          {hasEdit && (
+          {canCreate(role, "vehicles", permissions) && (
             <Button asChild size="sm" className="rounded-xl shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all bg-emerald-500 hover:bg-emerald-600 text-xs">
               <Link to="/vehicles/new?inventory_type=resale">
                 <PlusCircle className="mr-1.5 h-4 w-4" /> Add Resale Vehicle
@@ -461,6 +477,7 @@ export default function ResaleVehicles() {
                   <TableHead className="font-semibold">Year</TableHead>
                   <TableHead className="font-semibold">Trim</TableHead>
                   <TableHead className="font-semibold">Chassis (VIN)</TableHead>
+                  <TableHead className="font-semibold">Source Phone</TableHead>
                   <TableHead className="font-semibold">Accepted By</TableHead>
                   <TableHead className="font-semibold">Accepted Date</TableHead>
                   <TableHead className="font-semibold">Status</TableHead>
@@ -483,6 +500,7 @@ export default function ResaleVehicles() {
                     <TableCell>
                       {v.vin ? <span className="font-mono text-xs bg-foreground/5 px-2 py-1 rounded-md">{v.vin}</span> : <span className="opacity-50">—</span>}
                     </TableCell>
+                    <TableCell className="text-sm">{(v as any).source_company_phone || "—"}</TableCell>
                     <TableCell className="text-sm font-medium">{v.accepted_by_name || "—"}</TableCell>
                     <TableCell className="text-xs text-muted-foreground">{v.accepted_date ? new Date(v.accepted_date).toLocaleDateString() : "—"}</TableCell>
                     <TableCell>
@@ -510,38 +528,60 @@ export default function ResaleVehicles() {
             </Table>
           </div>
 
-          {/* Mobile Cards View */}
-          <div className="md:hidden flex flex-col">
-            {paged.map((v, i) => (
-              <div key={v.id} className={`p-5 flex flex-col gap-4 ${i !== paged.length -1 ? 'border-b border-border/10' : ''}`}>
+          {/* Mobile Cards View - Redesigned for mobile compatibility */}
+          <div className="md:hidden flex flex-col divide-y divide-border/10">
+            {paged.map((v) => (
+              <div key={v.id} className="p-4 flex flex-col gap-4 bg-card/30">
                 <div className="flex justify-between items-start gap-4">
-                  <div className="flex items-start gap-3">
-                     <div className="p-2 rounded-xl bg-emerald-500/10 shrink-0">
+                  <div className="flex items-start gap-3 min-w-0">
+                     <div className="p-2.5 rounded-2xl bg-emerald-500/10 shrink-0">
                        <Car className="h-5 w-5 text-emerald-500" />
                      </div>
-                     <div>
-                       <p className="font-semibold text-foreground text-sm">{v.year} {v.make} {v.model} {v.trim && <span className="font-normal opacity-60">({v.trim})</span>}</p>
-                       {v.vin && <p className="text-xs text-muted-foreground font-mono mt-1 w-full overflow-hidden text-ellipsis">VIN: {v.vin}</p>}
+                     <div className="min-w-0">
+                       <p className="font-bold text-foreground text-sm truncate">{v.year} {v.make} {v.model}</p>
+                       <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider mt-0.5">{v.trim || "Standard Trim"}</p>
+                       {v.vin && (
+                         <div className="mt-2 bg-foreground/5 px-2 py-1 rounded-lg border border-white/5 inline-block max-w-full">
+                           <p className="text-[9px] text-muted-foreground font-mono truncate uppercase">VIN: {v.vin}</p>
+                         </div>
+                       )}
                      </div>
                   </div>
-                  <span className={`shrink-0 inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wider ${
-                    v.status?.toLowerCase() === 'available' ? 'bg-emerald-500/10 text-emerald-500' : 
-                    v.status?.toLowerCase() === 'sold' ? 'bg-blue-500/10 text-blue-500' : 'bg-amber-500/10 text-amber-500'
-                  }`}>
-                    {v.status || "Unknown"}
-                  </span>
-                </div>
-                <div className="flex gap-2 pt-2 border-t border-border/10 justify-between items-center">
-                  <span className="text-xs text-muted-foreground font-medium">{v.condition || "Unknown Cond."}</span>
-                  <div className="flex gap-1.5">
-                    <Button variant="outline" size="sm" asChild className="h-8 text-xs rounded-lg border-white/10"><Link to={`/vehicles/${v.id}`}>View</Link></Button>
-                    {hasEdit && (
-                      <>
-                        <Button variant="outline" size="sm" asChild className="h-8 text-xs rounded-lg border-white/10"><Link to={`/vehicles/${v.id}/edit`}>Edit</Link></Button>
-                        <Button variant="ghost" size="icon" onClick={() => setDeleteId(v.id)} className="h-8 w-8 rounded-lg text-destructive hover:bg-destructive/10 hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
-                      </>
-                    )}
+                  <div className="flex flex-col items-end gap-2 shrink-0">
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest ${
+                      v.status?.toLowerCase() === 'available' ? 'bg-emerald-500/10 text-emerald-500' : 
+                      v.status?.toLowerCase() === 'sold' ? 'bg-blue-500/10 text-blue-500' : 'bg-amber-500/10 text-amber-500'
+                    }`}>
+                      {v.status || "Unknown"}
+                    </span>
                   </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 py-1">
+                  <div className="bg-foreground/5 p-2 rounded-xl border border-white/5">
+                    <p className="text-[9px] text-muted-foreground uppercase font-bold">Representative</p>
+                    <p className="text-xs font-semibold truncate">{(v as any).source_rep_name || "—"}</p>
+                  </div>
+                  <div className="bg-foreground/5 p-2 rounded-xl border border-white/5">
+                    <p className="text-[9px] text-muted-foreground uppercase font-bold">Rep. Phone</p>
+                    <p className="text-xs font-semibold truncate">{(v as any).source_rep_phone || "—"}</p>
+                  </div>
+                </div>
+
+                <div className="flex gap-2 pt-2 border-t border-border/10">
+                  <Button variant="outline" size="sm" asChild className="flex-1 h-9 text-xs rounded-xl border-white/10 glass-panel">
+                    <Link to={`/vehicles/${v.id}`}>View Details</Link>
+                  </Button>
+                  {hasEdit && (
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="icon" asChild className="h-9 w-9 rounded-xl border-white/10 glass-panel">
+                        <Link to={`/vehicles/${v.id}/edit`}><Pencil className="h-4 w-4" /></Link>
+                      </Button>
+                      <Button variant="ghost" size="icon" onClick={() => setDeleteId(v.id)} className="h-9 w-9 rounded-xl text-destructive hover:bg-destructive/10 hover:text-destructive bg-destructive/5 border border-destructive/10">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}

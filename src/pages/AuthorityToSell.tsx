@@ -18,7 +18,7 @@ import { PrintHeader, PrintWatermark } from "@/components/PrintHeader";
 import { PrintFooter } from "@/components/PrintFooter";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissions } from "@/hooks/usePermissions";
-import { canEdit } from "@/lib/permissions";
+import { canEdit, canCreate } from "@/lib/permissions";
 import { logAction } from "@/lib/logger";
 import { format, subMonths } from "date-fns";
 
@@ -68,9 +68,11 @@ export default function AuthorityToSell() {
   const { user, role } = useAuth();
   const { permissions } = usePermissions();
   const hasEdit = canEdit(role, "authority-to-sell", permissions);
+  const canAdd = canCreate(role, "authority-to-sell", permissions);
 
-  const [activeTab, setActiveTab] = useState(hasEdit ? "create" : "history");
+  const [activeTab, setActiveTab] = useState(canAdd ? "create" : "history");
   const [mode, setMode] = useState<"edit" | "preview">("edit");
+  const [previewData, setPreviewData] = useState<any>(null);
   const documentRef = useRef<HTMLDivElement>(null);
 
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -86,8 +88,8 @@ export default function AuthorityToSell() {
 
   const handlePrint = () => {
     logAction("PRINT", "Authority to Sell", editingId ?? undefined, {
-      customer: form.customerName,
-      vehicle: `${form.vehicleMake} ${form.vehicleYearModel}`.trim(),
+      customer: previewData?.customerName,
+      vehicle: `${previewData?.vehicleMake} ${previewData?.vehicleYearModel}`.trim(),
     });
     window.print();
   };
@@ -109,19 +111,21 @@ export default function AuthorityToSell() {
     mutationFn: async (payload: any) => {
       const { data, error } = await supabase
         .from("authority_to_sell")
-        .upsert([payload]);
+        .upsert([payload])
+        .select();
       if (error) throw error;
-      return data;
+      return data?.[0];
     },
-    onSuccess: () => {
+    onSuccess: (savedItem) => {
       queryClient.invalidateQueries({ queryKey: ["ats-history"] });
+      if (savedItem?.id) setEditingId(savedItem.id);
+      
       logAction(editingId ? "UPDATE" : "CREATE", "Authority to Sell", editingId ?? undefined, {
         customer: form.customerName,
         vehicle: `${form.vehicleMake} ${form.vehicleYearModel}`.trim(),
         chassis: form.vehicleChassis,
       });
       toast.success("Document saved to history");
-      clearDraft();
     },
     onError: (e: any) => {
       console.error("ATS Save Error:", e);
@@ -177,8 +181,6 @@ export default function AuthorityToSell() {
 
   // ── Handlers ──────────────────────────────────────────────────────────────
   const handlePreview = async () => {
-    // Signatures are now optional as per user request
-
     const payload = {
       ...(editingId ? { id: editingId } : {}),
       agreement_date: form.agreementDate || new Date().toISOString().split("T")[0],
@@ -203,6 +205,8 @@ export default function AuthorityToSell() {
     
     try {
       await saveMutation.mutateAsync(payload);
+      setPreviewData({ ...form });
+      clearForm();
       setMode("preview");
     } catch (e) {
       // Error handled by mutation's onError
@@ -210,7 +214,7 @@ export default function AuthorityToSell() {
   };
 
   const viewHistoryItem = (item: ATS) => {
-    setForm({
+    const itemData = {
       agreementDate: item.agreement_date || new Date().toISOString().split("T")[0],
       customerName: item.customer_name || "",
       customerAddress: item.customer_address || "",
@@ -228,7 +232,8 @@ export default function AuthorityToSell() {
       repSignatureDate: item.rep_signature_date || new Date().toISOString().split("T")[0],
       signature: item.signature || "",
       repSignature: item.rep_signature || "",
-    });
+    };
+    setPreviewData(itemData);
     setMode("preview");
   };
 
@@ -292,121 +297,119 @@ export default function AuthorityToSell() {
         <div
           ref={documentRef}
           className="bg-white text-black rounded-3xl shadow-2xl border border-gray-100 print:shadow-none print:border-none print:rounded-none"
-          style={{ minHeight: "auto", padding: "24px 32px" }}
+          style={{ minHeight: "auto", padding: "16px 24px" }}
         >
           <PrintWatermark />
           <PrintHeader />
 
           {/* Title */}
-          <div className="text-center my-4">
-            <h1 className="text-xl font-black text-black uppercase tracking-widest underline underline-offset-4">
+          <div className="text-center my-2">
+            <h1 className="text-lg font-black text-black uppercase tracking-widest underline underline-offset-4">
               Authority to Sell Vehicle
             </h1>
           </div>
 
           {/* Date */}
-          <div className="flex items-baseline gap-2 mb-4 border-b border-gray-300 pb-1">
-            <span className="font-bold text-sm">Date:</span>
-            <span className="text-sm font-medium flex-1">
-              {form.agreementDate
-                ? new Date(form.agreementDate).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
+          <div className="flex items-baseline gap-2 mb-2 border-b border-gray-300 pb-0.5">
+            <span className="font-bold text-[13px]">Date:</span>
+            <span className="text-[13px] font-medium flex-1">
+              {previewData.agreementDate
+                ? new Date(previewData.agreementDate).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
                 : ""}
             </span>
           </div>
 
           {/* Owner's Information */}
-          <section className="mb-4">
-            <h2 className="font-black text-sm uppercase tracking-wide mb-1">Owner's Information</h2>
-            <div className="space-y-1">
-              <Field label="Full Name" value={form.customerName} />
-              <Field label="Address" value={form.customerAddress} />
-              <Field label="Contact Number" value={form.customerPhone} />
-              <Field label="Valid ID Type & Number" value={form.customerIdType} />
+          <section className="mb-2">
+            <h2 className="font-black text-xs uppercase tracking-wide mb-0.5">Owner's Information</h2>
+            <div className="space-y-0.5">
+              <Field label="Full Name" value={previewData.customerName} />
+              <Field label="Address" value={previewData.customerAddress} />
+              <Field label="Contact Number" value={previewData.customerPhone} />
+              <Field label="Valid ID Type & Number" value={previewData.customerIdType} />
             </div>
           </section>
 
           {/* Vehicle Information */}
-          <section className="mb-4">
-            <h2 className="font-black text-sm uppercase tracking-wide mb-1">Vehicle Information</h2>
-            <div className="space-y-1">
-              <Field label="Make/Brand" value={form.vehicleMake} />
-              <Field label="Year Model" value={form.vehicleYearModel} />
-              <Field label="Color" value={form.vehicleColor} />
-              <Field label="Engine Number" value={form.vehicleEngineNumber} />
-              <Field label="Chassis Number" value={form.vehicleChassis} />
+          <section className="mb-2">
+            <h2 className="font-black text-xs uppercase tracking-wide mb-0.5">Vehicle Information</h2>
+            <div className="space-y-0.5">
+              <Field label="Make/Brand" value={previewData.vehicleMake} />
+              <Field label="Year Model" value={previewData.vehicleYearModel} />
+              <Field label="Color" value={previewData.vehicleColor} />
+              <Field label="Engine Number" value={previewData.vehicleEngineNumber} />
+              <Field label="Chassis Number" value={previewData.vehicleChassis} />
             </div>
           </section>
 
           {/* Authority Given */}
-          <section className="mb-4">
-            <h2 className="font-black text-sm uppercase tracking-wide mb-2">Authority Given</h2>
-            <p className="text-sm leading-[2.2] text-gray-800">
+          <section className="mb-2">
+            <h2 className="font-black text-xs uppercase tracking-wide mb-1">Authority Given</h2>
+            <p className="text-[13px] leading-[1.8] text-gray-800">
               I,{" "}
-              <span className="inline-block min-w-[220px] border-b border-gray-800 text-center font-bold px-2">
-                {form.customerName || ""}
+              <span className="inline-block min-w-[200px] border-b border-gray-800 text-center font-bold px-2">
+                {previewData.customerName || ""}
               </span>
-              {form.ownerRepName && (
+              {previewData.ownerRepName && (
                 <>
                   {" "}
                   (Represented by{" "}
-                  <span className="inline-block min-w-[150px] border-b border-gray-800 text-center font-bold px-2">
-                    {form.ownerRepName}
+                  <span className="inline-block min-w-[140px] border-b border-gray-800 text-center font-bold px-2">
+                    {previewData.ownerRepName}
                   </span>
                   )
                 </>
               )}, hereby authorize the above-named person to sell the vehicle described above on my behalf. This includes:
-              <br />
               Talking to potential buyers, accepting payment, signing necessary sale documents, Releasing the vehicle and its documents.
             </p>
-            <div className="flex items-baseline gap-2 mt-3 border-b border-gray-300 pb-1">
-              <span className="font-bold text-sm whitespace-nowrap">This authority is valid until:</span>
-              <span className="text-sm font-medium flex-1">
-                {form.validUntil
-                  ? new Date(form.validUntil).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
+            <div className="flex items-baseline gap-2 mt-2 border-b border-gray-300 pb-0.5">
+              <span className="font-bold text-[13px] whitespace-nowrap">This authority is valid until:</span>
+              <span className="text-[13px] font-medium flex-1">
+                {previewData.validUntil
+                  ? new Date(previewData.validUntil).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
                   : ""}
               </span>
             </div>
-            <div className="border-b border-gray-400 mt-4" />
           </section>
 
           {/* Note */}
-          <section className="mb-4">
-            <h2 className="font-black text-sm uppercase tracking-wide mb-1">Note:</h2>
-            <p className="text-sm text-gray-800 leading-relaxed min-h-[30px] border-b border-gray-300 pb-2">
-              {form.note}
+          <section className="mb-2">
+            <h2 className="font-black text-xs uppercase tracking-wide mb-0.5">Note:</h2>
+            <p className="text-[13px] text-gray-800 leading-tight min-h-[20px] border-b border-gray-300 pb-1">
+              {previewData.note}
             </p>
           </section>
 
 
           {/* Signatures */}
           <section>
-            <h2 className="font-black text-sm uppercase tracking-wide mb-4">Signatures</h2>
-            <div className="grid grid-cols-2 gap-16">
+            <h2 className="font-black text-xs uppercase tracking-wide mb-2">Signatures</h2>
+            <div className="grid grid-cols-2 gap-12">
               {/* Owner / Representative */}
               <div>
-                <p className="text-xs font-bold text-gray-600 mb-1">Owner / Representative Signature:</p>
-                <div className="h-16 border-b border-gray-800 mb-2 flex items-end">
-                  {form.signature && (
-                    <img src={form.signature} alt="Owner Signature" className="max-h-12 object-contain" />
+                <p className="text-[10px] font-bold text-gray-600 mb-0.5">Owner / Representative Signature:</p>
+                <div className="h-12 border-b border-gray-800 mb-1.5 flex items-end">
+                  {previewData.signature && (
+                    <img src={previewData.signature} alt="Owner Signature" className="max-h-10 object-contain" />
                   )}
                 </div>
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-baseline gap-2 border-b border-gray-400 pb-1">
-                    <span className="text-[10px] font-bold uppercase opacity-60">Owner Name:</span>
-                    <span className="text-xs font-medium flex-1">{form.customerName}</span>
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-baseline gap-2 border-b border-gray-400 pb-0.5">
+                    <span className="text-[9px] font-bold uppercase opacity-60">Owner Name:</span>
+                    <span className="text-[11px] font-medium flex-1">{previewData.customerName}</span>
                   </div>
-                  {form.ownerRepName && (
-                    <div className="flex items-baseline gap-2 border-b border-gray-400 pb-1">
-                      <span className="text-[10px] font-bold uppercase opacity-60">Rep. Full Name:</span>
-                      <span className="text-xs font-medium flex-1">{form.ownerRepName}</span>
+                  {previewData.ownerRepName && (
+                    <div className="flex items-baseline gap-2 border-b border-gray-400 pb-0.5">
+                      <span className="text-[9px] font-bold uppercase opacity-60">Rep. Full Name:</span>
+                      <span className="text-[11px] font-medium flex-1">{previewData.ownerRepName}</span>
                     </div>
                   )}
                 </div>
-                <div className="flex items-baseline gap-2 border-b border-gray-400 pb-1 mt-2">
-                  <span className="text-[10px] font-bold uppercase opacity-60">Date:</span>
-                  <span className="text-xs font-medium flex-1">
-                    {form.agreementDate
-                      ? new Date(form.agreementDate).toLocaleDateString("en-GB")
+                <div className="flex items-baseline gap-2 border-b border-gray-400 pb-0.5 mt-1.5">
+                  <span className="text-[9px] font-bold uppercase opacity-60">Date:</span>
+                  <span className="text-[11px] font-medium flex-1">
+                    {previewData.agreementDate
+                      ? new Date(previewData.agreementDate).toLocaleDateString("en-GB")
                       : ""}
                   </span>
                 </div>
@@ -414,21 +417,21 @@ export default function AuthorityToSell() {
 
               {/* BEE TEE Rep */}
               <div>
-                <p className="text-xs font-bold text-gray-600 mb-1">Company Representatives Signature:</p>
-                <div className="h-16 border-b border-gray-800 mb-2 flex items-end">
-                  {form.repSignature && (
-                    <img src={form.repSignature} alt="Rep Signature" className="max-h-12 object-contain" />
+                <p className="text-[10px] font-bold text-gray-600 mb-0.5">Company Representatives Signature:</p>
+                <div className="h-12 border-b border-gray-800 mb-1.5 flex items-end">
+                  {previewData.repSignature && (
+                    <img src={previewData.repSignature} alt="Rep Signature" className="max-h-10 object-contain" />
                   )}
                 </div>
-                <div className="flex items-baseline gap-2 border-b border-gray-400 pb-1 mb-2">
-                  <span className="text-[10px] font-bold uppercase opacity-60">Company Rep:</span>
-                  <span className="text-xs font-medium flex-1">{form.repName}</span>
+                <div className="flex items-baseline gap-2 border-b border-gray-400 pb-0.5 mb-1">
+                  <span className="text-[9px] font-bold uppercase opacity-60">Company Rep:</span>
+                  <span className="text-[11px] font-medium flex-1">{previewData.repName}</span>
                 </div>
-                <div className="flex items-baseline gap-2 border-b border-gray-400 pb-1">
-                  <span className="text-xs font-bold">Date:</span>
-                  <span className="text-xs font-medium flex-1">
-                    {form.repSignatureDate
-                      ? new Date(form.repSignatureDate).toLocaleDateString("en-GB")
+                <div className="flex items-baseline gap-2 border-b border-gray-400 pb-0.5">
+                  <span className="text-[9px] font-bold">Date:</span>
+                  <span className="text-[11px] font-medium flex-1">
+                    {previewData.repSignatureDate
+                      ? new Date(previewData.repSignatureDate).toLocaleDateString("en-GB")
                       : ""}
                   </span>
                 </div>
@@ -467,7 +470,7 @@ export default function AuthorityToSell() {
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="bg-card/40 border border-white/5 p-1 rounded-2xl flex flex-col md:flex-row h-auto w-full md:w-auto">
-          {hasEdit && (
+          {canAdd && (
             <TabsTrigger value="create" className="rounded-xl px-6 py-2.5 font-semibold data-[state=active]:bg-sky-500 data-[state=active]:text-white transition-all w-full md:w-auto">
               <PlusCircle className="w-4 h-4 mr-2" /> Create Document
             </TabsTrigger>
