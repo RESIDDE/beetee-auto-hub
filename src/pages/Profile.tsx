@@ -44,7 +44,8 @@ export default function Profile() {
         .from("documents")
         .getPublicUrl(filePath);
 
-      setAvatarUrl(publicUrl);
+      const avatarUrlWithCacheBuster = `${publicUrl}?t=${Date.now()}`;
+      setAvatarUrl(avatarUrlWithCacheBuster);
       toast.success("Avatar uploaded! Remember to save your profile.");
     } catch (error: any) {
       toast.error(error.message || "Failed to upload avatar");
