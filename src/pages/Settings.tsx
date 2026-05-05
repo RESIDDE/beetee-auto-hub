@@ -783,7 +783,7 @@ export default function Settings() {
             </div>
           </div>
           <p className="text-sm text-muted-foreground mb-6">
-            Click to cycle through: <span className="inline-flex items-center gap-1 mx-1 px-1.5 py-0.5 rounded-md bg-foreground/5 text-muted-foreground"><ToggleLeft className="w-3.5 h-3.5" /> None</span> → <span className="inline-flex items-center gap-1 mx-1 px-1.5 py-0.5 rounded-md bg-blue-500/20 text-blue-500"><Eye className="w-3.5 h-3.5" /> View/Add</span> → <span className="inline-flex items-center gap-1 mx-1 px-1.5 py-0.5 rounded-md bg-emerald-500/20 text-emerald-500"><Pencil className="w-3.5 h-3.5" /> View/Add/Edit</span>. <span className="text-amber-400 font-semibold ml-1">Super Admin</span> always has full access.
+            Click to cycle through: <span className="inline-flex items-center gap-1 mx-1 px-1.5 py-0.5 rounded-md bg-foreground/5 text-muted-foreground"><ToggleLeft className="w-3.5 h-3.5" /> None</span> → <span className="inline-flex items-center gap-1 mx-1 px-1.5 py-0.5 rounded-md bg-blue-500/20 text-blue-500"><Eye className="w-3.5 h-3.5" /> View Only</span> → <span className="inline-flex items-center gap-1 mx-1 px-1.5 py-0.5 rounded-md bg-emerald-500/20 text-emerald-500"><Pencil className="w-3.5 h-3.5" /> Full Access (View/Add/Edit)</span>. <span className="text-amber-400 font-semibold ml-1">Super Admin</span> always has full access.
           </p>
           <div className="overflow-x-auto table-container">
             <table className="w-full min-w-[480px]">
@@ -812,7 +812,7 @@ export default function Settings() {
                       let btnClass = "bg-foreground/5 text-muted-foreground/30 hover:bg-foreground/10";
                       let title = "Grant View access";
                       let icon = <ToggleLeft className="w-5 h-5" />;
-                      if (hasView && !hasEdit) { btnClass = "bg-blue-500/20 text-blue-500 hover:bg-blue-500/30"; title = "Grant Edit access"; icon = <Eye className="w-5 h-5" />; }
+                      if (hasView && !hasEdit) { btnClass = "bg-blue-500/20 text-blue-500 hover:bg-blue-500/30"; title = "Grant Full Access (Add/Edit)"; icon = <Eye className="w-5 h-5" />; }
                       else if (hasView && hasEdit) { btnClass = "bg-emerald-500/20 text-emerald-500 hover:bg-emerald-500/30"; title = "Revoke all access"; icon = <Pencil className="w-4 h-4" />; }
                       return (
                         <td key={r} className="py-3.5 text-center">
