@@ -18,8 +18,6 @@ import {
 } from "@/components/ui/pagination";
 import { PlusCircle, Pencil, Trash2, Users, QrCode, Phone, Mail, MapPin, Search, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
-import { SignaturePad } from "@/components/SignaturePad";
-import { QrSignDialog } from "@/lib/qrHelpers";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissions } from "@/hooks/usePermissions";
 import { canEdit } from "@/lib/permissions";
@@ -32,10 +30,9 @@ type Customer = {
   phone: string | null;
   address: string | null;
   notes: string | null;
-  signature_data: string | null;
 };
 
-const emptyForm = { name: "", email: "", phone: "", address: "", notes: "", signature_data: "" };
+const emptyForm = { name: "", email: "", phone: "", address: "", notes: "" };
 
 export default function Customers() {
   const { role } = useAuth();
@@ -50,7 +47,6 @@ export default function Customers() {
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm, clearDraft] = useFormPersistence("customer", emptyForm, !!editId, editId || undefined);
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [qrId, setQrId] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   const { data: customers = [], isLoading } = useQuery({
@@ -78,7 +74,6 @@ export default function Customers() {
         phone: form.phone || null,
         address: form.address || null,
         notes: form.notes || null,
-        signature_data: form.signature_data || null,
       };
       if (editId) {
         const { error } = await supabase.from("customers").update(payload).eq("id", editId);
@@ -117,7 +112,7 @@ export default function Customers() {
 
   const openEdit = (c: Customer) => {
     setEditId(c.id);
-    setForm({ name: c.name, email: c.email || "", phone: c.phone || "", address: c.address || "", notes: c.notes || "", signature_data: c.signature_data || "" });
+    setForm({ name: c.name, email: c.email || "", phone: c.phone || "", address: c.address || "", notes: c.notes || "" });
     setDialogOpen(true);
   };
 
@@ -186,11 +181,6 @@ export default function Customers() {
                       <div className="bg-foreground/5 p-3 rounded-2xl group-hover:bg-emerald-500/10 transition-colors">
                         <Users className="h-5 w-5 text-foreground/70 group-hover:text-emerald-500 transition-colors" />
                       </div>
-                      {c.signature_data && (
-                         <span className="inline-flex items-center px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
-                           Signed
-                         </span>
-                      )}
                     </div>
                     
                     <h3 className="font-bold text-lg text-foreground group-hover:text-emerald-500 transition-colors">{c.name}</h3>
@@ -221,17 +211,14 @@ export default function Customers() {
                         <Button variant="ghost" size="sm" className="h-8 rounded-lg hover:bg-foreground/10 hover:text-foreground text-muted-foreground transition-all" onClick={() => openEdit(c)}>
                           <Pencil className="h-3.5 w-3.5 mr-1.5" /> Edit
                         </Button>
-                      <Button variant="ghost" size="sm" className="h-8 rounded-lg hover:bg-emerald-500/10 hover:text-emerald-500 text-muted-foreground transition-all" onClick={() => setQrId(c.id)}>
-                        <QrCode className="h-3.5 w-3.5 mr-1.5" /> QR Sign
-                      </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-all" onClick={() => setDeleteId(c.id)}>
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </>
-                  )}
+                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-all" onClick={() => setDeleteId(c.id)}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
           </div>
         </div>
 
@@ -275,10 +262,7 @@ export default function Customers() {
         </div>
       )}
 
-      {/* QR Dialog */}
-      <QrSignDialog open={!!qrId} onOpenChange={() => setQrId(null)} type="customer" id={qrId} />
-
-      {/* Add/Edit Dialog */}
+      {/* Delete Confirmation */}
       <Dialog open={dialogOpen} onOpenChange={(open) => { if (!open) closeDialog(); }}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto rounded-3xl glass-panel shadow-2xl border-white/10 p-0 bg-background/95 backdrop-blur-3xl">
           <div className="p-4 sm:p-6 border-b border-white/5 bg-foreground/5 sticky top-0 z-50 backdrop-blur-md flex items-center gap-3">
@@ -314,12 +298,6 @@ export default function Customers() {
             <div className="space-y-2">
                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Internal Notes</Label>
                <Textarea className="rounded-xl min-h-[80px] bg-background/50 border-white/10 focus-visible:ring-emerald-500" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="Any preference or additional info..." />
-            </div>
-            <div className="space-y-2">
-               <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Electronic Signature</Label>
-               <div className="rounded-xl overflow-hidden border border-white/10">
-                 <SignaturePad value={form.signature_data} onChange={(v) => setForm({ ...form, signature_data: v })} />
-               </div>
             </div>
           </div>
           <div className="p-6 border-t border-white/5 bg-foreground/5 flex justify-end gap-3">

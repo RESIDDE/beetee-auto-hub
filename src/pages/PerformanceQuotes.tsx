@@ -15,6 +15,9 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import { CustomerSelect } from "@/components/CustomerSelect";
 import { CurrencyInput } from "@/components/CurrencyInput";
 import { useAuth } from "@/hooks/useAuth";
@@ -29,12 +32,10 @@ import { getPrintHeaderHTML, getPrintWatermarkHTML } from "@/components/PrintHea
 import { getPrintFooterHTML } from "@/components/PrintFooter";
 import { numberToWords } from "@/lib/numberToWords";
 import { logAction } from "@/lib/logger";
+import { format, subMonths } from "date-fns";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
 import { Download, Mail, ArrowLeft } from "lucide-react";
 
 export default function PerformanceQuotes() {
@@ -44,6 +45,8 @@ export default function PerformanceQuotes() {
   const queryClient = useQueryClient();
 
   const [search, setSearch] = useState("");
+  const [selectedMonth, setSelectedMonth] = useState<string>(format(new Date(), 'yyyy-MM'));
+  const [selectedWeek, setSelectedWeek] = useState<string>("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   
   const emptyForm = {
@@ -92,6 +95,7 @@ export default function PerformanceQuotes() {
         .from("vehicles" as any)
         .select("id, make, model, year, trim, color, vin, price")
         .eq("status", "Available")
+        .neq("inventory_type", "service")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data as any[];
@@ -535,15 +539,34 @@ export default function PerformanceQuotes() {
     }
   };
 
-  const filteredQuotes = quotes.filter((q: any) => {
-    if (!search) return true;
-    const term = search.toLowerCase();
-    const custName = q.customers?.name?.toLowerCase() || "";
-    const quoteId = q.id.toLowerCase();
-    return custName.includes(term) || quoteId.includes(term);
-  });
+  const filteredQuotes = useMemo(() => {
+    return quotes.filter((q: any) => {
+      // Monthly Filter
+      if (selectedMonth !== "all") {
+        const qDate = new Date(q.created_at);
+        const qMonth = format(qDate, 'yyyy-MM');
+        if (qMonth !== selectedMonth) return false;
 
-  const totalQuoteValue = quotes.reduce((sum: number, q: any) => sum + Number(q.total_amount), 0);
+        // Weekly Filter
+        if (selectedWeek !== "all") {
+          const dayOfMonth = qDate.getDate();
+          const weekNum = Math.ceil(dayOfMonth / 7);
+          if (String(weekNum) !== selectedWeek) return false;
+        }
+      }
+
+      if (!search) return true;
+      const term = search.toLowerCase();
+      const custName = q.customers?.name?.toLowerCase() || "";
+      const quoteId = q.id.toLowerCase();
+      return custName.includes(term) || quoteId.includes(term);
+    });
+  }, [quotes, selectedMonth, selectedWeek, search]);
+
+  const totalQuoteValue = useMemo(() => 
+    filteredQuotes.reduce((sum: number, q: any) => sum + Number(q.total_amount), 0),
+    [filteredQuotes]
+  );
 
   return (
     <div className="space-y-8 animate-fade-up pb-10 max-w-6xl mx-auto">
@@ -577,7 +600,7 @@ export default function PerformanceQuotes() {
              <div className="flex justify-between items-start mb-4">
                <div className="p-3 bg-emerald-500/10 rounded-2xl"><FileText className="h-6 w-6 text-emerald-500" /></div>
              </div>
-             <h3 className="text-3xl font-bold">{quotes.length}</h3>
+             <h3 className="text-3xl font-bold">{filteredQuotes.length}</h3>
              <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider mt-1">Total Quotes Issued</p>
           </CardContent>
         </Card>
@@ -603,6 +626,38 @@ export default function PerformanceQuotes() {
               onChange={(e) => setSearch(e.target.value)} 
               className="pl-10 bg-background/50 border-white/10"
             />
+          </div>
+          <div className="flex gap-2 shrink-0">
+            <Select value={selectedMonth} onValueChange={(v) => { setSelectedMonth(v); }}>
+              <SelectTrigger className="w-[160px] h-10 rounded-xl bg-background/50 border-white/10 focus-visible:ring-emerald-500 text-sm">
+                <SelectValue placeholder="Select Month" />
+              </SelectTrigger>
+              <SelectContent className="glass-panel w-[160px] rounded-xl">
+                <SelectItem value="all" className="rounded-lg">All Time</SelectItem>
+                {Array.from({ length: 12 }).map((_, i) => {
+                  const d = subMonths(new Date(), i);
+                  const val = format(d, 'yyyy-MM');
+                  const label = format(d, 'MMMM yyyy');
+                  return (
+                    <SelectItem key={val} value={val} className="rounded-lg">{label}</SelectItem>
+                  );
+                })}
+              </SelectContent>
+            </Select>
+
+            <Select value={selectedWeek} onValueChange={(v) => { setSelectedWeek(v); }}>
+              <SelectTrigger className="w-[120px] h-10 rounded-xl bg-background/50 border-white/10 focus-visible:ring-emerald-500 text-sm">
+                <SelectValue placeholder="All Weeks" />
+              </SelectTrigger>
+              <SelectContent className="glass-panel w-[120px] rounded-xl">
+                <SelectItem value="all" className="rounded-lg">All Weeks</SelectItem>
+                <SelectItem value="1" className="rounded-lg">Week 1</SelectItem>
+                <SelectItem value="2" className="rounded-lg">Week 2</SelectItem>
+                <SelectItem value="3" className="rounded-lg">Week 3</SelectItem>
+                <SelectItem value="4" className="rounded-lg">Week 4</SelectItem>
+                <SelectItem value="5" className="rounded-lg">Week 5</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
 

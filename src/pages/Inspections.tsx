@@ -23,7 +23,7 @@ import { Pencil, Trash2, PlusCircle, CheckCircle, XCircle, ClipboardCheck, Car, 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
-import { format } from "date-fns";
+import { format, subMonths } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissions } from "@/hooks/usePermissions";
 import { canEdit } from "@/lib/permissions";
@@ -86,6 +86,8 @@ export default function Inspections() {
   const [qrId, setQrId] = useState<string | null>(null);
   const [viewId, setViewId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [selectedMonth, setSelectedMonth] = useState<string>(format(new Date(), 'yyyy-MM'));
+  const [selectedWeek, setSelectedWeek] = useState<string>("all");
   const [vehicleSearch, setVehicleSearch] = useState("");
   const [vehiclePopoverOpen, setVehiclePopoverOpen] = useState(false);
   const [page, setPage] = useState(0);
@@ -104,6 +106,20 @@ export default function Inspections() {
   });
 
   const filtered = inspections.filter((i) => {
+    // Monthly Filter
+    if (selectedMonth !== "all") {
+      const insDate = new Date(i.created_at);
+      const insMonth = format(insDate, 'yyyy-MM');
+      if (insMonth !== selectedMonth) return false;
+
+      // Weekly Filter
+      if (selectedWeek !== "all") {
+        const dayOfMonth = insDate.getDate();
+        const weekNum = Math.ceil(dayOfMonth / 7);
+        if (String(weekNum) !== selectedWeek) return false;
+      }
+    }
+
     const q = search.toLowerCase();
     const vName = i.vehicles ? `${i.vehicles.make} ${i.vehicles.model}`.toLowerCase() : "";
     const inspector = i.inspector_name.toLowerCase();
@@ -116,7 +132,7 @@ export default function Inspections() {
   const { data: vehicles = [] } = useQuery({
     queryKey: ["vehicles-list"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("vehicles").select("id, make, model, year, vin").order("make");
+      const { data, error } = await supabase.from("vehicles").select("id, make, model, year, vin").neq("inventory_type", "service").order("make");
       if (error) throw error;
       return data;
     },
@@ -238,6 +254,38 @@ export default function Inspections() {
             onChange={(e) => { setSearch(e.target.value); setPage(0); }} 
             className="pl-10 h-10 rounded-xl bg-background/50 border-white/10 focus-visible:ring-rose-500/50 transition-all font-medium text-sm w-full"
           />
+        </div>
+        <div className="flex gap-2 shrink-0">
+          <Select value={selectedMonth} onValueChange={(v) => { setSelectedMonth(v); setPage(0); }}>
+            <SelectTrigger className="w-[160px] h-10 rounded-xl bg-background/50 border-white/10 focus-visible:ring-rose-500 text-sm">
+              <SelectValue placeholder="Select Month" />
+            </SelectTrigger>
+            <SelectContent className="glass-panel w-[160px] rounded-xl">
+              <SelectItem value="all" className="rounded-lg">All Time</SelectItem>
+              {Array.from({ length: 12 }).map((_, i) => {
+                const d = subMonths(new Date(), i);
+                const val = format(d, 'yyyy-MM');
+                const label = format(d, 'MMMM yyyy');
+                return (
+                  <SelectItem key={val} value={val} className="rounded-lg">{label}</SelectItem>
+                );
+              })}
+            </SelectContent>
+          </Select>
+
+          <Select value={selectedWeek} onValueChange={(v) => { setSelectedWeek(v); setPage(0); }}>
+            <SelectTrigger className="w-[120px] h-10 rounded-xl bg-background/50 border-white/10 focus-visible:ring-rose-500 text-sm">
+              <SelectValue placeholder="All Weeks" />
+            </SelectTrigger>
+            <SelectContent className="glass-panel w-[120px] rounded-xl">
+              <SelectItem value="all" className="rounded-lg">All Weeks</SelectItem>
+              <SelectItem value="1" className="rounded-lg">Week 1</SelectItem>
+              <SelectItem value="2" className="rounded-lg">Week 2</SelectItem>
+              <SelectItem value="3" className="rounded-lg">Week 3</SelectItem>
+              <SelectItem value="4" className="rounded-lg">Week 4</SelectItem>
+              <SelectItem value="5" className="rounded-lg">Week 5</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 

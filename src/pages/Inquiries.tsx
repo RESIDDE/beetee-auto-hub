@@ -29,6 +29,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { canEdit } from "@/lib/permissions";
 import { logAction } from "@/lib/logger";
 import { CustomerSelect } from "@/components/CustomerSelect";
+import { format, subMonths } from "date-fns";
 
 const statuses = ["Open", "In Progress", "Closed"];
 const emptyForm = {
@@ -56,6 +57,8 @@ export default function Inquiries() {
   const [form, setForm, clearDraft] = useFormPersistence("inquiry", emptyForm, !!editId, editId || undefined);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [selectedMonth, setSelectedMonth] = useState<string>(format(new Date(), 'yyyy-MM'));
+  const [selectedWeek, setSelectedWeek] = useState<string>("all");
   const [page, setPage] = useState(0);
   const PAGE_SIZE = 15;
   const queryClient = useQueryClient();
@@ -72,7 +75,7 @@ export default function Inquiries() {
   const { data: vehicles = [] } = useQuery({
     queryKey: ["vehicles"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("vehicles").select("id, make, model, year");
+      const { data, error } = await supabase.from("vehicles").select("id, make, model, year").neq("inventory_type", "service");
       if (error) throw error;
       return data;
     },
@@ -91,6 +94,20 @@ export default function Inquiries() {
   const customerMap = Object.fromEntries(customers.map((c) => [c.id, c.name]));
 
   const filtered = (inquiries as any[]).filter((i) => {
+    // Monthly Filter
+    if (selectedMonth !== "all") {
+      const inqDate = new Date(i.created_at);
+      const inqMonth = format(inqDate, 'yyyy-MM');
+      if (inqMonth !== selectedMonth) return false;
+
+      // Weekly Filter
+      if (selectedWeek !== "all") {
+        const dayOfMonth = inqDate.getDate();
+        const weekNum = Math.ceil(dayOfMonth / 7);
+        if (String(weekNum) !== selectedWeek) return false;
+      }
+    }
+
     const q = search.toLowerCase();
     const cName = i.customer_id
       ? (customerMap[i.customer_id] || "").toLowerCase()
@@ -252,6 +269,38 @@ export default function Inquiries() {
             onChange={(e) => { setSearch(e.target.value); setPage(0); }}
             className="pl-10 h-10 rounded-xl bg-background/50 border-white/10 focus-visible:ring-indigo-500/50 transition-all font-medium text-sm w-full"
           />
+        </div>
+        <div className="flex gap-2 shrink-0">
+          <Select value={selectedMonth} onValueChange={(v) => { setSelectedMonth(v); setPage(0); }}>
+            <SelectTrigger className="w-[160px] h-10 rounded-xl bg-background/50 border-white/10 focus-visible:ring-indigo-500 text-sm">
+              <SelectValue placeholder="Select Month" />
+            </SelectTrigger>
+            <SelectContent className="glass-panel w-[160px] rounded-xl">
+              <SelectItem value="all" className="rounded-lg">All Time</SelectItem>
+              {Array.from({ length: 12 }).map((_, i) => {
+                const d = subMonths(new Date(), i);
+                const val = format(d, 'yyyy-MM');
+                const label = format(d, 'MMMM yyyy');
+                return (
+                  <SelectItem key={val} value={val} className="rounded-lg">{label}</SelectItem>
+                );
+              })}
+            </SelectContent>
+          </Select>
+
+          <Select value={selectedWeek} onValueChange={(v) => { setSelectedWeek(v); setPage(0); }}>
+            <SelectTrigger className="w-[120px] h-10 rounded-xl bg-background/50 border-white/10 focus-visible:ring-indigo-500 text-sm">
+              <SelectValue placeholder="All Weeks" />
+            </SelectTrigger>
+            <SelectContent className="glass-panel w-[120px] rounded-xl">
+              <SelectItem value="all" className="rounded-lg">All Weeks</SelectItem>
+              <SelectItem value="1" className="rounded-lg">Week 1</SelectItem>
+              <SelectItem value="2" className="rounded-lg">Week 2</SelectItem>
+              <SelectItem value="3" className="rounded-lg">Week 3</SelectItem>
+              <SelectItem value="4" className="rounded-lg">Week 4</SelectItem>
+              <SelectItem value="5" className="rounded-lg">Week 5</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 

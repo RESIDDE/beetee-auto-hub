@@ -108,6 +108,8 @@ export default function Sales() {
   const [vehicleSearch, setVehicleSearch] = useState("");
   const [page, setPage] = useState(0);
   const [showAnalytics, setShowAnalytics] = useState(true);
+  const [selectedMonth, setSelectedMonth] = useState<string>(format(new Date(), 'yyyy-MM'));
+  const [selectedWeek, setSelectedWeek] = useState<string>("all");
   const PAGE_SIZE = 15;
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -136,7 +138,7 @@ export default function Sales() {
   const { data: vehicles = [] } = useQuery({
     queryKey: ["vehicles"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("vehicles").select("id, make, model, year, trim, color, vin, cost_price");
+      const { data, error } = await supabase.from("vehicles").select("id, make, model, year, trim, color, vin, cost_price").neq("inventory_type", "service");
       if (error) throw error;
       return data as any[];
     },
@@ -172,6 +174,20 @@ export default function Sales() {
     const vName = (vehicleMap[s.vehicle_id] || "").toLowerCase();
     const cName = (customerMap[s.customer_id] || "").toLowerCase();
     
+    // Monthly Filter
+    if (selectedMonth !== "all") {
+      const saleDate = new Date(s.sale_date);
+      const saleMonth = format(saleDate, 'yyyy-MM');
+      if (saleMonth !== selectedMonth) return false;
+
+      // Weekly Filter (within the selected month)
+      if (selectedWeek !== "all") {
+        const dayOfMonth = saleDate.getDate();
+        const weekNum = Math.ceil(dayOfMonth / 7);
+        if (String(weekNum) !== selectedWeek) return false;
+      }
+    }
+
     if (sourceCompanyFilter !== "all") {
       const vIds = s.sale_vehicles?.length > 0 ? s.sale_vehicles.map((sv:any) => sv.vehicle_id) : [s.vehicle_id];
       const hasSourceMatch = vIds.some((vid:string) => fullVehicleMap[vid]?.source_company === sourceCompanyFilter);
@@ -301,7 +317,7 @@ export default function Sales() {
   const canSubmit = (form.selected_vehicle_ids.length > 0) && (form.customer_id || (form.is_new_customer && form.manual_customer_name)) && form.sale_price && !upsertMutation.isPending;
 
   const handleExportExcel = () => {
-    const rows = sales.map((s) => ({
+    const rows = filtered.map((s) => ({
       Vehicle: vehicleMap[s.vehicle_id] || s.vehicle_id,
       Customer: customerMap[s.customer_id] || s.customer_id,
       "Sale Price": s.sale_price,
@@ -312,11 +328,11 @@ export default function Sales() {
   };
 
   const handleExportJSON = () => {
-    exportToJSON(sales, "sales_export");
+    exportToJSON(filtered, "sales_export");
   };
 
   const handlePrint = () => {
-    const rows = sales.map((s) => ({
+    const rows = filtered.map((s) => ({
       vehicle: vehicleMap[s.vehicle_id] || s.vehicle_id,
       customer: customerMap[s.customer_id] || s.customer_id,
       sale_price: `₦${Number(s.sale_price).toLocaleString()}`,
@@ -700,17 +716,17 @@ export default function Sales() {
                 <div className="flex justify-between items-start mb-4">
                   <div className="p-3 bg-emerald-500/10 rounded-2xl"><DollarSign className="h-6 w-6 text-emerald-500" /></div>
                 </div>
-                <h3 className="text-3xl font-bold truncate">₦{sales.reduce((sum, s) => sum + (Number(s.sale_price) || 0), 0).toLocaleString()}</h3>
-                <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider mt-1">Total Revenue</p>
+                <h3 className="text-3xl font-bold text-violet-500">₦{filtered.reduce((sum, s) => sum + (Number(s.sale_price) || 0), 0).toLocaleString()}</h3>
+                <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider mt-1">Total revenue</p>
               </CardContent>
             </Card>
 
             <Card className="bento-card border-none shadow-xl">
               <CardContent className="p-6">
                 <div className="flex justify-between items-start mb-4">
-                  <div className="p-3 bg-violet-500/10 rounded-2xl"><TrendingUp className="h-6 w-6 text-violet-500" /></div>
+                  <div className="p-3 bg-emerald-500/10 rounded-2xl"><TrendingUp className="h-6 w-6 text-emerald-500" /></div>
                 </div>
-                <h3 className="text-3xl font-bold truncate">₦{sales.reduce((sum, s) => {
+                <h3 className="text-3xl font-bold">₦{filtered.reduce((sum, s) => {
                   const vehicleId = s.vehicle_id || s.sale_vehicles?.[0]?.vehicle_id;
                   const v = vehicleId ? fullVehicleMap[vehicleId] : null;
                   const cost = Number(v?.cost_price) || 0;
@@ -726,7 +742,7 @@ export default function Sales() {
                 <div className="flex justify-between items-start mb-4">
                   <div className="p-3 bg-primary/10 rounded-2xl"><ShoppingBag className="h-6 w-6 text-primary" /></div>
                 </div>
-                <h3 className="text-3xl font-bold">{sales.length}</h3>
+                <h3 className="text-3xl font-bold">{filtered.length}</h3>
                 <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider mt-1">Units Sold</p>
               </CardContent>
             </Card>
@@ -736,7 +752,7 @@ export default function Sales() {
                 <div className="flex justify-between items-start mb-4">
                   <div className="p-3 bg-amber-500/10 rounded-2xl"><Target className="h-6 w-6 text-amber-500" /></div>
                 </div>
-                <h3 className="text-3xl font-bold">{((sales.reduce((sum, s) => sum + (Number(s.sale_price) || 0), 0) / 5000000) * 100).toFixed(1)}%</h3>
+                <h3 className="text-3xl font-bold">{((filtered.reduce((sum, s) => sum + (Number(s.sale_price) || 0), 0) / 5000000) * 100).toFixed(1)}%</h3>
                 <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider mt-1">Target Achievement</p>
               </CardContent>
             </Card>
@@ -792,7 +808,7 @@ export default function Sales() {
                   <PieChart>
                     <Pie data={(() => {
                       const makes: Record<string, number> = {};
-                      sales.forEach(s => {
+                      filtered.forEach(s => {
                         const vehicleId = s.vehicle_id || s.sale_vehicles?.[0]?.vehicle_id;
                         const v = vehicleId ? fullVehicleMap[vehicleId] : null;
                         const make = v?.make || 'Unknown';
@@ -825,12 +841,54 @@ export default function Sales() {
             />
           </div>
           
-          <div className="w-full sm:w-[250px] shrink-0">
+          <div className="w-full sm:w-[200px] shrink-0">
+            <Select value={selectedMonth} onValueChange={(v) => { setSelectedMonth(v); setPage(0); }}>
+              <SelectTrigger className="h-10 rounded-xl bg-background/50 border-white/10 focus:ring-violet-500/50 transition-all">
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                  <SelectValue placeholder="Select Month" />
+                </div>
+              </SelectTrigger>
+              <SelectContent className="rounded-xl glass-panel">
+                <SelectItem value="all">All Time</SelectItem>
+                {Array.from({ length: 12 }).map((_, i) => {
+                  const d = subMonths(new Date(), i);
+                  const val = format(d, 'yyyy-MM');
+                  return (
+                    <SelectItem key={val} value={val}>
+                      {format(d, 'MMMM yyyy')}
+                    </SelectItem>
+                  );
+                })}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="w-full sm:w-[150px] shrink-0">
+            <Select value={selectedWeek} onValueChange={(v) => { setSelectedWeek(v); setPage(0); }}>
+              <SelectTrigger className="h-10 rounded-xl bg-background/50 border-white/10 focus:ring-violet-500/50 transition-all">
+                <div className="flex items-center gap-2">
+                  <ListFilter className="h-4 w-4 text-muted-foreground" />
+                  <SelectValue placeholder="Week" />
+                </div>
+              </SelectTrigger>
+              <SelectContent className="rounded-xl glass-panel">
+                <SelectItem value="all">All Weeks</SelectItem>
+                <SelectItem value="1">Week 1</SelectItem>
+                <SelectItem value="2">Week 2</SelectItem>
+                <SelectItem value="3">Week 3</SelectItem>
+                <SelectItem value="4">Week 4</SelectItem>
+                <SelectItem value="5">Week 5</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div className="w-full sm:w-[220px] shrink-0">
             <Select value={sourceCompanyFilter} onValueChange={(v) => { setSourceCompanyFilter(v); setPage(0); }}>
               <SelectTrigger className="h-10 rounded-xl bg-background/50 border-white/10 focus:ring-violet-500/50 transition-all">
                 <div className="flex items-center gap-2">
                   <ListFilter className="h-4 w-4 text-muted-foreground" />
-                  <SelectValue placeholder="Filter by Source Company" />
+                  <SelectValue placeholder="Source Company" />
                 </div>
               </SelectTrigger>
               <SelectContent className="rounded-xl glass-panel">

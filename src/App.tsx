@@ -86,7 +86,7 @@ function AppRoutes() {
             <Routes>
               <Route path="/dashboard"         element={<RoleGuard page="dashboard"><Index /></RoleGuard>} />
               <Route path="/vehicles"          element={<RoleGuard page="vehicles"><VehiclesList /></RoleGuard>} />
-              <Route path="/resale-vehicles"   element={<RoleGuard page="vehicles"><ResaleVehicles /></RoleGuard>} />
+              <Route path="/resale-vehicles"   element={<RoleGuard page="resale-vehicles"><ResaleVehicles /></RoleGuard>} />
               <Route path="/vehicles/new"      element={<RoleGuard page="vehicles"><VehicleForm /></RoleGuard>} />
               <Route path="/vehicles/:id"      element={<RoleGuard page="vehicles"><VehicleDetail /></RoleGuard>} />
               <Route path="/vehicles/:id/edit" element={<RoleGuard page="vehicles"><VehicleForm /></RoleGuard>} />

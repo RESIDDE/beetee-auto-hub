@@ -13,6 +13,9 @@ import {
   Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious,
 } from "@/components/ui/pagination";
 import {
+  Tabs, TabsContent, TabsList, TabsTrigger,
+} from "@/components/ui/tabs";
+import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
@@ -23,13 +26,14 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Link, useNavigate } from "react-router-dom";
 import { 
   PlusCircle, Search, Eye, Pencil, Trash2, Download, FileText, Printer, 
-  Car, ListFilter, BarChart as BarChartIcon, Clock, Package, ShieldCheck, AlertTriangle, PieChart as PieChartIcon, ChevronRight, ArrowLeft
+  Car, ListFilter, BarChart as BarChartIcon, Clock, Package, ShieldCheck, AlertTriangle, PieChart as PieChartIcon, ChevronRight, ArrowLeft,
+  CheckCircle
 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, CartesianGrid
 } from "recharts";
-import { differenceInDays } from "date-fns";
+import { differenceInDays, format, subMonths } from "date-fns";
 import { toast } from "sonner";
 import { exportToExcel, exportToJSON, printTable, exportToCSV, exportToPDF } from "@/lib/exportHelpers";
 import { useAuth } from "@/hooks/useAuth";
@@ -67,11 +71,14 @@ export default function VehiclesList() {
   const [search, setSearch] = useState("");
   const [conditionFilter, setConditionFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [selectedMonth, setSelectedMonth] = useState<string>(format(new Date(), 'yyyy-MM'));
+  const [selectedWeek, setSelectedWeek] = useState<string>("all");
   const [sourceCompanyFilter, setSourceCompanyFilter] = useState("all");
   const [page, setPage] = useState(0);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [showDeleteSoldDialog, setShowDeleteSoldDialog] = useState(false);
   const [showAnalytics, setShowAnalytics] = useState(true);
+  const [activeTab, setActiveTab] = useState("active");
   const queryClient = useQueryClient();
 
   const { data: vehicles = [], isLoading } = useQuery({
@@ -126,12 +133,31 @@ export default function VehiclesList() {
     // Hide customer cars from the main sales fleet view
     if (v.status === "Customer Car") return false;
 
+    // Filter by tab
+    if (activeTab === "active" && v.status === "Sold") return false;
+    if (activeTab === "sold" && v.status !== "Sold") return false;
+
     const q = search.toLowerCase();
     const matchesSearch = !q || v.make.toLowerCase().includes(q) || v.model.toLowerCase().includes(q) || (v.vin && v.vin.toLowerCase().includes(q)) || (v.source_company && v.source_company.toLowerCase().includes(q));
     const matchesCondition = conditionFilter === "all" || v.condition === conditionFilter;
     const matchesStatus = statusFilter === "all" || v.status === statusFilter;
     const matchesSource = sourceCompanyFilter === "all" || v.source_company === sourceCompanyFilter;
-    return matchesSearch && matchesCondition && matchesStatus && matchesSource;
+    
+    // Monthly/Weekly Filter
+    let matchesMonth = true;
+    if (selectedMonth !== "all") {
+      const vDate = new Date(v.created_at);
+      const vMonth = format(vDate, 'yyyy-MM');
+      if (vMonth !== selectedMonth) matchesMonth = false;
+
+      if (matchesMonth && selectedWeek !== "all") {
+        const dayOfMonth = vDate.getDate();
+        const weekNum = Math.ceil(dayOfMonth / 7);
+        if (String(weekNum) !== selectedWeek) matchesMonth = false;
+      }
+    }
+
+    return matchesSearch && matchesCondition && matchesStatus && matchesSource && matchesMonth;
   });
 
   const soldCount = vehicles.filter(v => v.status === "Sold").length;
@@ -257,7 +283,7 @@ export default function VehiclesList() {
                 <div className="flex justify-between items-start mb-4">
                   <div className="p-3 bg-primary/10 rounded-2xl"><Package className="h-6 w-6 text-primary" /></div>
                 </div>
-                <h3 className="text-3xl font-bold">{vehicles.filter(v => v.status !== 'Sold').length}</h3>
+                <h3 className="text-3xl font-bold">{filtered.filter(v => v.status !== 'Sold').length}</h3>
                 <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider mt-1">Units In Stock</p>
               </CardContent>
             </Card>
@@ -267,7 +293,7 @@ export default function VehiclesList() {
                 <div className="flex justify-between items-start mb-4">
                   <div className="p-3 bg-emerald-500/10 rounded-2xl"><ShieldCheck className="h-6 w-6 text-emerald-500" /></div>
                 </div>
-                <h3 className="text-3xl font-bold">₦{vehicles.filter(v => v.status !== 'Sold').reduce((sum, v) => sum + (Number(v.cost_price) || 0), 0).toLocaleString()}</h3>
+                <h3 className="text-3xl font-bold">₦{filtered.filter(v => v.status !== 'Sold').reduce((sum, v) => sum + (Number(v.cost_price) || 0), 0).toLocaleString()}</h3>
                 <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider mt-1">Stock Value</p>
               </CardContent>
             </Card>
@@ -277,7 +303,7 @@ export default function VehiclesList() {
                 <div className="flex justify-between items-start mb-4">
                   <div className="p-3 bg-amber-500/10 rounded-2xl"><Clock className="h-6 w-6 text-amber-500" /></div>
                 </div>
-                <h3 className="text-3xl font-bold">{vehicles.filter(v => v.status === 'Reserved').length}</h3>
+                <h3 className="text-3xl font-bold">{filtered.filter(v => v.status === 'Reserved').length}</h3>
                 <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider mt-1">Reserved Units</p>
               </CardContent>
             </Card>
@@ -287,7 +313,7 @@ export default function VehiclesList() {
                 <div className="flex justify-between items-start mb-4">
                   <div className="p-3 bg-red-500/10 rounded-2xl"><AlertTriangle className="h-6 w-6 text-red-500" /></div>
                 </div>
-                <h3 className="text-3xl font-bold">{vehicles.filter(v => v.condition === 'Damaged').length}</h3>
+                <h3 className="text-3xl font-bold">{filtered.filter(v => v.condition === 'Damaged').length}</h3>
                 <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider mt-1">Damaged Stock</p>
               </CardContent>
             </Card>
@@ -343,6 +369,17 @@ export default function VehiclesList() {
         </div>
       )}
 
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-2 max-w-[400px] mb-2 glass-panel p-1 rounded-2xl h-12">
+          <TabsTrigger value="active" className="rounded-xl data-[state=active]:bg-sky-500 data-[state=active]:text-white transition-all h-full font-bold">
+            <Package className="w-4 h-4 mr-2" /> Active Inventory
+          </TabsTrigger>
+          <TabsTrigger value="sold" className="rounded-xl data-[state=sold]:bg-blue-500 data-[state=sold]:text-white transition-all h-full font-bold">
+            <CheckCircle className="w-4 h-4 mr-2" /> Sold Vehicles
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
+
       {/* Filters Control Bar */}
       <div className="glass-panel p-4 rounded-3xl flex flex-col sm:flex-row gap-4 items-center relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-r from-sky-500/5 to-transparent pointer-events-none" />
@@ -355,8 +392,39 @@ export default function VehiclesList() {
             className="pl-10 h-10 rounded-xl bg-background/50 border-white/10 focus-visible:ring-sky-500/50 transition-all font-medium text-sm w-full"
           />
         </div>
-        <div className="relative z-10 w-full sm:w-auto flex items-center gap-2">
-          <ListFilter className="h-4 w-4 text-muted-foreground hidden sm:block" />
+        <div className="relative z-10 w-full sm:w-auto flex flex-wrap items-center gap-2">
+          <Select value={selectedMonth} onValueChange={(v) => { setSelectedMonth(v); setPage(0); }}>
+            <SelectTrigger className="w-[160px] h-10 rounded-xl bg-background/50 border-white/10 focus-visible:ring-sky-500 text-sm">
+              <SelectValue placeholder="Select Month" />
+            </SelectTrigger>
+            <SelectContent className="glass-panel w-[160px] rounded-xl">
+              <SelectItem value="all" className="rounded-lg">All Time</SelectItem>
+              {Array.from({ length: 12 }).map((_, i) => {
+                const d = subMonths(new Date(), i);
+                const val = format(d, 'yyyy-MM');
+                const label = format(d, 'MMMM yyyy');
+                return (
+                  <SelectItem key={val} value={val} className="rounded-lg">{label}</SelectItem>
+                );
+              })}
+            </SelectContent>
+          </Select>
+
+          <Select value={selectedWeek} onValueChange={(v) => { setSelectedWeek(v); setPage(0); }}>
+            <SelectTrigger className="w-[120px] h-10 rounded-xl bg-background/50 border-white/10 focus-visible:ring-sky-500 text-sm">
+              <SelectValue placeholder="All Weeks" />
+            </SelectTrigger>
+            <SelectContent className="glass-panel w-[120px] rounded-xl">
+              <SelectItem value="all" className="rounded-lg">All Weeks</SelectItem>
+              <SelectItem value="1" className="rounded-lg">Week 1</SelectItem>
+              <SelectItem value="2" className="rounded-lg">Week 2</SelectItem>
+              <SelectItem value="3" className="rounded-lg">Week 3</SelectItem>
+              <SelectItem value="4" className="rounded-lg">Week 4</SelectItem>
+              <SelectItem value="5" className="rounded-lg">Week 5</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <ListFilter className="h-4 w-4 text-muted-foreground hidden lg:block" />
           <Select value={conditionFilter} onValueChange={(v) => { setConditionFilter(v); setPage(0); }}>
             <SelectTrigger className="w-full sm:w-[150px] h-10 rounded-xl bg-background/50 border-white/10">
               <SelectValue placeholder="Condition" />
@@ -369,17 +437,18 @@ export default function VehiclesList() {
             </SelectContent>
           </Select>
 
-          <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(0); }}>
-            <SelectTrigger className="w-full sm:w-[150px] h-10 rounded-xl bg-background/50 border-white/10">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent className="glass-panel rounded-xl">
-              <SelectItem value="all">All Statuses</SelectItem>
-              <SelectItem value="Available">Available</SelectItem>
-              <SelectItem value="Sold">Sold</SelectItem>
-              <SelectItem value="Reserved">Reserved</SelectItem>
-            </SelectContent>
-          </Select>
+          {activeTab === "active" && (
+            <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(0); }}>
+              <SelectTrigger className="w-full sm:w-[150px] h-10 rounded-xl bg-background/50 border-white/10">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent className="glass-panel rounded-xl">
+                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="Available">Available</SelectItem>
+                <SelectItem value="Reserved">Reserved</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
 
           <Select value={sourceCompanyFilter} onValueChange={(v) => { setSourceCompanyFilter(v); setPage(0); }}>
             <SelectTrigger className="w-full sm:w-[180px] h-10 rounded-xl bg-background/50 border-white/10">

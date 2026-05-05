@@ -12,6 +12,7 @@ import { SignaturePad } from "@/components/SignaturePad";
 import { Printer, FileText, CheckCircle2, History, Search, Calendar as CalendarIcon, ArrowLeft, Trash2, PlusCircle, Users, Car, Pencil } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { PrintHeader, PrintWatermark } from "@/components/PrintHeader";
 import { PrintFooter } from "@/components/PrintFooter";
@@ -19,6 +20,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { usePermissions } from "@/hooks/usePermissions";
 import { canEdit } from "@/lib/permissions";
 import { logAction } from "@/lib/logger";
+import { format, subMonths } from "date-fns";
 
 type ATS = {
   id: string;
@@ -74,7 +76,8 @@ export default function AuthorityToSell() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm, clearDraft] = useFormPersistence("ats", { ...EMPTY_FORM, signature: "", repSignature: "" }, !!editingId, editingId || undefined);
   const [search, setSearch] = useState("");
-  const [dateFilter, setDateFilter] = useState("");
+  const [selectedMonth, setSelectedMonth] = useState<string>(format(new Date(), 'yyyy-MM'));
+  const [selectedWeek, setSelectedWeek] = useState<string>("all");
   const queryClient = useQueryClient();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -148,27 +151,34 @@ export default function AuthorityToSell() {
   // ── Derived ───────────────────────────────────────────────────────────────
   const filteredHistory = useMemo(() => {
     return history.filter((item) => {
+      // Monthly Filter
+      if (selectedMonth !== "all") {
+        const itemDate = new Date(item.created_at);
+        const itemMonth = format(itemDate, 'yyyy-MM');
+        if (itemMonth !== selectedMonth) return false;
+
+        // Weekly Filter
+        if (selectedWeek !== "all") {
+          const dayOfMonth = itemDate.getDate();
+          const weekNum = Math.ceil(dayOfMonth / 7);
+          if (String(weekNum) !== selectedWeek) return false;
+        }
+      }
+
       const q = search.toLowerCase();
       const matchesSearch =
         !q ||
         item.customer_name?.toLowerCase().includes(q) ||
         item.vehicle_make?.toLowerCase().includes(q) ||
         item.vehicle_chassis?.toLowerCase().includes(q);
-      const matchesDate = !dateFilter || item.agreement_date === dateFilter;
-      return matchesSearch && matchesDate;
+      return matchesSearch;
     });
-  }, [history, search, dateFilter]);
+  }, [history, search, selectedMonth, selectedWeek]);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
   const handlePreview = async () => {
-    if (!form.signature) {
-      toast.warning("Please capture the owner's signature before saving.");
-      return;
-    }
-    if (!form.repSignature) {
-      toast.warning("Please capture the representative's signature before saving.");
-      return;
-    }
+    // Signatures are now optional as per user request
+
     const payload = {
       ...(editingId ? { id: editingId } : {}),
       agreement_date: form.agreementDate || new Date().toISOString().split("T")[0],
@@ -626,7 +636,7 @@ export default function AuthorityToSell() {
               <Button
                 size="lg"
                 className="rounded-2xl w-full sm:w-auto px-12 h-14 bg-sky-500 hover:bg-sky-600 text-white shadow-xl shadow-sky-500/25 font-bold transition-all disabled:opacity-50"
-                disabled={!form.customerName || !form.vehicleMake || !form.signature || !form.repSignature || saveMutation.isPending}
+                disabled={!form.customerName || !form.vehicleMake || saveMutation.isPending}
                 onClick={handlePreview}
               >
                 {saveMutation.isPending ? "Saving..." : "Save & Preview Document"}
@@ -650,14 +660,37 @@ export default function AuthorityToSell() {
                   className="pl-12 h-14 rounded-2xl bg-background/50 border-white/10 focus-visible:ring-sky-500/50 font-medium text-base w-full shadow-inner"
                 />
               </div>
-              <div className="relative group flex-shrink-0 w-full md:w-52">
-                <CalendarIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                <Input
-                  type="date"
-                  value={dateFilter}
-                  onChange={(e) => setDateFilter(e.target.value)}
-                  className="pl-11 h-14 rounded-2xl bg-background/50 border-white/10 focus-visible:ring-sky-500/50 text-sm shadow-inner"
-                />
+              <div className="flex gap-2 shrink-0">
+                <Select value={selectedMonth} onValueChange={(v) => { setSelectedMonth(v); }}>
+                  <SelectTrigger className="w-[180px] h-14 rounded-2xl bg-background/50 border-white/10 focus-visible:ring-sky-500 text-base shadow-inner">
+                    <SelectValue placeholder="Select Month" />
+                  </SelectTrigger>
+                  <SelectContent className="glass-panel w-[180px] rounded-xl">
+                    <SelectItem value="all" className="rounded-lg">All Time</SelectItem>
+                    {Array.from({ length: 12 }).map((_, i) => {
+                      const d = subMonths(new Date(), i);
+                      const val = format(d, 'yyyy-MM');
+                      const label = format(d, 'MMMM yyyy');
+                      return (
+                        <SelectItem key={val} value={val} className="rounded-lg">{label}</SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+
+                <Select value={selectedWeek} onValueChange={(v) => { setSelectedWeek(v); }}>
+                  <SelectTrigger className="w-[140px] h-14 rounded-2xl bg-background/50 border-white/10 focus-visible:ring-sky-500 text-base shadow-inner">
+                    <SelectValue placeholder="All Weeks" />
+                  </SelectTrigger>
+                  <SelectContent className="glass-panel w-[140px] rounded-xl">
+                    <SelectItem value="all" className="rounded-lg">All Weeks</SelectItem>
+                    <SelectItem value="1" className="rounded-lg">Week 1</SelectItem>
+                    <SelectItem value="2" className="rounded-lg">Week 2</SelectItem>
+                    <SelectItem value="3" className="rounded-lg">Week 3</SelectItem>
+                    <SelectItem value="4" className="rounded-lg">Week 4</SelectItem>
+                    <SelectItem value="5" className="rounded-lg">Week 5</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 

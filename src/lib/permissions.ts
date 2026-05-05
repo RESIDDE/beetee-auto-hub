@@ -5,6 +5,7 @@ export type AppRole = "super_admin" | "admin" | "sales" | "mechanic";
 export type PageKey =
   | "dashboard"
   | "vehicles"
+  | "resale-vehicles"
   | "customers"
   | "sales"
   | "invoices"
@@ -16,7 +17,8 @@ export type PageKey =
 
 export const ALL_PAGES: { key: PageKey; label: string; path: string }[] = [
   { key: "dashboard",          label: "Dashboard",       path: "/dashboard" },
-  { key: "vehicles",           label: "Vehicles",        path: "/vehicles" },
+  { key: "vehicles",           label: "Beetee Vehicles", path: "/vehicles" },
+  { key: "resale-vehicles",    label: "Resale Vehicles", path: "/resale-vehicles" },
   { key: "customers",          label: "Customers",       path: "/customers" },
   { key: "sales",              label: "Sales",           path: "/sales" },
   { key: "invoices",           label: "Invoices",        path: "/invoices" },
@@ -41,12 +43,12 @@ export const DEFAULT_PERMISSIONS: PermissionsMap = {
     edit: ALL_PAGES.map((p) => p.key),
   },
   sales: {
-    view: ["dashboard", "vehicles", "customers", "sales", "invoices", "inquiries", "performance-quotes", "authority-to-sell"],
-    edit: ["vehicles", "customers", "sales", "invoices", "inquiries", "performance-quotes", "authority-to-sell"],
+    view: ["dashboard", "vehicles", "resale-vehicles", "customers", "sales", "invoices", "inquiries", "performance-quotes", "authority-to-sell"],
+    edit: ["vehicles", "resale-vehicles", "customers", "sales", "invoices", "inquiries", "performance-quotes", "authority-to-sell"],
   },
   mechanic: {
-    view: ["dashboard", "vehicles", "repairs", "inspections"],
-    edit: ["vehicles", "repairs", "inspections"],
+    view: ["dashboard", "vehicles", "resale-vehicles", "repairs", "inspections"],
+    edit: ["vehicles", "resale-vehicles", "repairs", "inspections"],
   },
 };
 

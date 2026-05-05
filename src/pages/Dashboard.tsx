@@ -284,7 +284,7 @@ export default function Dashboard() {
 
           {/* MAIN KPI PANEL - 8 Cols */}
           <div className="lg:col-span-8 grid grid-cols-1 md:grid-cols-6 gap-4 md:gap-6 relative">
-            <Link to="/sales" className="md:col-span-3 group">
+            <Link to="/sales" className="md:col-span-6 group">
               <div className="bento-card h-full p-6 sm:p-8 flex flex-col justify-between overflow-hidden relative min-h-[160px]">
                 <div className="absolute -top-24 -right-24 w-64 h-64 bg-primary/20 blur-3xl rounded-full pointer-events-none group-hover:bg-primary/30 transition-colors duration-500"></div>
                 <div className="flex justify-between items-start z-10 relative">
@@ -298,21 +298,8 @@ export default function Dashboard() {
               </div>
             </Link>
 
-            <Link to="/sales" className="md:col-span-3 group">
-              <div className="bento-card h-full p-6 sm:p-8 flex flex-col justify-between overflow-hidden relative min-h-[160px] border-l-4 border-l-emerald-500">
-                <div className="absolute -top-24 -right-24 w-64 h-64 bg-emerald-500/10 blur-3xl rounded-full pointer-events-none group-hover:bg-emerald-500/20 transition-colors duration-500"></div>
-                <div className="flex justify-between items-start z-10 relative">
-                  <div className="p-3 bg-emerald-500/10 rounded-2xl"><TrendingUp className="h-6 w-6 text-emerald-500" /></div>
-                  <div className="flex items-center gap-1 text-xs font-semibold text-emerald-500 bg-emerald-500/10 px-2 py-1 rounded-full">Gross Profit</div>
-                </div>
-                <div className="mt-6 z-10 relative">
-                  <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-1">Total Estimated Profit</p>
-                  <h2 className="text-3xl sm:text-4xl font-bold text-foreground tracking-tight">₦{totalSalesProfit.toLocaleString()}</h2>
-                </div>
-              </div>
-            </Link>
 
-            <Link to="/sales" className="md:col-span-2 group">
+            <Link to="/sales" className="md:col-span-3 group">
                <div className="bento-card p-5 sm:p-6 flex flex-col justify-between relative overflow-hidden h-full min-h-[130px]">
                  <div className="absolute top-0 right-0 w-32 h-32 bg-violet-500/10 blur-2xl rounded-full pointer-events-none transition-colors duration-500 group-hover:bg-violet-500/20" />
                  <div className="p-2 sm:p-3 bg-violet-500/10 w-fit rounded-xl sm:rounded-2xl mb-2 sm:mb-4 group-hover:bg-violet-500/20"><DollarSign className="h-5 w-5 sm:h-6 sm:w-6 text-violet-500" /></div>
@@ -323,7 +310,7 @@ export default function Dashboard() {
                </div>
             </Link>
 
-            <Link to="/repairs" className="md:col-span-2 group">
+            <Link to="/repairs" className="md:col-span-3 group">
                <div className="bento-card p-5 sm:p-6 flex flex-col justify-between relative overflow-hidden h-full min-h-[130px]">
                  <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 blur-2xl rounded-full pointer-events-none transition-colors duration-500 group-hover:bg-amber-500/20" />
                  <div className="p-2 sm:p-3 bg-amber-500/10 w-fit rounded-xl sm:rounded-2xl mb-2 sm:mb-4 group-hover:bg-amber-500/20"><Wrench className="h-5 w-5 sm:h-6 sm:w-6 text-amber-500" /></div>
@@ -334,16 +321,6 @@ export default function Dashboard() {
                </div>
             </Link>
 
-            <Link to="/invoices" className="md:col-span-2 group">
-               <div className="bento-card p-5 sm:p-6 flex flex-col justify-between relative overflow-hidden h-full min-h-[130px]">
-                 <div className="absolute top-0 right-0 w-32 h-32 bg-rose-500/10 blur-2xl rounded-full pointer-events-none transition-colors duration-500 group-hover:bg-rose-500/20" />
-                 <div className="p-2 sm:p-3 bg-rose-500/10 w-fit rounded-xl sm:rounded-2xl mb-2 sm:mb-4 group-hover:bg-rose-500/20"><FileText className="h-5 w-5 sm:h-6 sm:w-6 text-rose-500" /></div>
-                 <div className="z-10 relative">
-                    <h2 className="text-xl sm:text-2xl font-bold text-foreground">₦{openInvoicesAmount.toLocaleString()}</h2>
-                    <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wider mt-1 sm:mt-2 font-semibold line-clamp-1">Unpaid Invoices</p>
-                 </div>
-               </div>
-            </Link>
 
             <Link to="/inquiries" className="md:col-span-1 group">
                <div className="bento-card p-5 flex flex-col justify-between relative overflow-hidden h-full min-h-[130px]">

@@ -19,6 +19,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
+import { format, subMonths } from "date-fns";
 import { 
   ChevronRight, ArrowRight, ArrowLeft, Receipt, ClipboardCheck, Wrench, PlusCircle, Clock, DollarSign, PieChart as PieChartIcon, Search, Car, Pencil, QrCode, FileOutput, Trash2, History as HistoryIcon, Check, ChevronsUpDown, Mail, Printer, CreditCard, CheckCircle, Bell, X as XIcon, AlertTriangle as AlertTriangleIcon, Eye
 } from "lucide-react";
@@ -197,7 +198,9 @@ export default function RepairsMaintenance() {
   const [reminderDismissed, setReminderDismissed] = useState(() =>
     sessionStorage.getItem("service_reminder_dismissed") === "true"
   );
-  const [viewTab, setViewTab] = useState<"all" | "service_due">("all");
+  const [activeServiceView, setActiveServiceView] = useState<"all" | "service_due">("all");
+  const [selectedMonth, setSelectedMonth] = useState<string>(format(new Date(), 'yyyy-MM'));
+  const [selectedWeek, setSelectedWeek] = useState<string>("all");
   const PAGE_SIZE = 10;
 
   // Auto-calculate parts_total from replacement_parts_list
@@ -319,49 +322,6 @@ export default function RepairsMaintenance() {
     return reminders.sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
   }, [repairs, customers, serviceInterval]);
 
-  const stats = useMemo(() => {
-    const total = repairs.length;
-    const active = repairs.filter(r => r.payment_status !== 'paid_in_full').length;
-    const revenue = repairs.reduce((acc, r) => acc + (Number(r.repair_cost) || 0), 0);
-    const collected = repairs.reduce((acc, r) => {
-      if (r.payment_status === 'paid_in_full') return acc + (Number(r.repair_cost) || 0);
-      return acc + (Number(r.deposit_amount) || 0);
-    }, 0);
-    return {
-      total,
-      active,
-      revenue,
-      pending: revenue - collected
-    };
-  }, [repairs]);
-
-  const monthlyHistory = useMemo(() => {
-    const months: any[] = [];
-    const now = new Date();
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const label = d.toLocaleString('default', { month: 'short' });
-      const m = d.getMonth();
-      const y = d.getFullYear();
-      const monthRepairs = repairs.filter(r => {
-        const rd = new Date(r.created_at);
-        return rd.getMonth() === m && rd.getFullYear() === y;
-      });
-      const rev = monthRepairs.reduce((acc, r) => acc + (Number(r.repair_cost) || 0), 0);
-      months.push({ name: label, Revenue: rev, Count: monthRepairs.length });
-    }
-    return months;
-  }, [repairs]);
-
-  const statusSplit = useMemo(() => {
-    const paid = repairs.filter(r => r.payment_status === 'paid_in_full').length;
-    const deposit = repairs.filter(r => r.payment_status === 'deposit').length;
-    return [
-      { name: 'Paid in Full', value: paid },
-      { name: 'Deposit Only', value: deposit }
-    ].filter(x => x.value > 0);
-  }, [repairs]);
-
   const filteredRepairs = useMemo(() => {
     return repairs.filter(r => {
       // Payment Status Filter
@@ -369,7 +329,20 @@ export default function RepairsMaintenance() {
         return false;
       }
       
-      // Date/Time Filter
+      // Date/Time Filter (Default Monthly)
+      if (selectedMonth !== "all") {
+        const repairDate = new Date(r.created_at);
+        const repairMonth = format(repairDate, 'yyyy-MM');
+        if (repairMonth !== selectedMonth) return false;
+
+        // Weekly Filter (within the selected month)
+        if (selectedWeek !== "all") {
+          const dayOfMonth = repairDate.getDate();
+          const weekNum = Math.ceil(dayOfMonth / 7);
+          if (String(weekNum) !== selectedWeek) return false;
+        }
+      }
+
       if (dateFilter !== "all") {
         const repairDate = new Date(r.created_at);
         const now = new Date();
@@ -395,7 +368,50 @@ export default function RepairsMaintenance() {
       const company = r.company?.toLowerCase() || "";
       return vLabel.includes(q) || custName.includes(q) || company.includes(q);
     });
-  }, [repairs, search, statusFilter, dateFilter, customers]);
+  }, [repairs, search, statusFilter, dateFilter, customers, selectedMonth, selectedWeek]);
+
+  const stats = useMemo(() => {
+    const total = filteredRepairs.length;
+    const active = filteredRepairs.filter(r => r.payment_status !== 'paid_in_full').length;
+    const revenue = filteredRepairs.reduce((acc, r) => acc + (Number(r.repair_cost) || 0), 0);
+    const collected = filteredRepairs.reduce((acc, r) => {
+      if (r.payment_status === 'paid_in_full') return acc + (Number(r.repair_cost) || 0);
+      return acc + (Number(r.deposit_amount) || 0);
+    }, 0);
+    return {
+      total,
+      active,
+      revenue,
+      pending: revenue - collected
+    };
+  }, [filteredRepairs]);
+
+  const monthlyHistory = useMemo(() => {
+    const months: any[] = [];
+    const now = new Date();
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const label = d.toLocaleString('default', { month: 'short' });
+      const m = d.getMonth();
+      const y = d.getFullYear();
+      const monthRepairs = repairs.filter(r => {
+        const rd = new Date(r.created_at);
+        return rd.getMonth() === m && rd.getFullYear() === y;
+      });
+      const rev = monthRepairs.reduce((acc, r) => acc + (Number(r.repair_cost) || 0), 0);
+      months.push({ name: label, Revenue: rev, Count: monthRepairs.length });
+    }
+    return months;
+  }, [repairs]);
+
+  const statusSplit = useMemo(() => {
+    const paid = filteredRepairs.filter(r => r.payment_status === 'paid_in_full').length;
+    const deposit = filteredRepairs.filter(r => r.payment_status === 'deposit').length;
+    return [
+      { name: 'Paid in Full', value: paid },
+      { name: 'Deposit Only', value: deposit }
+    ].filter(x => x.value > 0);
+  }, [filteredRepairs]);
 
   const totalPages = useMemo(() => Math.ceil(filteredRepairs.length / PAGE_SIZE), [filteredRepairs]);
   const pagedRepairs = useMemo(() => filteredRepairs.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE), [filteredRepairs, page]);
@@ -443,6 +459,17 @@ export default function RepairsMaintenance() {
       let finalVehicleId = form.vehicle_id;
       let finalCustomerId = form.customer_id;
 
+      // Validate IDs against current lists to prevent foreign key violations
+      // This handles cases where a vehicle or customer was deleted but remains in form state
+      if (finalVehicleId && vehicles.length > 0 && !vehicles.some(v => v.id === finalVehicleId)) {
+        console.warn("Selected vehicle_id not found in system, clearing for re-creation:", finalVehicleId);
+        finalVehicleId = "";
+      }
+      if (finalCustomerId && customers.length > 0 && !customers.some(c => c.id === finalCustomerId)) {
+        console.warn("Selected customer_id not found in system, clearing:", finalCustomerId);
+        finalCustomerId = "";
+      }
+
       // Handle New Customer Creation
       if (form.is_new_customer && form.manual_customer_name) {
         const { data: newCust, error: cErr } = await supabase.from("customers").insert({
@@ -465,7 +492,8 @@ export default function RepairsMaintenance() {
           status: "Customer Car",
           price: 0,
           condition: "Customer Vehicle",
-          num_keys: 1
+          num_keys: 1,
+          inventory_type: 'service'
         }).select().single();
         if (vErr) throw vErr;
         finalVehicleId = newV.id;
@@ -1243,24 +1271,24 @@ export default function RepairsMaintenance() {
       {/* View Tab Switcher */}
       <div className="flex items-center gap-2 p-1.5 bg-foreground/5 rounded-2xl w-fit">
         <button
-          onClick={() => setViewTab("all")}
+          onClick={() => setActiveServiceView("all")}
           className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
-            viewTab === "all" ? "bg-amber-500 text-white shadow-lg shadow-amber-500/30" : "text-muted-foreground hover:text-foreground"
+            activeServiceView === "all" ? "bg-amber-500 text-white shadow-lg shadow-amber-500/30" : "text-muted-foreground hover:text-foreground"
           }`}
         >
           <Wrench className="w-4 h-4" /> All Repairs
         </button>
         <button
-          onClick={() => setViewTab("service_due")}
+          onClick={() => setActiveServiceView("service_due")}
           className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all relative ${
-            viewTab === "service_due" ? "bg-red-500 text-white shadow-lg shadow-red-500/30" : "text-muted-foreground hover:text-foreground"
+            activeServiceView === "service_due" ? "bg-red-500 text-white shadow-lg shadow-red-500/30" : "text-muted-foreground hover:text-foreground"
           }`}
         >
           <Bell className="w-4 h-4" />
           Service Due
           {serviceReminders.length > 0 && (
             <span className={`ml-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
-              viewTab === "service_due" ? "bg-white/20 text-white" : "bg-red-500 text-white"
+              activeServiceView === "service_due" ? "bg-white/20 text-white" : "bg-red-500 text-white"
             }`}>
               {serviceReminders.length}
             </span>
@@ -1269,7 +1297,7 @@ export default function RepairsMaintenance() {
       </div>
 
       {/* ── SERVICE DUE TAB ── */}
-      {viewTab === "service_due" && (
+      {activeServiceView === "service_due" && (
         <div className="space-y-4 animate-fade-up">
           {serviceReminders.length === 0 ? (
             <div className="bento-card p-12 flex flex-col items-center justify-center text-center">
@@ -1346,7 +1374,7 @@ export default function RepairsMaintenance() {
       )}
 
       {/* ── ALL REPAIRS TAB ── */}
-      {viewTab === "all" && (
+      {activeServiceView === "all" && (
         <>
           {/* Search and List Section */}
           <div className="flex flex-col md:flex-row gap-4 mb-4">
@@ -1360,16 +1388,34 @@ export default function RepairsMaintenance() {
               />
             </div>
         <div className="flex gap-2 sm:gap-4 shrink-0 overflow-x-auto pb-2 md:pb-0">
-          <Select value={dateFilter} onValueChange={(v) => { setDateFilter(v); setPage(0); }}>
-            <SelectTrigger className="w-[160px] h-14 rounded-2xl bg-card border-white/10 focus-visible:ring-amber-500 text-base shadow-xl whitespace-nowrap">
-              <SelectValue placeholder="All Time" />
+          <Select value={selectedMonth} onValueChange={(v) => { setSelectedMonth(v); setPage(0); }}>
+            <SelectTrigger className="w-[180px] h-14 rounded-2xl bg-card border-white/10 focus-visible:ring-amber-500 text-base shadow-xl">
+              <SelectValue placeholder="Select Month" />
             </SelectTrigger>
-            <SelectContent className="glass-panel w-[160px] rounded-xl">
+            <SelectContent className="glass-panel w-[180px] rounded-xl">
               <SelectItem value="all" className="rounded-lg">All Time</SelectItem>
-              <SelectItem value="this_month" className="rounded-lg">This Month</SelectItem>
-              <SelectItem value="last_month" className="rounded-lg">Last Month</SelectItem>
-              <SelectItem value="last_3_months" className="rounded-lg">Last 3 Months</SelectItem>
-              <SelectItem value="this_year" className="rounded-lg">This Year</SelectItem>
+              {Array.from({ length: 12 }).map((_, i) => {
+                const d = subMonths(new Date(), i);
+                const val = format(d, 'yyyy-MM');
+                const label = format(d, 'MMMM yyyy');
+                return (
+                  <SelectItem key={val} value={val} className="rounded-lg">{label}</SelectItem>
+                );
+              })}
+            </SelectContent>
+          </Select>
+
+          <Select value={selectedWeek} onValueChange={(v) => { setSelectedWeek(v); setPage(0); }}>
+            <SelectTrigger className="w-[140px] h-14 rounded-2xl bg-card border-white/10 focus-visible:ring-amber-500 text-base shadow-xl">
+              <SelectValue placeholder="All Weeks" />
+            </SelectTrigger>
+            <SelectContent className="glass-panel w-[140px] rounded-xl">
+              <SelectItem value="all" className="rounded-lg">All Weeks</SelectItem>
+              <SelectItem value="1" className="rounded-lg">Week 1</SelectItem>
+              <SelectItem value="2" className="rounded-lg">Week 2</SelectItem>
+              <SelectItem value="3" className="rounded-lg">Week 3</SelectItem>
+              <SelectItem value="4" className="rounded-lg">Week 4</SelectItem>
+              <SelectItem value="5" className="rounded-lg">Week 5</SelectItem>
             </SelectContent>
           </Select>
 
@@ -1572,19 +1618,19 @@ export default function RepairsMaintenance() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label className="text-[10px] font-bold uppercase tracking-tight opacity-60">Job Card No.</Label>
-                    <Input className="rounded-xl h-11 bg-background/50 border-white/10" value={form.job_card_no} onChange={(e) => setForm({ ...form, job_card_no: e.target.value })} placeholder="e.g. JC-2024-001" />
+                    <Input className="rounded-xl h-11 bg-background/50 border-white/10" value={form.job_card_no} onChange={(e) => setForm(prev => ({ ...prev, job_card_no: e.target.value }))} placeholder="e.g. JC-2024-001" />
                   </div>
                   <div className="space-y-2">
                     <Label className="text-[10px] font-bold uppercase tracking-tight opacity-60">Expected Delivery</Label>
-                    <Input type="date" className="rounded-xl h-11 bg-background/50 border-white/10" value={form.expected_delivery_date} onChange={(e) => setForm({ ...form, expected_delivery_date: e.target.value })} />
+                    <Input type="date" className="rounded-xl h-11 bg-background/50 border-white/10" value={form.expected_delivery_date} onChange={(e) => setForm(prev => ({ ...prev, expected_delivery_date: e.target.value }))} />
                   </div>
                   <div className="space-y-2">
                     <Label className="text-[10px] font-bold uppercase tracking-tight opacity-60">Service Supervisor</Label>
-                    <Input className="rounded-xl h-11 bg-background/50 border-white/10" value={form.service_supervisor} onChange={(e) => setForm({ ...form, service_supervisor: e.target.value })} />
+                    <Input className="rounded-xl h-11 bg-background/50 border-white/10" value={form.service_supervisor} onChange={(e) => setForm(prev => ({ ...prev, service_supervisor: e.target.value }))} />
                   </div>
                   <div className="space-y-2">
                     <Label className="text-[10px] font-bold uppercase tracking-tight opacity-60">Technician Assigned</Label>
-                    <Input className="rounded-xl h-11 bg-background/50 border-white/10" value={form.technician_assigned} onChange={(e) => setForm({ ...form, technician_assigned: e.target.value })} />
+                    <Input className="rounded-xl h-11 bg-background/50 border-white/10" value={form.technician_assigned} onChange={(e) => setForm(prev => ({ ...prev, technician_assigned: e.target.value }))} />
                   </div>
                 </div>
               </div>
@@ -1621,25 +1667,25 @@ export default function RepairsMaintenance() {
                         variant="ghost" 
                         size="sm" 
                         className="h-7 text-[10px] font-bold uppercase text-amber-500 hover:text-amber-600 hover:bg-amber-500/5"
-                        onClick={() => setForm({ 
-                          ...form, 
-                          is_new_customer: !form.is_new_customer,
-                          customer_id: !form.is_new_customer ? "" : form.customer_id 
-                        })}
+                        onClick={() => setForm(prev => ({ 
+                          ...prev, 
+                          is_new_customer: !prev.is_new_customer,
+                          customer_id: !prev.is_new_customer ? "" : prev.customer_id 
+                        }))}
                       >
                         {form.is_new_customer ? "Select Existing" : "+ New Customer"}
                       </Button>
                     </div>
-
+ 
                     {!form.is_new_customer ? (
                       <CustomerSelect 
                         customers={customers}
                         value={form.customer_id}
                         onValueChange={(v) => {
-                          setForm({ ...form, customer_id: v, is_new_customer: false });
+                          setForm(prev => ({ ...prev, customer_id: v, is_new_customer: false }));
                           setOpenCustomerSelect(false);
                         }}
-                        onAddNew={() => setForm({ ...form, is_new_customer: true, customer_id: "" })}
+                        onAddNew={() => setForm(prev => ({ ...prev, is_new_customer: true, customer_id: "" }))}
                         placeholder="Search customers..."
                       />
                     ) : (
@@ -1650,7 +1696,7 @@ export default function RepairsMaintenance() {
                             placeholder="Enter full name" 
                             className="rounded-xl h-11 bg-amber-500/5 border-amber-500/20 focus:border-amber-500"
                             value={form.manual_customer_name}
-                            onChange={(e) => setForm({ ...form, manual_customer_name: e.target.value })}
+                            onChange={(e) => setForm(prev => ({ ...prev, manual_customer_name: e.target.value }))}
                           />
                         </div>
                         <div className="grid grid-cols-2 gap-4">
@@ -1660,7 +1706,7 @@ export default function RepairsMaintenance() {
                               placeholder="080..." 
                               className="rounded-xl h-11 bg-background/50 border-white/10"
                               value={form.manual_customer_phone}
-                              onChange={(e) => setForm({ ...form, manual_customer_phone: e.target.value })}
+                              onChange={(e) => setForm(prev => ({ ...prev, manual_customer_phone: e.target.value }))}
                             />
                           </div>
                           <div className="space-y-2">
@@ -1669,7 +1715,7 @@ export default function RepairsMaintenance() {
                               placeholder="email@example.com" 
                               className="rounded-xl h-11 bg-background/50 border-white/10"
                               value={form.manual_customer_email}
-                              onChange={(e) => setForm({ ...form, manual_customer_email: e.target.value })}
+                              onChange={(e) => setForm(prev => ({ ...prev, manual_customer_email: e.target.value }))}
                             />
                           </div>
                         </div>
@@ -1679,7 +1725,7 @@ export default function RepairsMaintenance() {
                             placeholder="Home or Office address" 
                             className="rounded-xl h-11 bg-background/50 border-white/10"
                             value={form.manual_customer_address}
-                            onChange={(e) => setForm({ ...form, manual_customer_address: e.target.value })}
+                            onChange={(e) => setForm(prev => ({ ...prev, manual_customer_address: e.target.value }))}
                           />
                         </div>
                       </div>
@@ -1689,11 +1735,11 @@ export default function RepairsMaintenance() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label className="text-[10px] font-bold uppercase tracking-tight opacity-60">Company Name (If applicable)</Label>
-                      <Input className="rounded-xl h-11 bg-background/50 border-white/10" value={form.company} onChange={(e) => setForm({ ...form, company: e.target.value })} placeholder="e.g. Kconect" />
+                      <Input className="rounded-xl h-11 bg-background/50 border-white/10" value={form.company} onChange={(e) => setForm(prev => ({ ...prev, company: e.target.value }))} placeholder="e.g. Kconect" />
                     </div>
                     <div className="space-y-2">
                       <Label className="text-[10px] font-bold uppercase tracking-tight opacity-60">Brought In By</Label>
-                      <Input className="rounded-xl h-11 bg-background/50 border-white/10" value={form.brought_in_by} onChange={(e) => setForm({ ...form, brought_in_by: e.target.value })} placeholder="e.g. Sammy" />
+                      <Input className="rounded-xl h-11 bg-background/50 border-white/10" value={form.brought_in_by} onChange={(e) => setForm(prev => ({ ...prev, brought_in_by: e.target.value }))} placeholder="e.g. Sammy" />
                     </div>
                   </div>
 
@@ -1703,26 +1749,26 @@ export default function RepairsMaintenance() {
                       make={form.make}
                       model={form.model}
                       year={form.year}
-                      onMakeChange={(v) => setForm({ ...form, make: v, vehicle_id: "" })}
-                      onModelChange={(v) => setForm({ ...form, model: v, vehicle_id: "" })}
-                      onYearChange={(v) => setForm({ ...form, year: v, vehicle_id: "" })}
+                      onMakeChange={(v) => setForm(prev => ({ ...prev, make: v, vehicle_id: "" }))}
+                      onModelChange={(v) => setForm(prev => ({ ...prev, model: v, vehicle_id: "" }))}
+                      onYearChange={(v) => setForm(prev => ({ ...prev, year: v, vehicle_id: "" }))}
                     />
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
                       <div className="space-y-1">
                         <Label className="text-[10px] font-bold">Color</Label>
-                        <Input value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })} placeholder="Color" className="h-9 text-xs rounded-lg" />
+                        <Input value={form.color} onChange={(e) => setForm(prev => ({ ...prev, color: e.target.value }))} placeholder="Color" className="h-9 text-xs rounded-lg" />
                       </div>
                       <div className="space-y-1">
                         <Label className="text-[10px] font-bold">Reg No.</Label>
-                        <Input value={form.registration_no} onChange={(e) => setForm({ ...form, registration_no: e.target.value })} placeholder="ABC-123" className="h-9 text-xs rounded-lg" />
+                        <Input value={form.registration_no} onChange={(e) => setForm(prev => ({ ...prev, registration_no: e.target.value }))} placeholder="ABC-123" className="h-9 text-xs rounded-lg" />
                       </div>
                       <div className="space-y-1">
                         <Label className="text-[10px] font-bold">VIN/Chassis</Label>
-                        <Input value={form.vin} onChange={(e) => setForm({ ...form, vin: e.target.value })} placeholder="VIN" className="h-9 text-xs rounded-lg" />
+                        <Input value={form.vin} onChange={(e) => setForm(prev => ({ ...prev, vin: e.target.value }))} placeholder="VIN" className="h-9 text-xs rounded-lg" />
                       </div>
                       <div className="space-y-1">
                         <Label className="text-[10px] font-bold">Mileage (KM)</Label>
-                        <Input value={form.mileage} onChange={(e) => setForm({ ...form, mileage: e.target.value })} placeholder="0.00" className="h-9 text-xs rounded-lg" />
+                        <Input value={form.mileage} onChange={(e) => setForm(prev => ({ ...prev, mileage: e.target.value }))} placeholder="0.00" className="h-9 text-xs rounded-lg" />
                       </div>
                     </div>
                   </div>
@@ -1737,7 +1783,7 @@ export default function RepairsMaintenance() {
                           variant="ghost" 
                           size="sm"
                           className={`rounded-full px-4 border text-[10px] uppercase font-bold transition-all ${form.fuel_level === lvl ? 'bg-amber-500 border-amber-500 text-white shadow-lg' : 'border-white/10 opacity-70 hover:opacity-100'}`}
-                          onClick={() => setForm({ ...form, fuel_level: lvl })}
+                          onClick={() => setForm(prev => ({ ...prev, fuel_level: lvl }))}
                         >
                           {lvl}
                         </Button>
@@ -1758,7 +1804,7 @@ export default function RepairsMaintenance() {
                   
                   <div className="space-y-2">
                     <Label className="text-[10px] font-extrabold uppercase opacity-60">Customer Complaint</Label>
-                    <Textarea value={form.customer_complaint} onChange={(e) => setForm({ ...form, customer_complaint: e.target.value })} className="rounded-xl min-h-[100px] text-xs bg-background/30" placeholder="Explain nature of fault..." />
+                    <Textarea value={form.customer_complaint} onChange={(e) => setForm(prev => ({ ...prev, customer_complaint: e.target.value }))} className="rounded-xl min-h-[100px] text-xs bg-background/30" placeholder="Explain nature of fault..." />
                   </div>
 
                   <div className="space-y-3">
@@ -1770,17 +1816,19 @@ export default function RepairsMaintenance() {
                             id={`cond-${c}`} 
                             checked={form.condition_check?.includes(c)} 
                             onCheckedChange={(checked) => {
-                              const newCheck = checked 
-                                ? [...(form.condition_check || []), c] 
-                                : (form.condition_check || []).filter(x => x !== c);
-                              setForm({ ...form, condition_check: newCheck });
+                              setForm(prev => {
+                                const newCheck = checked 
+                                  ? [...(prev.condition_check || []), c] 
+                                  : (prev.condition_check || []).filter(x => x !== c);
+                                return { ...prev, condition_check: newCheck };
+                              });
                             }}
                           />
                           <Label htmlFor={`cond-${c}`} className="text-[9px] font-bold opacity-70 leading-none cursor-pointer">{c}</Label>
                         </div>
                       ))}
                     </div>
-                    <Textarea value={form.inspection_notes} onChange={(e) => setForm({ ...form, inspection_notes: e.target.value })} className="rounded-xl min-h-[60px] text-xs mt-2 bg-background/30" placeholder="Additional inspection notes..." />
+                    <Textarea value={form.inspection_notes} onChange={(e) => setForm(prev => ({ ...prev, inspection_notes: e.target.value }))} className="rounded-xl min-h-[60px] text-xs mt-2 bg-background/30" placeholder="Additional inspection notes..." />
                   </div>
                 </div>
 
@@ -1803,17 +1851,19 @@ export default function RepairsMaintenance() {
                             id={`paint-${p}`} 
                             checked={form.painting_bodywork?.items.includes(p)} 
                             onCheckedChange={(checked) => {
-                              const items = checked 
-                                ? [...(form.painting_bodywork?.items || []), p] 
-                                : (form.painting_bodywork?.items || []).filter(x => x !== p);
-                              setForm({ ...form, painting_bodywork: { ...form.painting_bodywork, items, details: form.painting_bodywork?.details || "" } });
+                              setForm(prev => {
+                                const items = checked 
+                                  ? [...(prev.painting_bodywork?.items || []), p] 
+                                  : (prev.painting_bodywork?.items || []).filter(x => x !== p);
+                                return { ...prev, painting_bodywork: { ...prev.painting_bodywork, items } };
+                              });
                             }}
                           />
                           <Label htmlFor={`paint-${p}`} className="text-[9px] font-bold opacity-70 leading-none cursor-pointer">{p}</Label>
                         </div>
                       ))}
                     </div>
-                    <Textarea value={form.painting_bodywork?.details} onChange={(e) => setForm({ ...form, painting_bodywork: { ...form.painting_bodywork, details: e.target.value, items: form.painting_bodywork?.items || [] } })} className="rounded-xl min-h-[60px] text-xs bg-background/30" placeholder="Painting details..." />
+                    <Textarea value={form.painting_bodywork?.details} onChange={(e) => setForm(prev => ({ ...prev, painting_bodywork: { ...prev.painting_bodywork, details: e.target.value } }))} className="rounded-xl min-h-[60px] text-xs bg-background/30" placeholder="Painting details..." />
                   </div>
 
                   {/* Mechanical Service */}
@@ -1828,17 +1878,19 @@ export default function RepairsMaintenance() {
                             id={`mech-${m}`} 
                             checked={form.mechanical_service?.items.includes(m)} 
                             onCheckedChange={(checked) => {
-                              const items = checked 
-                                ? [...(form.mechanical_service?.items || []), m] 
-                                : (form.mechanical_service?.items || []).filter(x => x !== m);
-                              setForm({ ...form, mechanical_service: { ...form.mechanical_service, items, details: form.mechanical_service?.details || "" } });
+                              setForm(prev => {
+                                const items = checked 
+                                  ? [...(prev.mechanical_service?.items || []), m] 
+                                  : (prev.mechanical_service?.items || []).filter(x => x !== m);
+                                return { ...prev, mechanical_service: { ...prev.mechanical_service, items } };
+                              });
                             }}
                           />
                           <Label htmlFor={`mech-${m}`} className="text-[9px] font-bold opacity-70 leading-none cursor-pointer">{m}</Label>
                         </div>
                       ))}
                     </div>
-                    <Textarea value={form.mechanical_service?.details} onChange={(e) => setForm({ ...form, mechanical_service: { ...form.mechanical_service, details: e.target.value, items: form.mechanical_service?.items || [] } })} className="rounded-xl min-h-[60px] text-xs bg-background/30" placeholder="Mechanical details..." />
+                    <Textarea value={form.mechanical_service?.details} onChange={(e) => setForm(prev => ({ ...prev, mechanical_service: { ...prev.mechanical_service, details: e.target.value } }))} className="rounded-xl min-h-[60px] text-xs bg-background/30" placeholder="Mechanical details..." />
                   </div>
                 </div>
               </div>
@@ -1858,10 +1910,10 @@ export default function RepairsMaintenance() {
                       variant="ghost" 
                       size="sm" 
                       className="h-7 text-[10px] font-bold uppercase text-amber-500 hover:text-amber-600 hover:bg-amber-500/5"
-                      onClick={() => setForm({ 
-                        ...form, 
-                        replacement_parts_list: [...(form.replacement_parts_list || []), { name: "", price: 0 }] 
-                      })}
+                      onClick={() => setForm(prev => ({ 
+                        ...prev, 
+                        replacement_parts_list: [...(prev.replacement_parts_list || []), { name: "", price: 0 }] 
+                      }))}
                     >
                       <PlusCircle className="mr-1 h-3 w-3" /> Add Part
                     </Button>
@@ -1876,9 +1928,11 @@ export default function RepairsMaintenance() {
                             className="flex-1 h-10 text-xs rounded-xl bg-background/50 border-white/10 focus:border-amber-500/50" 
                             value={part.name} 
                             onChange={(e) => {
-                              const newList = [...(form.replacement_parts_list || [])];
-                              newList[idx].name = e.target.value;
-                              setForm({ ...form, replacement_parts_list: newList });
+                              setForm(prev => {
+                                const newList = [...(prev.replacement_parts_list || [])];
+                                newList[idx] = { ...newList[idx], name: e.target.value };
+                                return { ...prev, replacement_parts_list: newList };
+                              });
                             }}
                           />
                           <div className="w-36 relative">
@@ -1887,9 +1941,11 @@ export default function RepairsMaintenance() {
                               className="h-10 text-xs rounded-xl bg-background/50 border-white/10 pl-7 focus:border-amber-500/50" 
                               value={part.price} 
                               onChange={(e) => {
-                                const newList = [...(form.replacement_parts_list || [])];
-                                newList[idx].price = parseFloat(e.target.value.replace(/,/g, "")) || 0;
-                                setForm({ ...form, replacement_parts_list: newList });
+                                setForm(prev => {
+                                  const newList = [...(prev.replacement_parts_list || [])];
+                                  newList[idx] = { ...newList[idx], price: parseFloat(e.target.value.replace(/,/g, "")) || 0 };
+                                  return { ...prev, replacement_parts_list: newList };
+                                });
                               }}
                             />
                             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-bold opacity-30">₦</span>
@@ -1900,8 +1956,10 @@ export default function RepairsMaintenance() {
                             size="icon" 
                             className="h-10 w-10 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-xl" 
                             onClick={() => {
-                              const newList = (form.replacement_parts_list || []).filter((_, i) => i !== idx);
-                              setForm({ ...form, replacement_parts_list: newList });
+                              setForm(prev => {
+                                const newList = (prev.replacement_parts_list || []).filter((_, i) => i !== idx);
+                                return { ...prev, replacement_parts_list: newList };
+                              });
                             }}
                           >
                             <Trash2 className="h-4 w-4" />
@@ -1916,10 +1974,10 @@ export default function RepairsMaintenance() {
                           variant="ghost" 
                           size="sm" 
                           className="mt-2 h-7 text-[9px] font-bold uppercase text-amber-500 hover:bg-amber-500/5"
-                          onClick={() => setForm({ 
-                            ...form, 
-                            replacement_parts_list: [...(form.replacement_parts_list || []), { name: "", price: 0 }] 
-                          })}
+                          onClick={() => setForm(prev => ({ 
+                            ...prev, 
+                            replacement_parts_list: [...(prev.replacement_parts_list || []), { name: "", price: 0 }] 
+                          }))}
                         >
                           + Click to add first part
                         </Button>
@@ -1932,7 +1990,7 @@ export default function RepairsMaintenance() {
                     <Label className="text-[10px] font-bold uppercase opacity-60 mb-2 block">Additional Parts Notes</Label>
                     <Textarea 
                       value={form.parts_to_replace} 
-                      onChange={(e) => setForm({ ...form, parts_to_replace: e.target.value })} 
+                      onChange={(e) => setForm(prev => ({ ...prev, parts_to_replace: e.target.value }))} 
                       className="rounded-xl min-h-[60px] text-xs" 
                       placeholder="Any extra notes about parts..." 
                     />
@@ -1950,19 +2008,19 @@ export default function RepairsMaintenance() {
                   <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                     <div className="space-y-1">
                       <Label className="text-[10px] font-bold uppercase opacity-60">Parts</Label>
-                      <CurrencyInput value={form.parts_total} onChange={(e) => setForm({ ...form, parts_total: e.target.value })} placeholder="0" className="h-9 text-xs rounded-lg" />
+                      <CurrencyInput value={form.parts_total} onChange={(e) => setForm(prev => ({ ...prev, parts_total: e.target.value }))} placeholder="0" className="h-9 text-xs rounded-lg" />
                     </div>
                     <div className="space-y-1">
                       <Label className="text-[10px] font-bold uppercase opacity-60">Labour</Label>
-                      <CurrencyInput value={form.labour_total} onChange={(e) => setForm({ ...form, labour_total: e.target.value })} placeholder="0" className="h-9 text-xs rounded-lg" />
+                      <CurrencyInput value={form.labour_total} onChange={(e) => setForm(prev => ({ ...prev, labour_total: e.target.value }))} placeholder="0" className="h-9 text-xs rounded-lg" />
                     </div>
                     <div className="space-y-1">
                       <Label className="text-[10px] font-bold uppercase opacity-60">Other</Label>
-                      <CurrencyInput value={form.other_charges} onChange={(e) => setForm({ ...form, other_charges: e.target.value })} placeholder="0" className="h-9 text-xs rounded-lg" />
+                      <CurrencyInput value={form.other_charges} onChange={(e) => setForm(prev => ({ ...prev, other_charges: e.target.value }))} placeholder="0" className="h-9 text-xs rounded-lg" />
                     </div>
                     <div className="space-y-1">
                       <Label className="text-[10px] font-bold uppercase opacity-60 text-amber-500">VAT (%)</Label>
-                      <Input value={form.vat_rate} onChange={(e) => setForm({ ...form, vat_rate: e.target.value })} placeholder="7.5" className="h-9 text-xs rounded-lg bg-amber-500/5 border-amber-500/20" />
+                      <Input value={form.vat_rate} onChange={(e) => setForm(prev => ({ ...prev, vat_rate: e.target.value }))} placeholder="7.5" className="h-9 text-xs rounded-lg bg-amber-500/5 border-amber-500/20" />
                     </div>
                     <div className="space-y-1">
                       <Label className="text-[10px] font-bold uppercase opacity-40">VAT Amt</Label>
@@ -1977,11 +2035,11 @@ export default function RepairsMaintenance() {
                         <span>Final Quote (Grand Total)</span>
                         <span className="text-[9px] font-medium lowercase italic tracking-normal opacity-60">(Auto-calculated)</span>
                       </Label>
-                      <CurrencyInput className="rounded-xl h-12 bg-white/5 border-none text-amber-600 font-black text-2xl shadow-inner" placeholder="0" value={form.repair_cost} onChange={(e) => setForm({ ...form, repair_cost: e.target.value })} />
+                      <CurrencyInput className="rounded-xl h-12 bg-white/5 border-none text-amber-600 font-black text-2xl shadow-inner" placeholder="0" value={form.repair_cost} onChange={(e) => setForm(prev => ({ ...prev, repair_cost: e.target.value }))} />
                     </div>
                     <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 space-y-2">
                       <Label className="text-[10px] font-extrabold uppercase text-emerald-600">Deposit Paid</Label>
-                      <CurrencyInput className="rounded-xl h-12 bg-white/5 border-none text-emerald-600 font-black text-2xl shadow-inner" placeholder="0" value={form.deposit_amount} onChange={(e) => setForm({ ...form, deposit_amount: e.target.value })} />
+                      <CurrencyInput className="rounded-xl h-12 bg-white/5 border-none text-emerald-600 font-black text-2xl shadow-inner" placeholder="0" value={form.deposit_amount} onChange={(e) => setForm(prev => ({ ...prev, deposit_amount: e.target.value }))} />
                     </div>
                   </div>
 
@@ -1997,7 +2055,7 @@ export default function RepairsMaintenance() {
                             key={key}
                             type="button"
                             className={`group relative rounded-xl border p-3 text-left transition-all duration-300 ${form.bank_account === key ? 'bg-amber-500 border-amber-500 text-white shadow-lg scale-[1.02]' : 'bg-background/50 border-white/10 hover:border-amber-500/50 hover:bg-amber-500/5'}`}
-                            onClick={() => setForm({ ...form, bank_account: key })}
+                            onClick={() => setForm(prev => ({ ...prev, bank_account: key }))}
                           >
                             <div className="flex justify-between items-center">
                               <span className={`text-[10px] font-black uppercase tracking-wider ${form.bank_account === key ? 'text-white' : 'text-foreground/80'}`}>{acc.label}</span>
@@ -2021,7 +2079,7 @@ export default function RepairsMaintenance() {
                             key={type}
                             type="button"
                             className={`px-6 py-2 rounded-full border text-[10px] uppercase font-black transition-all duration-300 ${form.payment_type === type ? 'bg-emerald-500 border-emerald-500 text-white shadow-lg scale-105' : 'bg-background/50 border-white/10 hover:border-emerald-500/50 hover:bg-emerald-500/5 text-muted-foreground'}`}
-                            onClick={() => setForm({ ...form, payment_type: type })}
+                            onClick={() => setForm(prev => ({ ...prev, payment_type: type }))}
                           >
                             {type}
                           </button>
@@ -2038,13 +2096,13 @@ export default function RepairsMaintenance() {
                   <div className="space-y-2">
                     <Label className="text-[10px] font-bold uppercase tracking-tight opacity-60">Customer Signature</Label>
                     <div className="rounded-xl border border-white/10 p-2">
-                      <SignaturePad value={form.signature_data} onChange={(v) => setForm({ ...form, signature_data: v })} />
+                      <SignaturePad value={form.signature_data} onChange={(v) => setForm(prev => ({ ...prev, signature_data: v }))} />
                     </div>
                   </div>
                   <div className="space-y-2">
                     <Label className="text-[10px] font-bold uppercase tracking-tight opacity-60">Supervisor Signature</Label>
                     <div className="rounded-xl border border-white/10 p-2">
-                      <SignaturePad value={form.rep_signature} onChange={(v) => setForm({ ...form, rep_signature: v })} />
+                      <SignaturePad value={form.rep_signature} onChange={(v) => setForm(prev => ({ ...prev, rep_signature: v }))} />
                     </div>
                   </div>
                 </div>
