@@ -7,30 +7,40 @@ import { AppLayout } from "@/components/AppLayout";
 import { RoleGuard } from "@/components/RoleGuard";
 import { useAuth } from "@/hooks/useAuth";
 import { PermissionsRealtimeSync } from "@/hooks/usePermissions";
-import Index from "./pages/Index";
-import Auth from "./pages/Auth";
-import Settings from "./pages/Settings";
-import Unauthorized from "./pages/Unauthorized";
-import VehiclesList from "./pages/VehiclesList";
-import ResaleVehicles from "./pages/ResaleVehicles";
-import VehicleForm from "./pages/VehicleForm";
-import VehicleDetail from "./pages/VehicleDetail";
-import Customers from "./pages/Customers";
-import Sales from "./pages/Sales";
-import Invoices from "./pages/Invoices";
-import Inquiries from "./pages/Inquiries";
-import Inspections from "./pages/Inspections";
-import RepairsMaintenance from "./pages/RepairsMaintenance";
-import AuthorityToSell from "./pages/AuthorityToSell";
-import PerformanceQuotes from "./pages/PerformanceQuotes";
-import SignRepair from "./pages/SignRepair";
-import SignCustomer from "./pages/SignCustomer";
-import SignInspection from "./pages/SignInspection";
-import SignSale from "./pages/SignSale";
-import NotFound from "./pages/NotFound";
-import CustomerPortal from "./pages/CustomerPortal";
-import SourceCompanyDetails from "./pages/SourceCompanyDetails";
+import { lazy, Suspense } from "react";
 import { Loader2 } from "lucide-react";
+
+// Lazy load pages
+const Index = lazy(() => import("./pages/Index"));
+const Auth = lazy(() => import("./pages/Auth"));
+const Settings = lazy(() => import("./pages/Settings"));
+const Unauthorized = lazy(() => import("./pages/Unauthorized"));
+const VehiclesList = lazy(() => import("./pages/VehiclesList"));
+const ResaleVehicles = lazy(() => import("./pages/ResaleVehicles"));
+const VehicleForm = lazy(() => import("./pages/VehicleForm"));
+const VehicleDetail = lazy(() => import("./pages/VehicleDetail"));
+const Customers = lazy(() => import("./pages/Customers"));
+const Sales = lazy(() => import("./pages/Sales"));
+const Invoices = lazy(() => import("./pages/Invoices"));
+const Inquiries = lazy(() => import("./pages/Inquiries"));
+const Inspections = lazy(() => import("./pages/Inspections"));
+const RepairsMaintenance = lazy(() => import("./pages/RepairsMaintenance"));
+const AuthorityToSell = lazy(() => import("./pages/AuthorityToSell"));
+const PerformanceQuotes = lazy(() => import("./pages/PerformanceQuotes"));
+const SignRepair = lazy(() => import("./pages/SignRepair"));
+const SignCustomer = lazy(() => import("./pages/SignCustomer"));
+const SignInspection = lazy(() => import("./pages/SignInspection"));
+const SignSale = lazy(() => import("./pages/SignSale"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+const CustomerPortal = lazy(() => import("./pages/CustomerPortal"));
+const SourceCompanyDetails = lazy(() => import("./pages/SourceCompanyDetails"));
+const Profile = lazy(() => import("./pages/Profile"));
+
+const PageLoader = () => (
+  <div className="h-[60vh] w-full flex items-center justify-center">
+    <Loader2 className="h-10 w-10 animate-spin text-emerald-500 opacity-20" />
+  </div>
+);
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -65,8 +75,6 @@ function GuestGuard({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-import Profile from "./pages/Profile";
-
 function AppRoutes() {
   return (
     <Routes>
@@ -85,28 +93,30 @@ function AppRoutes() {
       <Route path="/*" element={
         <AuthGuard>
           <AppLayout>
-            <Routes>
-              <Route path="/dashboard"         element={<Index />} />
-              <Route path="/profile"           element={<Profile />} />
-              <Route path="/vehicles"          element={<RoleGuard page="vehicles"><VehiclesList /></RoleGuard>} />
-              <Route path="/resale-vehicles"   element={<RoleGuard page="resale-vehicles"><ResaleVehicles /></RoleGuard>} />
-              <Route path="/vehicles/new"      element={<RoleGuard page="vehicles"><VehicleForm /></RoleGuard>} />
-              <Route path="/vehicles/:id"      element={<RoleGuard page="vehicles"><VehicleDetail /></RoleGuard>} />
-              <Route path="/vehicles/:id/edit" element={<RoleGuard page="vehicles"><VehicleForm /></RoleGuard>} />
-              <Route path="/source-company/:name" element={<RoleGuard page="vehicles"><SourceCompanyDetails /></RoleGuard>} />
-              <Route path="/customers"         element={<RoleGuard page="customers"><Customers /></RoleGuard>} />
-              <Route path="/sales"             element={<RoleGuard page="sales"><Sales /></RoleGuard>} />
-              <Route path="/invoices"          element={<RoleGuard page="invoices"><Invoices /></RoleGuard>} />
-              <Route path="/inquiries"         element={<RoleGuard page="inquiries"><Inquiries /></RoleGuard>} />
-              <Route path="/inspections"       element={<RoleGuard page="inspections"><Inspections /></RoleGuard>} />
-              <Route path="/repairs"           element={<RoleGuard page="repairs"><RepairsMaintenance /></RoleGuard>} />
-              <Route path="/authority-to-sell" element={<RoleGuard page="authority-to-sell"><AuthorityToSell /></RoleGuard>} />
-              <Route path="/performance-quotes" element={<RoleGuard page="performance-quotes"><PerformanceQuotes /></RoleGuard>} />
-              {/* Settings — only super_admin can see; RoleGuard handled internally */}
-              <Route path="/settings"          element={<Settings />} />
-              <Route path="/unauthorized"      element={<Unauthorized />} />
-              <Route path="*"                  element={<NotFound />} />
-            </Routes>
+            <Suspense fallback={<PageLoader />}>
+              <Routes>
+                <Route path="/dashboard"         element={<Index />} />
+                <Route path="/profile"           element={<Profile />} />
+                <Route path="/vehicles"          element={<RoleGuard page="vehicles"><VehiclesList /></RoleGuard>} />
+                <Route path="/resale-vehicles"   element={<RoleGuard page="resale-vehicles"><ResaleVehicles /></RoleGuard>} />
+                <Route path="/vehicles/new"      element={<RoleGuard page="vehicles"><VehicleForm /></RoleGuard>} />
+                <Route path="/vehicles/:id"      element={<RoleGuard page="vehicles"><VehicleDetail /></RoleGuard>} />
+                <Route path="/vehicles/:id/edit" element={<RoleGuard page="vehicles"><VehicleForm /></RoleGuard>} />
+                <Route path="/source-company/:name" element={<RoleGuard page="vehicles"><SourceCompanyDetails /></RoleGuard>} />
+                <Route path="/customers"         element={<RoleGuard page="customers"><Customers /></RoleGuard>} />
+                <Route path="/sales"             element={<RoleGuard page="sales"><Sales /></RoleGuard>} />
+                <Route path="/invoices"          element={<RoleGuard page="invoices"><Invoices /></RoleGuard>} />
+                <Route path="/inquiries"         element={<RoleGuard page="inquiries"><Inquiries /></RoleGuard>} />
+                <Route path="/inspections"       element={<RoleGuard page="inspections"><Inspections /></RoleGuard>} />
+                <Route path="/repairs"           element={<RoleGuard page="repairs"><RepairsMaintenance /></RoleGuard>} />
+                <Route path="/authority-to-sell" element={<RoleGuard page="authority-to-sell"><AuthorityToSell /></RoleGuard>} />
+                <Route path="/performance-quotes" element={<RoleGuard page="performance-quotes"><PerformanceQuotes /></RoleGuard>} />
+                {/* Settings — only super_admin can see; RoleGuard handled internally */}
+                <Route path="/settings"          element={<Settings />} />
+                <Route path="/unauthorized"      element={<Unauthorized />} />
+                <Route path="*"                  element={<NotFound />} />
+              </Routes>
+            </Suspense>
           </AppLayout>
         </AuthGuard>
       } />
