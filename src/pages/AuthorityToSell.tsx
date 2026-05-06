@@ -510,7 +510,7 @@ export default function AuthorityToSell() {
                       <Input name="customerName" value={form.customerName} onChange={handleChange} placeholder="e.g. John Adeyemi" className="h-12 bg-background/50 border-white/10 focus-visible:ring-sky-500 rounded-xl" />
                     </div>
                     <div className="space-y-2 sm:col-span-2">
-                      <Label className="text-muted-foreground text-xs font-semibold px-1">REPRESENTATIVE NAME (IF APPLICABLE)</Label>
+                      <Label className="text-muted-foreground text-xs font-semibold px-1">REPRESENTATIVE NAME (FROM OWNER)</Label>
                       <Input name="ownerRepName" value={form.ownerRepName} onChange={handleChange} placeholder="Name of person representing the owner" className="h-12 bg-background/50 border-white/10 focus-visible:ring-sky-500 rounded-xl italic" />
                     </div>
                     <div className="space-y-2 sm:col-span-2">

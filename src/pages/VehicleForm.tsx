@@ -54,6 +54,7 @@ interface FormData {
   trim: string;
   inventory_type: string;
   accepted_by_name: string;
+  accepted_by_phone: string;
   accepted_date: string;
   accepted_signature: string;
 }
@@ -82,6 +83,7 @@ const emptyForm: FormData = {
   trim: "",
   inventory_type: "beetee",
   accepted_by_name: "",
+  accepted_by_phone: "",
   accepted_date: "",
   accepted_signature: "",
 };
@@ -176,6 +178,7 @@ export default function VehicleForm() {
         trim: v.trim || "",
         inventory_type: v.inventory_type || "beetee",
         accepted_by_name: v.accepted_by_name || "",
+        accepted_by_phone: v.accepted_by_phone || "",
         accepted_date: v.accepted_date || "",
         accepted_signature: v.accepted_signature || "",
       });
@@ -265,6 +268,7 @@ export default function VehicleForm() {
         trim: form.trim.trim() || null,
         inventory_type: form.inventory_type,
         accepted_by_name: form.accepted_by_name?.trim() || null,
+        accepted_by_phone: form.accepted_by_phone?.trim() || null,
         accepted_date: form.accepted_date || null,
         accepted_signature: form.accepted_signature || null,
       };
@@ -277,7 +281,7 @@ export default function VehicleForm() {
           make: form.make, model: form.model, year: form.year,
           vin: form.vin, inventory_type: form.inventory_type,
         });
-        toast.success("Vehicle updated successfully");
+        toast.success("Vehicle updated successfully. Please note it might take a moment to reflect across all views.");
       } else {
         const { data, error } = await supabase.from("vehicles").insert(payload).select().single();
         if (error) throw error;
@@ -287,7 +291,7 @@ export default function VehicleForm() {
           vin: form.vin, inventory_type: form.inventory_type,
           source_company: form.source_company,
         });
-        toast.success("Vehicle added successfully");
+        toast.success("Vehicle added successfully. Please note it might take a moment to reflect across all views.");
       }
 
       queryClient.invalidateQueries({ queryKey: ["vehicles"] });
@@ -507,9 +511,9 @@ export default function VehicleForm() {
             {field("date_arrived", "Date Arrived", "date")}
             {field("date_stored", "Date Stored", "date")}
             {field("num_keys", "Number of Keys", "number")}
-            {field("source_company", "Company the vehicle is from")}
-            {field("source_company_phone", "Company Phone Number", "tel")}
-            {field("source_rep_name", "Representative Name (Person Sent)")}
+            {field("source_company", "Company/Owner the vehicle is from")}
+            {field("source_company_phone", "Company/Owner Phone Number", "tel")}
+            {field("source_rep_name", "Representative Name (from Company/Owner)")}
             {field("source_rep_phone", "Representative Phone Number", "tel")}
             
             <div className="space-y-1">
@@ -537,6 +541,7 @@ export default function VehicleForm() {
             <CardContent className="space-y-4">
               <div className="grid gap-4 md:grid-cols-2">
                 {field("accepted_by_name", "Accepted By (Staff Name)")}
+                {field("accepted_by_phone", "Phone Number of Person Who Brought It", "tel")}
                 {field("accepted_date", "Acceptance Date", "date")}
               </div>
               <div className="space-y-2">

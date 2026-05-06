@@ -125,12 +125,6 @@ export default function Profile() {
                 </AvatarFallback>
               </Avatar>
               
-              {/* Temporary Debug Info */}
-              {avatarUrl && (
-                <div className="mt-2 p-2 bg-black/20 rounded text-[10px] font-mono max-w-[200px] break-all opacity-50 overflow-hidden">
-                  {avatarUrl.substring(0, 50)}...
-                </div>
-              )}
               <label className="absolute bottom-0 right-0 p-2 bg-primary text-primary-foreground rounded-full cursor-pointer shadow-lg hover:bg-primary/90 transition-colors">
                 {uploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Camera className="h-5 w-5" />}
                 <input type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} disabled={uploading} />

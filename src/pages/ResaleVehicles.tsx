@@ -98,7 +98,7 @@ export default function ResaleVehicles() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["vehicles"] });
-      toast.success("Vehicle deleted successfully");
+      toast.success("Vehicle deleted successfully. Please note it might take a moment to reflect across all views.");
     },
     onError: () => toast.error("Failed to delete vehicle"),
   });

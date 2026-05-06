@@ -233,11 +233,11 @@ export default function VehicleDetail() {
                 : null
             )}
             {info("Keys", vehicle.num_keys)}
-            {info("Source", vehicle.source_company)}
+            {info("Company/Owner Source", vehicle.source_company)}
             <div className="col-span-1 xs:col-span-2 space-y-4 pt-2 border-t border-white/5">
-              {info("Company Contact", (vehicle as any).source_company_phone)}
-              {info("Rep. Name", (vehicle as any).source_rep_name)}
-              {info("Rep. Contact", (vehicle as any).source_rep_phone)}
+              {info("Company/Owner Contact", (vehicle as any).source_company_phone)}
+              {info("Representative Name", (vehicle as any).source_rep_name)}
+              {info("Representative Contact", (vehicle as any).source_rep_phone)}
             </div>
           </CardContent>
         </Card>
@@ -250,6 +250,7 @@ export default function VehicleDetail() {
             <CardContent className="space-y-6">
               <div className="grid grid-cols-1 xs:grid-cols-2 gap-4">
                 {info("Accepted By", vehicle.accepted_by_name)}
+                {info("Contact of Person Who Brought It", (vehicle as any).accepted_by_phone)}
                 {info("Date", vehicle.accepted_date ? new Date(vehicle.accepted_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : null)}
               </div>
               

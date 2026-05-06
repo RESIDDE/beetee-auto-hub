@@ -19,7 +19,7 @@ import { QrSignDialog } from "@/lib/qrHelpers";
 import {
   Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious,
 } from "@/components/ui/pagination";
-import { Pencil, Trash2, PlusCircle, CheckCircle, XCircle, ClipboardCheck, Car, QrCode, Search, ArrowLeft, Check, ChevronsUpDown, UserPlus, Phone, User, Calendar, FileSignature, Eye } from "lucide-react";
+import { Pencil, Trash2, PlusCircle, CheckCircle, XCircle, ClipboardCheck, Car, QrCode, Search, ArrowLeft, Check, ChevronsUpDown, UserPlus, Phone, User, Calendar, FileSignature, Eye, AlertTriangle } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
@@ -54,6 +54,11 @@ type Inspection = {
     color?: string;
     mileage?: number;
     source_company?: string;
+    source_company_phone?: string;
+    source_rep_name?: string;
+    source_rep_phone?: string;
+    accepted_by_name?: string;
+    accepted_by_phone?: string;
     trim?: string;
   } | null;
 };
@@ -93,12 +98,12 @@ export default function Inspections() {
   const [page, setPage] = useState(0);
   const PAGE_SIZE = 9;
 
-  const { data: inspections = [], isLoading } = useQuery({
+  const { data: inspections = [], isLoading, error: queryError } = useQuery({
     queryKey: ["inspections"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("inspections")
-        .select("*, vehicles(make, model, year, vin, color, mileage, source_company, trim)")
+        .select("*, vehicles(make, model, year, vin, color, mileage, source_company, source_company_phone, source_rep_name, source_rep_phone, accepted_by_name, accepted_by_phone, trim)")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data as unknown as Inspection[];
@@ -170,7 +175,8 @@ export default function Inspections() {
         pickup_date: form.pickup_date,
         returned_ok: form.returned_in_good_condition,
       });
-      toast.success(editId ? "Inspection updated" : "Inspection added");
+      toast.success(`${editId ? "Inspection updated" : "Inspection added"} successfully. Please note it might take a moment to reflect across all views.`);
+      setPage(0);
       clearDraft();
       setForm(emptyForm);
       setEditId(null);
@@ -292,6 +298,11 @@ export default function Inspections() {
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {[1, 2, 3].map((n) => <div key={n} className="h-32 rounded-3xl bg-card/40 animate-pulse border border-white/5" />)}
+        </div>
+      ) : queryError ? (
+        <div className="bento-card p-12 text-center text-destructive">
+          <AlertTriangle className="h-10 w-10 mx-auto mb-4" />
+          <p>Failed to load inspections. Please try again later.</p>
         </div>
       ) : inspections.length === 0 ? (
         <div className="bento-card p-12 flex flex-col items-center justify-center text-center">
@@ -459,9 +470,26 @@ export default function Inspections() {
                         <p className="text-lg font-bold">{i.inspector_name}</p>
                       </div>
                       
-                      <div className="p-4 rounded-2xl bg-foreground/5 border border-white/5 space-y-1">
-                         <p className="text-[9px] uppercase font-bold text-muted-foreground">Source Company</p>
-                         <p className="text-sm font-semibold">{i.vehicles?.source_company || "N/A"}</p>
+                      <div className="p-4 rounded-2xl bg-foreground/5 border border-white/5 space-y-3">
+                         <div>
+                           <p className="text-[9px] uppercase font-bold text-muted-foreground">Company/Owner Source</p>
+                           <p className="text-sm font-semibold">{i.vehicles?.source_company || "N/A"}</p>
+                           {i.vehicles?.source_company_phone && <p className="text-[10px] text-muted-foreground">{i.vehicles.source_company_phone}</p>}
+                         </div>
+                         {(i.vehicles?.source_rep_name || i.vehicles?.source_rep_phone) && (
+                           <div className="pt-2 border-t border-white/5">
+                             <p className="text-[9px] uppercase font-bold text-muted-foreground">Official Representative</p>
+                             <p className="text-xs font-medium">{i.vehicles.source_rep_name || "—"}</p>
+                             {i.vehicles.source_rep_phone && <p className="text-[10px] text-muted-foreground">{i.vehicles.source_rep_phone}</p>}
+                           </div>
+                         )}
+                         {(i.vehicles?.accepted_by_name || i.vehicles?.accepted_by_phone) && (
+                           <div className="pt-2 border-t border-white/5">
+                             <p className="text-[9px] uppercase font-bold text-muted-foreground">Person Who Brought It</p>
+                             <p className="text-xs font-medium">{i.vehicles.accepted_by_name || "—"}</p>
+                             {i.vehicles.accepted_by_phone && <p className="text-[10px] text-muted-foreground">{i.vehicles.accepted_by_phone}</p>}
+                           </div>
+                         )}
                       </div>
                     </div>
                   </div>
