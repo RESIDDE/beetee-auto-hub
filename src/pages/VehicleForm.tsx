@@ -79,7 +79,7 @@ const emptyForm: FormData = {
   source_company_phone: "",
   source_rep_name: "",
   source_rep_phone: "",
-  condition: "Used",
+  condition: "New",
   trim: "",
   inventory_type: "beetee",
   accepted_by_name: "",
@@ -120,7 +120,11 @@ export default function VehicleForm() {
       navigate(pageKey === "resale-vehicles" ? "/resale-vehicles" : "/vehicles");
     }
     if (!isEdit) {
-      setForm(prev => ({ ...prev, inventory_type: defaultType }));
+      setForm(prev => ({ 
+        ...prev, 
+        inventory_type: defaultType,
+        condition: defaultType === 'beetee' ? 'New' : 'Used'
+      }));
     }
   }, [isEdit, hasEdit, role, permissions, navigate, defaultType]);
 
