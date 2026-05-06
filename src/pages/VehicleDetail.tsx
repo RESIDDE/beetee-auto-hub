@@ -27,12 +27,11 @@ import { canEdit } from "@/lib/permissions";
 import { logAction } from "@/lib/logger";
 
 export default function VehicleDetail() {
-  const { role } = useAuth();
-  const { permissions } = usePermissions();
-  const hasEdit = canEdit(role, "vehicles", permissions);
   const { id } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { role } = useAuth();
+  const { permissions } = usePermissions();
 
   const { data: vehicle, isLoading } = useQuery({
     queryKey: ["vehicle", id],
@@ -46,6 +45,9 @@ export default function VehicleDetail() {
       return data;
     },
   });
+
+  const pageKey = vehicle?.inventory_type === "resale" ? "resale-vehicles" : "vehicles";
+  const hasEdit = canEdit(role, pageKey, permissions);
 
   const { data: images = [] } = useQuery({
     queryKey: ["vehicle-images", id],

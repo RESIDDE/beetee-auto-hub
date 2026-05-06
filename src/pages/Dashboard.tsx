@@ -52,27 +52,27 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 const WelcomeLanding = ({ profile, user, role, permissions }: any) => {
   const accessibleKeys = getAccessiblePages(role as AppRole, permissions);
   const assignedPages = ALL_PAGES.filter(p => accessibleKeys.includes(p.key) && p.key !== 'dashboard');
+  const displayName = profile?.display_name || user?.email?.split('@')[0] || "User";
+  const initials = profile?.display_name?.substring(0, 2).toUpperCase() || user?.email?.substring(0, 2).toUpperCase() || "??";
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[70vh] text-center px-4 animate-fade-up">
-      <div className="relative mb-8">
-        <div className="absolute inset-0 bg-primary/20 blur-3xl rounded-full scale-150 animate-pulse" />
-        <Avatar className="h-32 w-32 border-4 border-background shadow-2xl relative z-10">
-          <AvatarImage src={profile?.avatar_url || ""} className="object-cover" />
-          <AvatarFallback className="bg-primary/10 text-primary text-4xl font-black">
-            {profile?.display_name?.substring(0, 2).toUpperCase() || user?.email?.substring(0, 2).toUpperCase()}
-          </AvatarFallback>
-        </Avatar>
+    <div className="flex flex-col items-center justify-center py-12 animate-fade-up">
+      <div className="w-32 h-32 rounded-full border-4 border-white shadow-2xl bg-primary/10 flex items-center justify-center text-4xl font-black text-primary mb-8 overflow-hidden">
+        {profile?.avatar_url ? (
+          <img src={`${profile.avatar_url}${profile.avatar_url.includes('?') ? '&' : '?'}t=${new Date(profile.updated_at || Date.now()).getTime()}`} alt={displayName} className="w-full h-full object-cover" />
+        ) : (
+          initials
+        )}
       </div>
       
       <h1 className="text-4xl md:text-6xl font-black tracking-tight mb-4">
-        Welcome, <span className="text-primary">{profile?.display_name?.split(' ')[0] || 'there'}</span>!
+        Welcome, <span className="text-primary">{displayName}</span>!
       </h1>
-      <p className="text-lg text-muted-foreground max-w-2xl mb-12 leading-relaxed">
+      <p className="text-lg text-muted-foreground max-w-2xl mb-12 leading-relaxed text-center">
         You are currently logged in as <span className="text-foreground font-bold uppercase tracking-widest text-sm bg-foreground/5 px-2 py-1 rounded-lg">{role?.replace('_', ' ') || 'Pending Approval'}</span>. 
         {assignedPages.length > 0 
-          ? "Below are the modules you have been assigned to manage."
-          : "Your account is currently being reviewed. Once assigned a role, your modules will appear here."}
+          ? " Below are the modules you have been assigned to manage."
+          : " Your account is currently being reviewed. Once assigned a role, your modules will appear here."}
       </p>
 
       {assignedPages.length > 0 && (
@@ -312,7 +312,7 @@ export default function Dashboard() {
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-white/5 pb-8">
         <div className="flex flex-col sm:flex-row items-center gap-6 text-center sm:text-left">
           <Avatar className="h-20 w-20 border-4 border-background shadow-xl shrink-0">
-            <AvatarImage src={profile?.avatar_url || ""} className="object-cover" />
+            <AvatarImage src={profile?.avatar_url ? `${profile.avatar_url}${profile.avatar_url.includes('?') ? '&' : '?'}t=${new Date(profile.updated_at || Date.now()).getTime()}` : ""} className="object-cover" />
             <AvatarFallback className="bg-primary/10 text-primary text-xl font-bold">
               {profile?.display_name?.substring(0, 2).toUpperCase() || user?.email?.substring(0, 2).toUpperCase()}
             </AvatarFallback>

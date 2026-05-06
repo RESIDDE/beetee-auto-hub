@@ -174,7 +174,7 @@ export default function PerformanceQuotes() {
       queryClient.invalidateQueries({ queryKey: ["performance_quotes"] });
       queryClient.invalidateQueries({ queryKey: ["customers"] });
       logAction("CREATE", "Proforma Quote");
-      toast.success("Proforma quote created successfully");
+      toast.success("Proforma quote created successfully. Please note it might take a moment to reflect across all views.");
       clearDraft();
       closeDialog();
     },

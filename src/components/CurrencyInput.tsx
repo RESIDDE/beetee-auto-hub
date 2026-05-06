@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Input } from "./ui/input";
 
 export type CurrencyInputProps = Omit<React.ComponentProps<"input">, "onChange"> & { 
@@ -12,42 +12,67 @@ export function CurrencyInput({
   placeholder,
   ...props
 }: CurrencyInputProps) {
-  const [displayValue, setDisplayValue] = useState("");
+  const format = useCallback((val: string | number | undefined | null) => {
+    if (val === undefined || val === null || val === "") return "";
+    
+    // Remove all commas for processing
+    const numericString = val.toString().replace(/,/g, "");
+    const isNegative = numericString.startsWith("-");
+    
+    // Extract only digits and the first decimal point
+    const cleanNumericString = numericString.replace(/[^\d.]/g, "");
+    const parts = cleanNumericString.split(".");
+    
+    // We only care about the first two parts if there are multiple dots
+    const integerPart = parts[0];
+    const decimalPart = parts.length > 1 ? "." + parts.slice(1).join("").substring(0, 2) : "";
+    
+    // Add commas to the integer part
+    const formattedInteger = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    
+    return (isNegative ? "-" : "") + formattedInteger + decimalPart;
+  }, []);
+
+  const [displayValue, setDisplayValue] = useState(() => format(value as any));
 
   useEffect(() => {
-    // When the raw value changes from outside, format it for display
-    if (value === undefined || value === null || value === "") {
-      setDisplayValue("");
-    } else {
-      // Remove any non-digit chars (except decimal point if we wanted to support it, but assuming whole numbers or limited decimals)
-      const numericString = value.toString().replace(/,/g, "");
-      const isNegative = numericString.startsWith("-");
-      const cleanNumericString = numericString.replace(/[^\d.]/g, "");
-      
-      const parts = cleanNumericString.split(".");
-      parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-      
-      const formatted = (isNegative ? "-" : "") + parts.join(".");
-      if (formatted !== displayValue) {
-        setDisplayValue(formatted);
-      }
+    const formatted = format(value as any);
+    if (formatted !== displayValue) {
+      setDisplayValue(formatted);
     }
-  }, [value]);
+  }, [value, format, displayValue]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let rawValue = e.target.value;
+    let inputVal = e.target.value;
     
-    // Check if it's negative
-    const isNegative = rawValue.startsWith("-");
-    const cleanRawValue = rawValue.replace(/[^\d.]/g, "");
+    // Determine if negative
+    const isNegative = inputVal.startsWith("-");
     
-    // Create new event with unformatted value
+    // Clean the value for the parent state (no commas)
+    const cleanNumericString = inputVal.replace(/[^\d.]/g, "");
+    const parts = cleanNumericString.split(".");
+    const integerPart = parts[0];
+    const decimalPart = parts.length > 1 ? "." + parts.slice(1).join("").substring(0, 2) : "";
+    const rawValue = (isNegative ? "-" : "") + integerPart + decimalPart;
+
+    // Immediately update local display state for smoothness
+    const formatted = format(rawValue);
+    setDisplayValue(formatted);
+
+    // Call parent onChange with the unformatted value
+    // Create a minimal fake event object that React components expect
     const newEvent = {
-       ...e,
-       target: {
-         ...e.target,
-         value: (isNegative ? "-" : "") + cleanRawValue
-       }
+      ...e,
+      target: {
+        ...e.target,
+        value: rawValue,
+        name: e.target.name,
+        id: e.target.id
+      },
+      currentTarget: {
+        ...e.currentTarget,
+        value: rawValue
+      }
     };
     
     onChange(newEvent as React.ChangeEvent<HTMLInputElement>);

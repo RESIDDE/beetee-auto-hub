@@ -32,7 +32,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const loadExtras = async (userId: string) => {
     try {
       const [profileResult, roleResult] = await Promise.all([
-        supabase.from("profiles").select("*").or(`user_id.eq.${userId},id.eq.${userId}`).maybeSingle(),
+        supabase.from("profiles").select("*").eq("user_id", userId).maybeSingle(),
         (supabase as any).from("user_roles").select("role").eq("user_id", userId).maybeSingle(),
       ]);
 

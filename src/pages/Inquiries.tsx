@@ -316,7 +316,7 @@ export default function Inquiries() {
           </div>
           <h2 className="text-xl font-bold mb-2">No inquiries yet.</h2>
           <p className="text-muted-foreground max-w-sm mb-6">There are currently no active messages from customers.</p>
-          {hasEdit && (
+          {canCreate(role, "inquiries", permissions) && (
             <Button onClick={() => { setForm(emptyForm); setEditId(null); setDialogOpen(true); }} className="rounded-xl shadow-lg shadow-indigo-500/20 bg-indigo-500 hover:bg-indigo-600 text-white">Add Inquiry</Button>
           )}
         </div>

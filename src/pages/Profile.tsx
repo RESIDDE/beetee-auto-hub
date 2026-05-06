@@ -46,7 +46,20 @@ export default function Profile() {
 
       const avatarUrlWithCacheBuster = `${publicUrl}?t=${Date.now()}`;
       setAvatarUrl(avatarUrlWithCacheBuster);
-      toast.success("Avatar uploaded! Remember to save your profile.");
+      
+      // Auto-save the avatar URL to the database immediately
+      // profiles.user_id = auth.uid() — use user_id for upsert matching
+      const { error: saveError } = await supabase
+        .from("profiles")
+        .upsert(
+          { user_id: user?.id, avatar_url: publicUrl, updated_at: new Date().toISOString() },
+          { onConflict: 'user_id' }
+        );
+
+      if (saveError) throw saveError;
+      
+      await refreshProfile();
+      toast.success("Avatar updated successfully!");
     } catch (error: any) {
       toast.error(error.message || "Failed to upload avatar");
     } finally {
@@ -58,17 +71,21 @@ export default function Profile() {
     if (!user) return;
     try {
       setLoading(true);
-      const { error } = await supabase
+      // profiles.user_id = auth.uid() — upsert on 'user_id' covers both insert & update
+      const { error: saveError } = await supabase
         .from("profiles")
-        .update({
-          display_name: displayName,
-          phone: phone,
-          avatar_url: avatarUrl,
-          updated_at: new Date().toISOString(),
-        })
-        .or(`user_id.eq.${user.id},id.eq.${user.id}`);
+        .upsert(
+          {
+            user_id: user.id,
+            display_name: displayName,
+            phone: phone,
+            avatar_url: avatarUrl ? avatarUrl.split('?')[0] : null,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'user_id' }
+        );
 
-      if (error) throw error;
+      if (saveError) throw saveError;
 
       await refreshProfile();
       await logAction("UPDATE", "Profile", user.id, { display_name: displayName });
@@ -98,11 +115,22 @@ export default function Profile() {
           <CardContent className="-mt-6 flex flex-col items-center">
             <div className="relative group">
               <Avatar className="h-32 w-32 border-4 border-background shadow-2xl transition-transform duration-500 group-hover:scale-105">
-                <AvatarImage src={avatarUrl || ""} className="object-cover" />
+                <AvatarImage 
+                  src={avatarUrl ? `${avatarUrl.split('?')[0]}${avatarUrl.includes('?') ? '&' : '?'}t=${new Date(profile?.updated_at || Date.now()).getTime()}` : ""} 
+                  className="object-cover"
+                  onLoadingStatusChange={(status) => console.log("Avatar Load Status:", status, "URL:", avatarUrl)}
+                />
                 <AvatarFallback className="bg-primary/10 text-primary text-3xl font-bold">
                   {displayName?.substring(0, 2).toUpperCase() || user?.email?.substring(0, 2).toUpperCase()}
                 </AvatarFallback>
               </Avatar>
+              
+              {/* Temporary Debug Info */}
+              {avatarUrl && (
+                <div className="mt-2 p-2 bg-black/20 rounded text-[10px] font-mono max-w-[200px] break-all opacity-50 overflow-hidden">
+                  {avatarUrl.substring(0, 50)}...
+                </div>
+              )}
               <label className="absolute bottom-0 right-0 p-2 bg-primary text-primary-foreground rounded-full cursor-pointer shadow-lg hover:bg-primary/90 transition-colors">
                 {uploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Camera className="h-5 w-5" />}
                 <input type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} disabled={uploading} />

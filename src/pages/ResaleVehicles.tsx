@@ -65,7 +65,7 @@ export default function ResaleVehicles() {
   const navigate = useNavigate();
   const { role } = useAuth();
   const { permissions } = usePermissions();
-  const hasEdit = canEdit(role, "vehicles", permissions);
+  const hasEdit = canEdit(role, "resale-vehicles", permissions);
   console.log("ResaleVehicles loaded with statusFilter support", { role, hasEdit });
 
   const [search, setSearch] = useState("");
@@ -283,7 +283,7 @@ export default function ResaleVehicles() {
               <DropdownMenuItem onClick={handlePrint} className="rounded-lg cursor-pointer text-primary font-bold"><Printer className="mr-2 h-4 w-4" /> Print View</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          {canCreate(role, "vehicles", permissions) && (
+          {canCreate(role, "resale-vehicles", permissions) && (
             <Button asChild size="sm" className="rounded-xl shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all bg-emerald-500 hover:bg-emerald-600 text-xs">
               <Link to="/vehicles/new?inventory_type=resale">
                 <PlusCircle className="mr-1.5 h-4 w-4" /> Add Resale Vehicle

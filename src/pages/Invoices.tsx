@@ -185,7 +185,7 @@ export default function Invoices() {
       queryClient.invalidateQueries({ queryKey: ["invoices"] });
       queryClient.invalidateQueries({ queryKey: ["invoice-repair-links"] });
       logAction("CREATE", "Invoice", inv?.id);
-      toast.success("Invoice created");
+      toast.success("Invoice created successfully. Please note it might take a moment to reflect across all views.");
       clearDraft();
       setForm({ customer_id: "", sale_id: "", invoice_type: "sale", notes: "", due_date: "", selectedRepairs: [] });
       setDialogOpen(false);
@@ -544,7 +544,7 @@ export default function Invoices() {
              </div>
              <h2 className="text-xl font-bold mb-2">No invoices created yet.</h2>
              <p className="text-muted-foreground max-w-sm mb-6">Create your first professional invoice for a customer sale or repair.</p>
-             {hasEdit && (
+             {canCreate(role, "invoices", permissions) && (
                <Button onClick={() => setDialogOpen(true)} className="rounded-xl shadow-lg shadow-cyan-500/20 bg-cyan-500 hover:bg-cyan-600 text-white">Create Invoice</Button>
              )}
           </div>

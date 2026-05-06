@@ -72,7 +72,7 @@ export function AppSidebar() {
         {/* User Profile Summary */}
         <NavLink to="/profile" onClick={handleNavClick} className="flex items-center gap-3 p-2 rounded-2xl hover:bg-sidebar-accent/50 transition-all duration-300 group">
           <Avatar className="h-10 w-10 border-2 border-primary/20 group-hover:border-primary transition-colors shrink-0 shadow-lg">
-            <AvatarImage src={profile?.avatar_url || ""} className="object-cover" />
+            <AvatarImage src={profile?.avatar_url ? `${profile.avatar_url}${profile.avatar_url.includes('?') ? '&' : '?'}t=${new Date(profile.updated_at || Date.now()).getTime()}` : ""} className="object-cover" />
             <AvatarFallback className="bg-primary/10 text-primary font-bold text-xs">
               {profile?.display_name?.substring(0, 2).toUpperCase() || user?.email?.substring(0, 2).toUpperCase()}
             </AvatarFallback>

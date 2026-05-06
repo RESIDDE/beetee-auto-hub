@@ -330,7 +330,7 @@ export default function Sales() {
       queryClient.invalidateQueries({ queryKey: ["customers"] });
       const action = editId ? "UPDATE" : "CREATE";
       logAction(action, "Sales", editId ?? undefined);
-      toast.success(editId ? "Sale updated" : "Sale recorded");
+      toast.success(`${editId ? "Sale updated" : "Sale recorded"} successfully. Please note it might take a moment to reflect across all views.`);
       clearDraft();
       setForm(emptyForm);
       setEditId(null);
@@ -1163,7 +1163,9 @@ export default function Sales() {
           </div>
           <h3 className="text-xl font-bold mb-2">No Sales Recorded</h3>
           <p className="text-muted-foreground max-w-xs mx-auto mb-6">You haven't recorded any sales yet. Click "Record New Sale" to get started.</p>
-          <Button onClick={() => setDialogOpen(true)} className="rounded-2xl bg-violet-500 hover:bg-violet-600 shadow-lg shadow-violet-500/20">Record Your First Sale</Button>
+          {canCreate(role, "sales", permissions) && (
+            <Button onClick={() => setDialogOpen(true)} className="rounded-2xl bg-violet-500 hover:bg-violet-600 shadow-lg shadow-violet-500/20">Record Your First Sale</Button>
+          )}
         </div>
       ) : (
         <div className="bento-card overflow-hidden border-none shadow-2xl">

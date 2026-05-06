@@ -21,7 +21,7 @@ import {
 import { toast } from "sonner";
 import { format, subMonths } from "date-fns";
 import { 
-  ChevronRight, ArrowRight, ArrowLeft, Receipt, ClipboardCheck, Wrench, PlusCircle, Clock, DollarSign, PieChart as PieChartIcon, Search, Car, Pencil, QrCode, FileOutput, Trash2, History as HistoryIcon, Check, ChevronsUpDown, Mail, Printer, CreditCard, CheckCircle, Bell, X as XIcon, AlertTriangle as AlertTriangleIcon, Eye
+  ChevronRight, ArrowRight, ArrowLeft, Receipt, ClipboardCheck, Wrench, PlusCircle, Clock, DollarSign, PieChart as PieChartIcon, Search, Car, Pencil, QrCode, FileOutput, Trash2, History as HistoryIcon, Check, ChevronsUpDown, Mail, Printer, CreditCard, CheckCircle, Bell, X as XIcon, AlertTriangle as AlertTriangleIcon, Eye, RotateCcw
 } from "lucide-react";
 import {
   Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList
@@ -117,6 +117,16 @@ type Repair = {
   customers?: { name: string } | null;
 };
 
+type RepairPayment = {
+  id: string;
+  repair_id: string;
+  amount: number;
+  payment_date: string;
+  payment_method: string;
+  notes: string;
+  created_at: string;
+};
+
 const emptyForm = {
   job_card_no: "",
   vehicle_id: "",
@@ -198,6 +208,11 @@ export default function RepairsMaintenance() {
   const [reminderDismissed, setReminderDismissed] = useState(() =>
     sessionStorage.getItem("service_reminder_dismissed") === "true"
   );
+  const [paymentRepairId, setPaymentRepairId] = useState<string | null>(null);
+  const [newPaymentAmount, setNewPaymentAmount] = useState("");
+  const [newPaymentMethod, setNewPaymentMethod] = useState("cash");
+  const [newPaymentNote, setNewPaymentNote] = useState("");
+  const [printPaymentId, setPrintPaymentId] = useState<string | null>(null);
   const [activeServiceView, setActiveServiceView] = useState<"all" | "service_due">("all");
   const [selectedMonth, setSelectedMonth] = useState<string>(format(new Date(), 'yyyy-MM'));
   const [selectedWeek, setSelectedWeek] = useState<string>("all");
@@ -279,6 +294,20 @@ export default function RepairsMaintenance() {
         months: mRow ? parseInt(mRow.value) || 0 : 3, 
         days: dRow ? parseInt(dRow.value) || 0 : 0 
       };
+    },
+  });
+
+  const { data: repairPayments = [] } = useQuery({
+    queryKey: ["repair_payments", paymentRepairId],
+    enabled: !!paymentRepairId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("repair_payments" as any)
+        .select("*")
+        .eq("repair_id", paymentRepairId)
+        .order("payment_date", { ascending: true });
+      if (error) throw error;
+      return data as unknown as RepairPayment[];
     },
   });
 
@@ -538,16 +567,55 @@ export default function RepairsMaintenance() {
       if (editId) {
         const { error } = await supabase.from("repairs").update(payload).eq("id", editId);
         if (error) throw error;
+
+        // Sync deposit amount with repair_payments
+        const deposit = Number(form.deposit_amount) || 0;
+        if (deposit > 0) {
+          const { data: existing } = await supabase
+            .from("repair_payments" as any)
+            .select("id")
+            .eq("repair_id", editId)
+            .ilike("notes", "%initial deposit%")
+            .limit(1);
+
+          if (existing && existing.length > 0) {
+            const existingId = (existing[0] as any).id;
+            await supabase.from("repair_payments" as any)
+              .update({ amount: deposit, payment_method: form.payment_type })
+              .eq("id", existingId);
+          } else {
+            await supabase.from("repair_payments" as any).insert({
+              repair_id: editId,
+              amount: deposit,
+              payment_method: form.payment_type,
+              notes: "Initial deposit recorded at time of repair update",
+              payment_date: new Date().toISOString()
+            });
+          }
+        }
       } else {
-        const { error } = await supabase.from("repairs").insert(payload);
+        const { data: newRepair, error } = await supabase.from("repairs").insert(payload).select().single();
         if (error) throw error;
+
+        // Auto-insert initial payment if deposit > 0
+        const deposit = Number(form.deposit_amount) || 0;
+        if (deposit > 0 && newRepair) {
+          await supabase.from("repair_payments" as any).insert({
+            repair_id: newRepair.id,
+            amount: deposit,
+            payment_method: form.payment_type,
+            notes: "Initial deposit recorded at time of repair creation",
+            payment_date: new Date().toISOString()
+          });
+        }
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["repairs"] });
       queryClient.invalidateQueries({ queryKey: ["customers-list"] });
+      queryClient.invalidateQueries({ queryKey: ["repair_payments"] });
       logAction(editId ? "UPDATE" : "CREATE", "Repair", editId ?? undefined);
-      toast.success(editId ? "Repair updated" : "Repair added");
+      toast.success(`${editId ? "Repair updated" : "Repair added"} successfully. Please note it might take a moment to reflect across all views.`);
       clearDraft();
       setForm(emptyForm);
       setEditId(null);
@@ -568,6 +636,47 @@ export default function RepairsMaintenance() {
     },
     onError: (e: any) => toast.error(e.message),
   });
+
+  const addRepairPaymentMutation = useMutation({
+    mutationFn: async () => {
+      if (!paymentRepairId) return;
+      const amt = Number(newPaymentAmount) || 0;
+      if (amt <= 0) throw new Error("Please enter a valid amount");
+
+      const { error: pErr } = await supabase.from("repair_payments" as any).insert({
+        repair_id: paymentRepairId,
+        amount: amt,
+        payment_method: newPaymentMethod,
+        notes: newPaymentNote,
+        payment_date: new Date().toISOString()
+      });
+      if (pErr) throw pErr;
+
+      // Update repair's deposit_amount and status if needed
+      const currentRepair = repairs.find(r => r.id === paymentRepairId);
+      if (currentRepair) {
+        const { data: currentPayments } = await supabase.from("repair_payments" as any).select("amount").eq("repair_id", paymentRepairId);
+        const totalPaid = (currentPayments || []).reduce((sum: number, p: any) => sum + Number(p.amount), 0);
+        const totalCost = Number(currentRepair.repair_cost) || 0;
+        
+        const updateData: any = {
+          deposit_amount: totalPaid,
+          payment_status: totalPaid >= totalCost ? "paid_in_full" : "deposit"
+        };
+        await supabase.from("repairs").update(updateData).eq("id", paymentRepairId);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["repairs"] });
+      queryClient.invalidateQueries({ queryKey: ["repair_payments", paymentRepairId] });
+      toast.success("Payment recorded successfully");
+      setNewPaymentAmount("");
+      setNewPaymentNote("");
+      logAction("CREATE", "Repair Payment", paymentRepairId || undefined);
+    },
+    onError: (e: any) => toast.error(e.message)
+  });
+
 
   const closeDialog = () => { setOpen(false); setEditId(null); };
 
@@ -987,6 +1096,168 @@ export default function RepairsMaintenance() {
     const win = window.open("", "_blank");
     if (win) { win.document.write(html); win.document.close(); win.print(); }
   };
+
+  const printRepairPaymentReceipt = (payment: RepairPayment, repair: Repair) => {
+    const cust = customers.find(c => c.id === repair.customer_id);
+    const paymentsSoFar = repairPayments.filter(p => new Date(p.payment_date).getTime() <= new Date(payment.payment_date).getTime());
+    const totalPaidToDate = paymentsSoFar.reduce((sum, p) => sum + Number(p.amount), 0);
+    const vehicleLabel = getVehicleLabel(repair).toUpperCase();
+    const totalCost = Number(repair.repair_cost) || 0;
+    const balanceRemaining = totalCost - totalPaidToDate;
+    
+    // Ordinal label logic
+    const paymentIndex = repairPayments.findIndex(p => p.id === payment.id);
+    let ordinalLabel = "Payment Receipt";
+    if (paymentIndex === 0) ordinalLabel = "Deposit Receipt";
+    else if (totalPaidToDate >= totalCost) ordinalLabel = "Full Payment Receipt";
+    else {
+      const ordinals = ["1st", "2nd", "3rd", "4th", "5th"];
+      ordinalLabel = `${ordinals[paymentIndex] || (paymentIndex + 1) + 'th'} Payment Receipt`;
+    }
+
+    const html = `<html><head><title>${ordinalLabel} - ${repair.job_card_no}</title>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap');
+      body { font-family: 'Roboto', 'Arial', sans-serif; padding: 15px; max-width: 800px; margin: 0 auto; color: #1a1a1a; line-height: 1.3; }
+      .date-section { text-align: right; font-weight: 800; font-size: 13px; margin-bottom: 15px; text-transform: uppercase; }
+      .bill-to { margin-bottom: 20px; }
+      .bill-to p { margin: 2px 0; font-size: 13px; }
+      .main-container {
+        background-color: transparent;
+        border-radius: 40px;
+        padding: 20px;
+        position: relative;
+        border: none;
+      }
+      .content-wrapper { position: relative; z-index: 1; }
+      .bill-title { text-align: center; text-decoration: underline; font-weight: 900; font-size: 20px; margin-bottom: 20px; color: #1e293b; text-transform: uppercase; }
+      
+      table { width: 100%; border-collapse: collapse; background: transparent; margin-bottom: 20px; }
+      th, td { border: 1px solid #475569; padding: 8px 10px; text-align: left; font-size: 13px; font-weight: 600; }
+      th { background: transparent; text-transform: uppercase; }
+      
+      .summary-box { border: 2.5px solid #1e293b; padding: 20px; border-radius: 15px; margin-top: 30px; background: rgba(0,0,0,0.02); }
+      .summary-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-weight: 700; font-size: 14px; }
+      .balance-row { font-size: 20px; color: #d32f2f; border-top: 2px solid #1e293b; padding-top: 12px; margin-top: 12px; }
+      
+      .amount-words { font-weight: 900; margin-bottom: 20px; font-size: 14px; text-transform: uppercase; }
+      .footer-sign { margin-top: 60px; display: grid; grid-template-columns: 1fr 1fr; gap: 80px; }
+      .sign-box { text-align: center; border-top: 2px solid #000; padding-top: 10px; font-size: 12px; font-weight: 900; text-transform: uppercase; }
+    </style></head><body>
+    ${getPrintHeaderHTML('')}
+    
+    <div class="date-section">DATE: ${new Date(payment.payment_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
+
+    <div class="bill-to">
+      <p style="font-weight: 900;">BILL TO:</p>
+      <p><strong>${cust?.name || 'Cash Customer'}</strong></p>
+      <p>Tel: ${cust?.phone || repair.registration_no || ''}</p>
+      <p>Vehicle: <strong>${vehicleLabel}</strong></p>
+      <p>Job Card No: <strong>${repair.job_card_no || '—'}</strong></p>
+    </div>
+
+    <div class="main-container">
+      ${getPrintWatermarkHTML('')}
+      <div class="content-wrapper">
+        <h2 class="bill-title">${ordinalLabel}</h2>
+        
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 40px; text-align: center;">#</th>
+              <th>SERVICE DESCRIPTION</th>
+              <th style="width: 60px; text-align: center;">QTY</th>
+              <th style="width: 120px;">UNIT PRICE</th>
+              <th style="width: 120px; text-align: right;">AMOUNT (₦)</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${repair.replacement_parts_list && (repair.replacement_parts_list as any).length > 0 ? (repair.replacement_parts_list as any).map((p: any, idx: number) => `
+              <tr>
+                <td>${idx + 1}.</td>
+                <td>${p.name.toUpperCase()}</td>
+                <td style="text-align: center;">1</td>
+                <td>₦${(Number(p.price) || 0).toLocaleString()}</td>
+                <td style="text-align: right;">₦${(Number(p.price) || 0).toLocaleString()}</td>
+              </tr>
+            `).join('') : `
+              <tr>
+                <td>1.</td>
+                <td>PARTS & MATERIALS</td>
+                <td style="text-align: center;">1</td>
+                <td>₦${(Number(repair.parts_total) || 0).toLocaleString()}</td>
+                <td style="text-align: right;">₦${(Number(repair.parts_total) || 0).toLocaleString()}</td>
+              </tr>
+            `}
+            <tr>
+              <td>${repair.replacement_parts_list && (repair.replacement_parts_list as any).length > 0 ? (repair.replacement_parts_list as any).length + 1 : 2}.</td>
+              <td>LABOUR CHARGES</td>
+              <td style="text-align: center;">1</td>
+              <td>₦${(Number(repair.labour_total) || 0).toLocaleString()}</td>
+              <td style="text-align: right;">₦${(Number(repair.labour_total) || 0).toLocaleString()}</td>
+            </tr>
+            ${Number(repair.other_charges) > 0 ? `
+            <tr>
+              <td>${repair.replacement_parts_list && (repair.replacement_parts_list as any).length > 0 ? (repair.replacement_parts_list as any).length + 2 : 3}.</td>
+              <td>OTHER SERVICES / CHARGES</td>
+              <td style="text-align: center;">1</td>
+              <td>₦${(Number(repair.other_charges) || 0).toLocaleString()}</td>
+              <td style="text-align: right;">₦${(Number(repair.other_charges) || 0).toLocaleString()}</td>
+            </tr>` : ''}
+            ${Number(repair.vat) > 0 ? `
+            <tr>
+              <td>${(repair.replacement_parts_list && (repair.replacement_parts_list as any).length > 0 ? (repair.replacement_parts_list as any).length : 2) + (Number(repair.other_charges) > 0 ? 2 : 1)}</td>
+              <td>VAT / TAX</td>
+              <td style="text-align: center;"></td>
+              <td>₦${(Number(repair.vat) || 0).toLocaleString()}</td>
+              <td style="text-align: right;">₦${(Number(repair.vat) || 0).toLocaleString()}</td>
+            </tr>` : ''}
+            <tr class="total-row">
+              <td colspan="3" style="border: none;"></td>
+              <td style="text-align: right;">GRAND TOTAL</td>
+              <td style="text-align: right;">₦${totalCost.toLocaleString()}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="summary-box">
+          <div class="summary-row">
+            <span>TOTAL REPAIR COST:</span>
+            <span>₦${totalCost.toLocaleString()}</span>
+          </div>
+          <div class="summary-row" style="opacity: 0.7;">
+            <span>PREVIOUS PAYMENTS:</span>
+            <span>₦${(totalPaidToDate - Number(payment.amount)).toLocaleString()}</span>
+          </div>
+          <div class="summary-row" style="color: #16a34a;">
+            <span>CURRENT PAYMENT:</span>
+            <span>₦${Number(payment.amount).toLocaleString()}</span>
+          </div>
+          <div class="summary-row balance-row">
+            <span>BALANCE REMAINING:</span>
+            <span>${balanceRemaining <= 0 ? 'FULLY PAID' : `₦${balanceRemaining.toLocaleString()}`}</span>
+          </div>
+        </div>
+        
+        <div class="amount-words" style="margin-top: 25px;">
+          AMOUNT IN WORDS (CURRENT): ${numberToWords(Number(payment.amount))}
+        </div>
+
+        <div class="footer-sign">
+          <div class="sign-box">OFFICIAL SIGNATURE</div>
+          <div class="sign-box">CUSTOMER SIGNATURE</div>
+        </div>
+        
+        <div style="margin-top: 40px; text-align: center; font-size: 11px; font-style: italic; opacity: 0.6;">
+          Thank you for your patronage. Please keep this receipt for your records.
+        </div>
+      </div>
+    </div>
+    </body></html>`;
+    const win = window.open("", "_blank");
+    if (win) { win.document.write(html); win.document.close(); win.print(); }
+  };
+
 
   const downloadRepairPDF = async (r: Repair, type: 'bill' | 'jobcard', isEmail = false) => {
     const cust = customers.find(c => c.id === r.customer_id);
@@ -1542,6 +1813,15 @@ export default function RepairsMaintenance() {
                       navigate(`/invoices?action=create&customer_id=${r.customer_id}&repair_id=${r.id}&type=repair`);
                     }}
                   ><FileOutput className="h-3.5 w-3.5 mr-1.5" /> Invoice</Button>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-8 w-8 rounded-lg hover:bg-emerald-500/10 text-muted-foreground hover:text-emerald-500 transition-all" 
+                    title="Payments & Deposits"
+                    onClick={() => setPaymentRepairId(r.id)}
+                  >
+                    <CreditCard className="h-3.5 w-3.5" />
+                  </Button>
                 </div>
               </div>
             ))}
@@ -1589,6 +1869,171 @@ export default function RepairsMaintenance() {
       </>
       )}
 
+      {/* Payment History Dialog */}
+      <Dialog open={!!paymentRepairId} onOpenChange={(v) => !v && setPaymentRepairId(null)}>
+        <DialogContent className="max-w-2xl rounded-3xl glass-panel border-white/10 p-0 overflow-hidden bg-background/95 backdrop-blur-3xl">
+          <div className="p-6 border-b border-white/5 bg-foreground/5 flex items-center justify-between">
+            <DialogHeader>
+              <DialogTitle className="text-xl font-bold flex items-center gap-2">
+                <CreditCard className="w-5 h-5 text-emerald-500" /> Payment History & Balance
+              </DialogTitle>
+            </DialogHeader>
+            {paymentRepairId && (() => {
+              const repair = repairs.find(r => r.id === paymentRepairId);
+              const totalPaid = repairPayments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+              const balance = (Number(repair?.repair_cost) || 0) - totalPaid;
+              return (
+                <div className="text-right">
+                  <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Total Balance Due</p>
+                  <p className={`text-xl font-black ${balance <= 0 ? 'text-emerald-500' : 'text-amber-500'}`}>
+                    ₦{balance.toLocaleString()}
+                  </p>
+                </div>
+              );
+            })()}
+          </div>
+          
+          <div className="p-6 space-y-6 max-h-[75vh] overflow-y-auto">
+            {paymentRepairId && (
+              <>
+                {/* Stats Summary */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-background/50 p-4 rounded-2xl border border-white/5">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Total Repair Cost</p>
+                    <p className="text-xl font-black">₦{(Number(repairs.find(r => r.id === paymentRepairId)?.repair_cost) || 0).toLocaleString()}</p>
+                  </div>
+                  <div className="bg-emerald-500/5 p-4 rounded-2xl border border-emerald-500/10">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-500 mb-1">Total Amount Paid</p>
+                    <p className="text-xl font-black text-emerald-500">₦{repairPayments.reduce((sum, p) => sum + Number(p.amount), 0).toLocaleString()}</p>
+                  </div>
+                </div>
+
+                {/* Record New Payment */}
+                <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-4">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                    <PlusCircle className="w-3.5 h-3.5" /> Record New Payment
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-[10px] uppercase font-bold text-muted-foreground ml-1">Amount</Label>
+                      <CurrencyInput 
+                        className="rounded-xl h-11 bg-background/50 border-white/10 font-bold text-emerald-600" 
+                        placeholder="0.00"
+                        value={newPaymentAmount}
+                        onChange={(e) => setNewPaymentAmount(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-[10px] uppercase font-bold text-muted-foreground ml-1">Payment Method</Label>
+                      <Select value={newPaymentMethod} onValueChange={setNewPaymentMethod}>
+                        <SelectTrigger className="h-11 rounded-xl bg-background/50 border-white/10 font-bold"><SelectValue /></SelectTrigger>
+                        <SelectContent className="glass-panel border-white/10 rounded-xl">
+                          <SelectItem value="cash">Cash</SelectItem>
+                          <SelectItem value="transfer">Bank Transfer</SelectItem>
+                          <SelectItem value="pos">POS</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="sm:col-span-2 space-y-1.5">
+                      <Label className="text-[10px] uppercase font-bold text-muted-foreground ml-1">Notes (Optional)</Label>
+                      <Input 
+                        className="rounded-xl h-11 bg-background/50 border-white/10" 
+                        placeholder="e.g. 2nd installment, final balance..."
+                        value={newPaymentNote}
+                        onChange={(e) => setNewPaymentNote(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <Button 
+                    className="w-full rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-black h-12 shadow-lg shadow-emerald-500/20 uppercase tracking-widest text-xs"
+                    onClick={() => addRepairPaymentMutation.mutate()}
+                    disabled={addRepairPaymentMutation.isPending || !newPaymentAmount || parseFloat(newPaymentAmount) <= 0}
+                  >
+                    {addRepairPaymentMutation.isPending ? "Recording Payment..." : "Record Payment"}
+                  </Button>
+                </div>
+
+                {/* Payments History List */}
+                <div className="space-y-3">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                    <HistoryIcon className="w-3.5 h-3.5" /> Payment History
+                  </h4>
+                  <div className="rounded-2xl border border-white/5 overflow-hidden bg-background/40">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-foreground/5 text-muted-foreground font-bold uppercase text-[9px] tracking-[0.1em] border-b border-white/5">
+                          <th className="px-4 py-3 text-left w-16">#</th>
+                          <th className="px-4 py-3 text-left">Date</th>
+                          <th className="px-4 py-3 text-left">Method</th>
+                          <th className="px-4 py-3 text-right">Amount</th>
+                          <th className="px-4 py-3 text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-white/5">
+                        {repairPayments.length === 0 ? (
+                          <tr>
+                            <td colSpan={5} className="px-4 py-10 text-center text-muted-foreground italic">No payments recorded yet.</td>
+                          </tr>
+                        ) : (
+                          [...repairPayments].reverse().map((p, idx) => {
+                            const currentRepair = repairs.find(r => r.id === paymentRepairId);
+                            const totalPaidUpToThis = repairPayments
+                              .filter(px => new Date(px.payment_date).getTime() <= new Date(p.payment_date).getTime())
+                              .reduce((sum, px) => sum + Number(px.amount), 0);
+                            const totalCost = Number(currentRepair?.repair_cost) || 0;
+                            
+                            const isFirst = repairPayments.indexOf(p) === 0;
+                            const isFull = totalPaidUpToThis >= totalCost;
+                            const ordinalLabels = ["1st", "2nd", "3rd", "4th", "5th"];
+                            const paymentIdx = repairPayments.indexOf(p);
+                            const label = isFull ? "Full" : isFirst ? "Deposit" : ordinalLabels[paymentIdx] || `${paymentIdx + 1}th`;
+
+                            return (
+                              <tr key={p.id} className="hover:bg-white/[0.02] transition-colors group">
+                                <td className="px-4 py-4">
+                                  <span className={`text-[9px] font-black uppercase px-2 py-1 rounded-md border ${
+                                    isFull ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 
+                                    isFirst ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' : 
+                                    'bg-sky-500/10 text-sky-500 border-sky-500/20'
+                                  }`}>
+                                    {label}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-4 font-medium text-foreground/80">
+                                  {new Date(p.payment_date).toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' })}
+                                </td>
+                                <td className="px-4 py-4">
+                                  <span className="uppercase text-[10px] font-bold opacity-60">{p.payment_method}</span>
+                                  {p.notes && <p className="text-[10px] text-muted-foreground italic truncate max-w-[120px]">{p.notes}</p>}
+                                </td>
+                                <td className="px-4 py-4 text-right font-black text-foreground">
+                                  ₦{Number(p.amount).toLocaleString()}
+                                </td>
+                                <td className="px-4 py-4 text-right">
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    className="h-8 w-8 rounded-lg hover:bg-amber-500/10 text-amber-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                                    onClick={() => printRepairPaymentReceipt(p, currentRepair!)}
+                                    title="Print Receipt"
+                                  >
+                                    <Printer className="w-3.5 h-3.5" />
+                                  </Button>
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* QR Dialog */}
       <QrSignDialog open={!!qrId} onOpenChange={() => setQrId(null)} type="repair" id={qrId} />
 
@@ -1605,6 +2050,21 @@ export default function RepairsMaintenance() {
                  {editId ? "Edit Job Card" : "New Job Card Intake"}
                </DialogTitle>
              </DialogHeader>
+             {!editId && (
+               <Button 
+                 type="button" 
+                 variant="ghost" 
+                 size="sm" 
+                 onClick={() => {
+                   setForm(emptyForm);
+                   toast.info("Form cleared");
+                 }}
+                 className="ml-auto flex items-center gap-2 text-[10px] font-bold uppercase text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-xl px-4"
+               >
+                 <RotateCcw className="w-3 h-3" />
+                 Clear Form
+               </Button>
+             )}
           </div>
           <form onSubmit={(e) => { e.preventDefault(); upsert.mutate(); }} className="p-0">
             <div className="p-6 space-y-10">
@@ -2035,7 +2495,7 @@ export default function RepairsMaintenance() {
                         <span>Final Quote (Grand Total)</span>
                         <span className="text-[9px] font-medium lowercase italic tracking-normal opacity-60">(Auto-calculated)</span>
                       </Label>
-                      <CurrencyInput className="rounded-xl h-12 bg-white/5 border-none text-amber-600 font-black text-2xl shadow-inner" placeholder="0" value={form.repair_cost} onChange={(e) => setForm(prev => ({ ...prev, repair_cost: e.target.value }))} />
+                      <CurrencyInput className="rounded-xl h-12 bg-white/5 border-none text-amber-600 font-black text-2xl shadow-inner opacity-80 cursor-not-allowed" placeholder="0" value={form.repair_cost} readOnly onChange={() => {}} />
                     </div>
                     <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 space-y-2">
                       <Label className="text-[10px] font-extrabold uppercase text-emerald-600">Deposit Paid</Label>
@@ -2121,7 +2581,7 @@ export default function RepairsMaintenance() {
 
       {/* History Dialog */}
       <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
-        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto rounded-3xl glass-panel shadow-2xl border-white/10 p-0 bg-background/95 backdrop-blur-3xl">
+        <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto rounded-3xl glass-panel shadow-2xl border-white/10 p-0 bg-background/95 backdrop-blur-3xl">
           <div className="p-6 border-b border-white/5 bg-foreground/5 flex items-center justify-between">
              <DialogHeader>
                 <DialogTitle className="text-xl font-bold flex items-center gap-2">

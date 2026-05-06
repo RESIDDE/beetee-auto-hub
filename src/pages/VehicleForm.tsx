@@ -98,19 +98,22 @@ export default function VehicleForm() {
   const [existingImages, setExistingImages] = useState<{ id: string; image_url: string }[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [searchParams] = useSearchParams();
-  const defaultType = searchParams.get("inventory_type") || "beetee";
+  const defaultType = (searchParams.get("inventory_type") || "beetee") as "beetee" | "resale";
   const { role } = useAuth();
   const { permissions } = usePermissions();
-  const hasEdit = canEdit(role, "vehicles", permissions);
+  
+  // Determine page key based on inventory type
+  const pageKey = (form.inventory_type === "resale" || defaultType === "resale") ? "resale-vehicles" : "vehicles";
+  const hasEdit = canEdit(role, pageKey, permissions);
 
   useEffect(() => {
     if (isEdit && !hasEdit) {
-      toast.error("You do not have permission to edit existing vehicles.");
-      navigate("/vehicles");
+      toast.error(`You do not have permission to edit ${pageKey.replace('-', ' ')}.`);
+      navigate(pageKey === "resale-vehicles" ? "/resale-vehicles" : "/vehicles");
     }
-    if (!isEdit && !canCreate(role, "vehicles", permissions)) {
-      toast.error("You do not have permission to add new vehicles.");
-      navigate("/vehicles");
+    if (!isEdit && !canCreate(role, pageKey, permissions)) {
+      toast.error(`You do not have permission to add new ${pageKey.replace('-', ' ')}.`);
+      navigate(pageKey === "resale-vehicles" ? "/resale-vehicles" : "/vehicles");
     }
     if (!isEdit) {
       setForm(prev => ({ ...prev, inventory_type: defaultType }));
