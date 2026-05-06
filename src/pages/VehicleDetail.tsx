@@ -120,7 +120,7 @@ export default function VehicleDetail() {
             {hasEdit && (
               <>
                 <Button variant="outline" size="sm" asChild className="h-8 rounded-lg border-white/10 glass-panel">
-                  <Link to={`/vehicles/${id}/edit`}>
+                  <Link to={vehicle?.inventory_type === 'resale' ? `/resale-vehicles/${id}/edit` : `/vehicles/${id}/edit`}>
                     <Pencil className="mr-1.5 h-3.5 w-3.5" />
                     Edit
                   </Link>

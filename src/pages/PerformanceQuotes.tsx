@@ -20,6 +20,8 @@ import {
 } from "@/components/ui/select";
 import { CustomerSelect } from "@/components/CustomerSelect";
 import { CurrencyInput } from "@/components/CurrencyInput";
+import { useCustomerDuplicates } from "@/hooks/useCustomerDuplicates";
+import { CustomerSuggestion } from "@/components/CustomerSuggestion";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissions } from "@/hooks/usePermissions";
 import { canEdit, canCreate } from "@/lib/permissions";
@@ -70,7 +72,7 @@ export default function PerformanceQuotes() {
   const [form, setForm, clearDraft] = useFormPersistence("performance_quote", emptyForm);
   const [vehicleSearch, setVehicleSearch] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-
+  
   // Queries
   const { data: quotes = [], isLoading: loadingQuotes } = useQuery({
     queryKey: ["performance_quotes"],
@@ -109,6 +111,13 @@ export default function PerformanceQuotes() {
       if (error) throw error;
       return data;
     },
+  });
+
+  const duplicateSuggestion = useCustomerDuplicates(customers, {
+    name: form.manualCustomer.name,
+    phone: form.manualCustomer.phone,
+    email: form.manualCustomer.email,
+    address: form.manualCustomer.address
   });
 
   // Mutations
@@ -816,6 +825,10 @@ export default function PerformanceQuotes() {
                   <div className="space-y-1">
                     <Label>Customer Name *</Label>
                     <Input value={form.manualCustomer.name} onChange={e => setForm(p => ({...p, manualCustomer: {...p.manualCustomer, name: e.target.value}}))} />
+                    <CustomerSuggestion 
+                      suggestion={duplicateSuggestion} 
+                      onSelect={(id) => setForm(p => ({...p, customerId: id, customerMode: 'existing'}))} 
+                    />
                   </div>
                   <div className="space-y-1">
                     <Label>Phone Number</Label>

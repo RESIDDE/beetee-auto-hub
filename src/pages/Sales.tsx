@@ -54,6 +54,8 @@ import { SignaturePad } from "@/components/SignaturePad";
 import { QrSignDialog } from "@/lib/qrHelpers";
 import { CurrencyInput } from "@/components/CurrencyInput";
 import { CustomerSelect } from "@/components/CustomerSelect";
+import { useCustomerDuplicates } from "@/hooks/useCustomerDuplicates";
+import { CustomerSuggestion } from "@/components/CustomerSuggestion";
 
 const COLORS = ["hsl(var(--primary))", "hsl(142 76% 36%)", "hsl(38 92% 50%)", "hsl(262 83% 58%)", "hsl(0 84% 60%)", "hsl(199 89% 48%)"];
 
@@ -159,6 +161,13 @@ export default function Sales() {
       if (error) throw error;
       return data;
     },
+  });
+
+  const duplicateSuggestion = useCustomerDuplicates(customers, {
+    name: form.manual_customer_name,
+    phone: form.manual_customer_phone,
+    email: form.manual_customer_email,
+    address: form.manual_customer_address
   });
 
   const { data: salePayments = [] } = useQuery({
@@ -1447,6 +1456,10 @@ export default function Sales() {
                       onChange={(e) => setForm({ ...form, manual_customer_name: e.target.value })} 
                       placeholder="e.g. John Doe"
                     />
+                    <CustomerSuggestion 
+                      suggestion={duplicateSuggestion} 
+                      onSelect={(id) => setForm({ ...form, customer_id: id, is_new_customer: false })} 
+                    />
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-[10px] uppercase font-bold text-muted-foreground ml-1">Phone</Label>
@@ -1701,6 +1714,19 @@ export default function Sales() {
                     </Button>
                   </div>
                   <div className="sm:col-span-3 space-y-1.5">
+                        <div className="space-y-2">
+                          <Label className="text-[10px] font-bold">New Customer Name</Label>
+                          <Input 
+                            placeholder="Enter full name" 
+                            className="rounded-xl h-11 bg-amber-500/5 border-amber-500/20 focus:border-amber-500"
+                            value={form.manual_customer_name}
+                            onChange={(e) => setForm(prev => ({ ...prev, manual_customer_name: e.target.value }))}
+                          />
+                          <CustomerSuggestion 
+                            suggestion={duplicateSuggestion} 
+                            onSelect={(id) => setForm(prev => ({ ...prev, customer_id: id, is_new_customer: false }))} 
+                          />
+                        </div>
                     <Label className="text-[10px] uppercase font-bold text-muted-foreground ml-1">Notes (Optional)</Label>
                     <Input 
                       className="rounded-lg h-9 bg-background/50 border-white/10" 

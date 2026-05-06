@@ -102,6 +102,9 @@ function AppRoutes() {
                 <Route path="/vehicles/new"      element={<RoleGuard page="vehicles"><VehicleForm /></RoleGuard>} />
                 <Route path="/vehicles/:id"      element={<RoleGuard page="vehicles"><VehicleDetail /></RoleGuard>} />
                 <Route path="/vehicles/:id/edit" element={<RoleGuard page="vehicles"><VehicleForm /></RoleGuard>} />
+                <Route path="/resale-vehicles/new"      element={<RoleGuard page="resale-vehicles"><VehicleForm /></RoleGuard>} />
+                <Route path="/resale-vehicles/:id"      element={<RoleGuard page="resale-vehicles"><VehicleDetail /></RoleGuard>} />
+                <Route path="/resale-vehicles/:id/edit" element={<RoleGuard page="resale-vehicles"><VehicleForm /></RoleGuard>} />
                 <Route path="/source-company/:name" element={<RoleGuard page="vehicles"><SourceCompanyDetails /></RoleGuard>} />
                 <Route path="/customers"         element={<RoleGuard page="customers"><Customers /></RoleGuard>} />
                 <Route path="/sales"             element={<RoleGuard page="sales"><Sales /></RoleGuard>} />

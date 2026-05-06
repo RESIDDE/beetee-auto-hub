@@ -60,6 +60,8 @@ const BANK_ACCOUNTS = {
   }
 };
 import { CustomerSelect } from "@/components/CustomerSelect";
+import { useCustomerDuplicates } from "@/hooks/useCustomerDuplicates";
+import { CustomerSuggestion } from "@/components/CustomerSuggestion";
 import { logAction } from "@/lib/logger";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -281,6 +283,13 @@ export default function RepairsMaintenance() {
       if (error) throw error;
       return data;
     },
+  });
+
+  const duplicateSuggestion = useCustomerDuplicates(customers, {
+    name: form.manual_customer_name,
+    phone: form.manual_customer_phone,
+    email: form.manual_customer_email,
+    address: form.manual_customer_address
   });
 
   const { data: serviceInterval = { months: 3, days: 0 } } = useQuery({
@@ -559,6 +568,8 @@ export default function RepairsMaintenance() {
         rep_signature_date: form.rep_signature_date,
         notes: form.notes,
         customer_id: finalCustomerId || null,
+        signature_data: form.signature_data,
+        handed_to: form.handed_to,
         replacement_parts_list: form.replacement_parts_list,
         bank_account: form.bank_account,
         company: form.company,
@@ -2158,6 +2169,10 @@ export default function RepairsMaintenance() {
                             value={form.manual_customer_name}
                             onChange={(e) => setForm(prev => ({ ...prev, manual_customer_name: e.target.value }))}
                           />
+                          <CustomerSuggestion 
+                            suggestion={duplicateSuggestion} 
+                            onSelect={(id) => setForm(prev => ({ ...prev, customer_id: id, is_new_customer: false }))} 
+                          />
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                           <div className="space-y-2">
@@ -2224,7 +2239,7 @@ export default function RepairsMaintenance() {
                       </div>
                       <div className="space-y-1">
                         <Label className="text-[10px] font-bold">VIN/Chassis</Label>
-                        <Input value={form.vin} onChange={(e) => setForm(prev => ({ ...prev, vin: e.target.value }))} placeholder="VIN" className="h-9 text-xs rounded-lg" />
+                        <Input value={form.vin} onChange={(e) => setForm(prev => ({ ...prev, vin: e.target.value.toUpperCase() }))} placeholder="VIN" className="h-9 text-xs rounded-lg uppercase" />
                       </div>
                       <div className="space-y-1">
                         <Label className="text-[10px] font-bold">Mileage (KM)</Label>

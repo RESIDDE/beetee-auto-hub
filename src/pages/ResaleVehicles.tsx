@@ -285,7 +285,7 @@ export default function ResaleVehicles() {
           </DropdownMenu>
           {canCreate(role, "resale-vehicles", permissions) && (
             <Button asChild size="sm" className="rounded-xl shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all bg-emerald-500 hover:bg-emerald-600 text-xs">
-              <Link to="/vehicles/new?inventory_type=resale">
+              <Link to="/resale-vehicles/new">
                 <PlusCircle className="mr-1.5 h-4 w-4" /> Add Resale Vehicle
               </Link>
             </Button>
@@ -507,10 +507,10 @@ export default function ResaleVehicles() {
                     </TableCell>
                     <TableCell className="text-right px-6">
                       <div className="flex justify-end gap-1 opacity-50 group-hover:opacity-100 transition-opacity">
-                        <Button variant="ghost" size="icon" asChild className="h-8 w-8 rounded-lg hover:bg-primary/20 hover:text-primary"><Link to={`/vehicles/${v.id}`}><Eye className="h-4 w-4" /></Link></Button>
+                        <Button variant="ghost" size="icon" asChild className="h-8 w-8 rounded-lg hover:bg-primary/20 hover:text-primary"><Link to={`/resale-vehicles/${v.id}`}><Eye className="h-4 w-4" /></Link></Button>
                         {hasEdit && (
                           <>
-                            <Button variant="ghost" size="icon" asChild className="h-8 w-8 rounded-lg hover:bg-foreground/20"><Link to={`/vehicles/${v.id}/edit`}><Pencil className="h-4 w-4" /></Link></Button>
+                            <Button variant="ghost" size="icon" asChild className="h-8 w-8 rounded-lg hover:bg-foreground/20"><Link to={`/resale-vehicles/${v.id}/edit`}><Pencil className="h-4 w-4" /></Link></Button>
                             <Button variant="ghost" size="icon" onClick={() => setDeleteId(v.id)} className="h-8 w-8 rounded-lg hover:bg-destructive/20 hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
                           </>
                         )}
@@ -555,12 +555,12 @@ export default function ResaleVehicles() {
 
                 <div className="flex gap-2 pt-2 border-t border-border/10">
                   <Button variant="outline" size="sm" asChild className="flex-1 h-9 text-xs rounded-xl border-white/10 glass-panel">
-                    <Link to={`/vehicles/${v.id}`}>View Details</Link>
+                    <Link to={`/resale-vehicles/${v.id}`}>View Details</Link>
                   </Button>
                   {hasEdit && (
                     <div className="flex gap-2">
                       <Button variant="outline" size="icon" asChild className="h-9 w-9 rounded-xl border-white/10 glass-panel">
-                        <Link to={`/vehicles/${v.id}/edit`}><Pencil className="h-4 w-4" /></Link>
+                        <Link to={`/resale-vehicles/${v.id}/edit`}><Pencil className="h-4 w-4" /></Link>
                       </Button>
                       <Button variant="ghost" size="icon" onClick={() => setDeleteId(v.id)} className="h-9 w-9 rounded-xl text-destructive hover:bg-destructive/10 hover:text-destructive bg-destructive/5 border border-destructive/10">
                         <Trash2 className="h-4 w-4" />

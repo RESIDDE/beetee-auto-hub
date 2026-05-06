@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useFormPersistence } from "@/hooks/useFormPersistence";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams, useLocation } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -100,7 +100,9 @@ export default function VehicleForm() {
   const [existingImages, setExistingImages] = useState<{ id: string; image_url: string }[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [searchParams] = useSearchParams();
-  const defaultType = (searchParams.get("inventory_type") || "beetee") as "beetee" | "resale";
+  const location = useLocation();
+  const isResalePath = location.pathname.includes("resale-vehicles");
+  const defaultType = (searchParams.get("inventory_type") || (isResalePath ? "resale" : "beetee")) as "beetee" | "resale";
   const { role } = useAuth();
   const { permissions } = usePermissions();
   
@@ -389,7 +391,10 @@ export default function VehicleForm() {
           <ArrowLeft className="w-4 h-4" />
         </Button>
         <h1 className="text-3xl font-bold text-foreground">
-          {isEdit ? "Edit Vehicle" : "Add Vehicle"}
+          {isEdit 
+            ? (form.inventory_type === 'resale' ? "Edit Resale Vehicle" : "Edit Vehicle") 
+            : (form.inventory_type === 'resale' ? "Add Resale Vehicle" : "Add Vehicle")
+          }
         </h1>
       </div>
 
