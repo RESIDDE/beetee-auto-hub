@@ -511,10 +511,14 @@ export default function VehicleForm() {
             {field("date_arrived", "Date Arrived", "date")}
             {field("date_stored", "Date Stored", "date")}
             {field("num_keys", "Number of Keys", "number")}
-            {field("source_company", "Company/Owner the vehicle is from")}
-            {field("source_company_phone", "Company/Owner Phone Number", "tel")}
-            {field("source_rep_name", "Representative Name (from Company/Owner)")}
-            {field("source_rep_phone", "Representative Phone Number", "tel")}
+            {form.inventory_type !== 'resale' && (
+              <>
+                {field("source_company", "Company/Owner the vehicle is from")}
+                {field("source_company_phone", "Company/Owner Phone Number", "tel")}
+                {field("source_rep_name", "Representative Name (from Company/Owner)")}
+                {field("source_rep_phone", "Representative Phone Number", "tel")}
+              </>
+            )}
             
             <div className="space-y-1">
               <Label>Inventory Type</Label>
@@ -532,29 +536,31 @@ export default function VehicleForm() {
           </CardContent>
         </Card>
 
-        <Card className="border-rose-500/20 bg-rose-500/5 animate-fade-down">
-          <CardHeader>
-            <CardTitle className="text-rose-500 flex items-center gap-2 text-base">
-              <FileSignature className="h-5 w-5" /> Recording / Acceptance Details
-            </CardTitle>
-          </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                {field("accepted_by_name", "Accepted By (Staff Name)")}
-                {field("accepted_by_phone", "Phone Number of Person Who Brought It", "tel")}
-                {field("accepted_date", "Acceptance Date", "date")}
-              </div>
-              <div className="space-y-2">
-                <Label>Staff Digital Signature</Label>
-                <div className="rounded-2xl border border-white/10 bg-background/50 p-4">
-                  <SignaturePad 
-                    value={form.accepted_signature} 
-                    onChange={(v) => setForm({ ...form, accepted_signature: v })} 
-                  />
+        {form.inventory_type !== 'resale' && (
+          <Card className="border-rose-500/20 bg-rose-500/5 animate-fade-down">
+            <CardHeader>
+              <CardTitle className="text-rose-500 flex items-center gap-2 text-base">
+                <FileSignature className="h-5 w-5" /> Recording / Acceptance Details
+              </CardTitle>
+            </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid gap-4 md:grid-cols-2">
+                  {field("accepted_by_name", "Accepted By (Staff Name)")}
+                  {field("accepted_by_phone", "Phone Number of Person Who Brought It", "tel")}
+                  {field("accepted_date", "Acceptance Date", "date")}
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+                <div className="space-y-2">
+                  <Label>Staff Digital Signature</Label>
+                  <div className="rounded-2xl border border-white/10 bg-background/50 p-4">
+                    <SignaturePad 
+                      value={form.accepted_signature} 
+                      onChange={(v) => setForm({ ...form, accepted_signature: v })} 
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+        )}
 
         <Card>
           <CardHeader>

@@ -233,16 +233,20 @@ export default function VehicleDetail() {
                 : null
             )}
             {info("Keys", vehicle.num_keys)}
-            {info("Company/Owner Source", vehicle.source_company)}
-            <div className="col-span-1 xs:col-span-2 space-y-4 pt-2 border-t border-white/5">
-              {info("Company/Owner Contact", (vehicle as any).source_company_phone)}
-              {info("Representative Name", (vehicle as any).source_rep_name)}
-              {info("Representative Contact", (vehicle as any).source_rep_phone)}
-            </div>
+            {vehicle.inventory_type !== 'resale' && (
+              <>
+                {info("Company/Owner Source", vehicle.source_company)}
+                <div className="col-span-1 xs:col-span-2 space-y-4 pt-2 border-t border-white/5">
+                  {info("Company/Owner Contact", (vehicle as any).source_company_phone)}
+                  {info("Representative Name", (vehicle as any).source_rep_name)}
+                  {info("Representative Contact", (vehicle as any).source_rep_phone)}
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
 
-        {(vehicle.accepted_by_name || vehicle.accepted_signature) && (
+        {vehicle.inventory_type !== 'resale' && (vehicle.accepted_by_name || vehicle.accepted_signature) && (
           <Card className="bento-card border-none shadow-xl bg-violet-500/5">
             <CardHeader className="pb-3 border-b border-violet-500/10 mb-4">
               <CardTitle className="text-xs font-bold uppercase tracking-[0.2em] text-violet-500">Acceptance Details</CardTitle>

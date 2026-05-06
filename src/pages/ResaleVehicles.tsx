@@ -477,9 +477,6 @@ export default function ResaleVehicles() {
                   <TableHead className="font-semibold">Year</TableHead>
                   <TableHead className="font-semibold">Trim</TableHead>
                   <TableHead className="font-semibold">Chassis (VIN)</TableHead>
-                  <TableHead className="font-semibold">Source Phone</TableHead>
-                  <TableHead className="font-semibold">Accepted By</TableHead>
-                  <TableHead className="font-semibold">Accepted Date</TableHead>
                   <TableHead className="font-semibold">Status</TableHead>
                   <TableHead className="text-right font-semibold px-6">Actions</TableHead>
                 </TableRow>
@@ -500,9 +497,6 @@ export default function ResaleVehicles() {
                     <TableCell>
                       {v.vin ? <span className="font-mono text-xs bg-foreground/5 px-2 py-1 rounded-md">{v.vin}</span> : <span className="opacity-50">—</span>}
                     </TableCell>
-                    <TableCell className="text-sm">{(v as any).source_company_phone || "—"}</TableCell>
-                    <TableCell className="text-sm font-medium">{v.accepted_by_name || "—"}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{v.accepted_date ? new Date(v.accepted_date).toLocaleDateString() : "—"}</TableCell>
                     <TableCell>
                       <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider ${
                         v.status?.toLowerCase() === 'available' ? 'bg-emerald-500/10 text-emerald-500' : 
@@ -557,16 +551,7 @@ export default function ResaleVehicles() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 py-1">
-                  <div className="bg-foreground/5 p-2 rounded-xl border border-white/5">
-                    <p className="text-[9px] text-muted-foreground uppercase font-bold">Representative</p>
-                    <p className="text-xs font-semibold truncate">{(v as any).source_rep_name || "—"}</p>
-                  </div>
-                  <div className="bg-foreground/5 p-2 rounded-xl border border-white/5">
-                    <p className="text-[9px] text-muted-foreground uppercase font-bold">Rep. Phone</p>
-                    <p className="text-xs font-semibold truncate">{(v as any).source_rep_phone || "—"}</p>
-                  </div>
-                </div>
+
 
                 <div className="flex gap-2 pt-2 border-t border-border/10">
                   <Button variant="outline" size="sm" asChild className="flex-1 h-9 text-xs rounded-xl border-white/10 glass-panel">
