@@ -143,7 +143,7 @@ export default function Settings() {
         return {
           id: r.id,
           user_id: r.user_id,
-          role: r.role || "super_admin",
+          role: r.role || "pending",
           profile: profile || { display_name: "User " + r.user_id.slice(0, 8), phone: null },
         };
       });

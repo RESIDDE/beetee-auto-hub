@@ -3,8 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { 
-  Car, Users, DollarSign, Wrench, PlusCircle, Search, ChevronRight, 
+import {
+  Car, Users, DollarSign, Wrench, PlusCircle, Search, ChevronRight,
   TrendingUp, Calendar, ArrowUpRight, BarChart3, Clock, PieChart as PieChartIcon,
   FileSignature, FileText, Building2, Printer, Download, ListFilter
 } from "lucide-react";
@@ -32,10 +32,10 @@ const CustomTooltip = ({ active, payload, label }: any) => {
         {payload.map((entry: any, index: number) => {
           let val = entry.value;
           if (entry.name.toLowerCase().includes('revenue') || entry.name.toLowerCase().includes('price') || entry.name.toLowerCase().includes('profit')) {
-             val = `₦${entry.value.toLocaleString()}`;
+            val = `₦${entry.value.toLocaleString()}`;
           }
           if (entry.name.toLowerCase().includes('time')) {
-             val = `${entry.value} days`;
+            val = `${entry.value} days`;
           }
           return (
             <p key={index} className="text-sm font-medium flex justify-between gap-4" style={{ color: entry.color || entry.fill }}>
@@ -54,6 +54,49 @@ const WelcomeLanding = ({ profile, user, role, permissions }: any) => {
   const assignedPages = ALL_PAGES.filter(p => accessibleKeys.includes(p.key) && p.key !== 'dashboard');
   const displayName = profile?.display_name || user?.email?.split('@')[0] || "User";
   const initials = profile?.display_name?.substring(0, 2).toUpperCase() || user?.email?.substring(0, 2).toUpperCase() || "??";
+  const isPending = !role;
+
+  if (isPending) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[70vh] py-12 animate-fade-up">
+        <div className="w-24 h-24 rounded-full border-4 border-amber-500/30 shadow-2xl bg-amber-500/10 flex items-center justify-center text-3xl font-black text-amber-500 mb-6 overflow-hidden">
+          {profile?.avatar_url ? (
+            <img src={profile.avatar_url} alt={displayName} className="w-full h-full object-cover" />
+          ) : initials}
+        </div>
+
+        <div className="inline-flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 text-amber-500 text-xs font-bold uppercase tracking-widest px-4 py-2 rounded-full mb-6">
+          <span className="w-2 h-2 bg-amber-500 rounded-full animate-pulse" />
+          Pending Approval
+        </div>
+
+        <h1 className="text-3xl md:text-5xl font-black tracking-tight mb-4 text-center">
+          Welcome, <span className="text-amber-500">{displayName}</span>!
+        </h1>
+        <p className="text-base text-muted-foreground max-w-md leading-relaxed text-center mb-8">
+          Your account has been created successfully. A <strong className="text-foreground">Super Admin</strong> needs to review and assign you a role before you can access the system.
+        </p>
+
+        <div className="glass-panel border border-amber-500/10 rounded-3xl p-6 max-w-sm w-full space-y-4">
+          <p className="text-xs font-bold uppercase tracking-widest text-amber-500 text-center">What happens next?</p>
+          <div className="space-y-3 text-sm text-muted-foreground">
+            <div className="flex items-start gap-3">
+              <span className="text-amber-500 shrink-0 mt-0.5">1.</span>
+              <span>A Super Admin logs in and opens <strong className="text-foreground">Settings → Team</strong>.</span>
+            </div>
+            <div className="flex items-start gap-3">
+              <span className="text-amber-500 shrink-0 mt-0.5">2.</span>
+              <span>They find your name and assign you a role (Admin, Sales, or Mechanic).</span>
+            </div>
+            <div className="flex items-start gap-3">
+              <span className="text-amber-500 shrink-0 mt-0.5">3.</span>
+              <span>Log out and log back in — your modules will appear!</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col items-center justify-center py-12 animate-fade-up">
@@ -64,22 +107,20 @@ const WelcomeLanding = ({ profile, user, role, permissions }: any) => {
           initials
         )}
       </div>
-      
+
       <h1 className="text-4xl md:text-6xl font-black tracking-tight mb-4">
         Welcome, <span className="text-primary">{displayName}</span>!
       </h1>
       <p className="text-lg text-muted-foreground max-w-2xl mb-12 leading-relaxed text-center">
-        You are currently logged in as <span className="text-foreground font-bold uppercase tracking-widest text-sm bg-foreground/5 px-2 py-1 rounded-lg">{role?.replace('_', ' ') || 'Pending Approval'}</span>. 
-        {assignedPages.length > 0 
-          ? " Below are the modules you have been assigned to manage."
-          : " Your account is currently being reviewed. Once assigned a role, your modules will appear here."}
+        You are currently logged in as <span className="text-foreground font-bold uppercase tracking-widest text-sm bg-foreground/5 px-2 py-1 rounded-lg">{role?.replace('_', ' ')}</span>.
+        {" Below are the modules you have been assigned to manage."}
       </p>
 
       {assignedPages.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 w-full max-w-4xl">
           {assignedPages.map((page) => (
-            <Link 
-              key={page.key} 
+            <Link
+              key={page.key}
               to={page.path}
               className="group bento-card p-6 flex flex-col items-center gap-4 hover:scale-[1.02] transition-all duration-300 border-white/5 hover:border-primary/20"
             >
@@ -192,7 +233,7 @@ export default function Dashboard() {
   const totalSalesRevenue = sales.reduce((sum, s) => sum + Number(s.sale_price || 0), 0);
   const totalRepairsRevenue = repairs.reduce((sum, r) => sum + Number(r.repair_cost || 0), 0);
   const totalRevenue = totalSalesRevenue + totalRepairsRevenue;
-  
+
   const totalSalesProfit = sales.reduce((sum, s) => {
     const cost = Number((s as any).vehicles?.cost_price || 0);
     const sale = Number(s.sale_price || 0);
@@ -222,35 +263,35 @@ export default function Dashboard() {
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
       .slice(0, 5)
       .map(s => {
-         const cost = Number(s.vehicles?.cost_price || 0);
-         const sale = Number(s.sale_price || 0);
-         return {
-           name: `${s.vehicles?.make} ${s.vehicles?.model}`.substring(0, 15),
-           Cost: cost,
-           Profit: sale - cost,
-         };
+        const cost = Number(s.vehicles?.cost_price || 0);
+        const sale = Number(s.sale_price || 0);
+        return {
+          name: `${s.vehicles?.make} ${s.vehicles?.model}`.substring(0, 15),
+          Cost: cost,
+          Profit: sale - cost,
+        };
       });
   }, [sales]);
 
   const turnaroundWait = useMemo(() => {
-     const completed = repairs.filter(r => r.payment_status === 'paid_in_full');
-     if (completed.length === 0) return 0;
-     const days = completed.map(r => differenceInDays(new Date(r.updated_at), new Date(r.created_at)));
-     const avg = days.reduce((a, b) => a + b, 0) / completed.length;
-     return avg < 1 ? 1 : Math.round(avg);
+    const completed = repairs.filter(r => r.payment_status === 'paid_in_full');
+    if (completed.length === 0) return 0;
+    const days = completed.map(r => differenceInDays(new Date(r.updated_at), new Date(r.created_at)));
+    const avg = days.reduce((a, b) => a + b, 0) / completed.length;
+    return avg < 1 ? 1 : Math.round(avg);
   }, [repairs]);
 
   const inventoryAging = useMemo(() => {
-     const unsold = vehicles.filter(v => v.status !== 'sold');
-     const aging = { "0-30 days": 0, "31-60 days": 0, "61-90 days": 0, "90+ days": 0 };
-     unsold.forEach(v => {
-       const days = differenceInDays(new Date(), new Date(v.created_at));
-       if (days <= 30) aging["0-30 days"]++;
-       else if (days <= 60) aging["31-60 days"]++;
-       else if (days <= 90) aging["61-90 days"]++;
-       else aging["90+ days"]++;
-     });
-     return Object.entries(aging).map(([name, Count]) => ({ name, Count }));
+    const unsold = vehicles.filter(v => v.status !== 'sold');
+    const aging = { "0-30 days": 0, "31-60 days": 0, "61-90 days": 0, "90+ days": 0 };
+    unsold.forEach(v => {
+      const days = differenceInDays(new Date(), new Date(v.created_at));
+      if (days <= 30) aging["0-30 days"]++;
+      else if (days <= 60) aging["31-60 days"]++;
+      else if (days <= 90) aging["61-90 days"]++;
+      else aging["90+ days"]++;
+    });
+    return Object.entries(aging).map(([name, Count]) => ({ name, Count }));
   }, [vehicles]);
 
   const revSplit = [
@@ -259,13 +300,13 @@ export default function Dashboard() {
   ].filter(x => x.value > 0);
 
   const topMakes = useMemo(() => {
-     const makes = (sales || []).reduce((acc, s) => {
-       const make = (s as any).vehicles?.make || 'Unknown';
-       acc[make] = (acc[make] || 0) + 1;
-       return acc;
-     }, {} as Record<string, number>);
-     const entries = Object.entries(makes) as [string, number][];
-     return entries.sort((a, b) => b[1] - a[1]).slice(0, 4);
+    const makes = (sales || []).reduce((acc, s) => {
+      const make = (s as any).vehicles?.make || 'Unknown';
+      acc[make] = (acc[make] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    const entries = Object.entries(makes) as [string, number][];
+    return entries.sort((a, b) => b[1] - a[1]).slice(0, 4);
   }, [sales]);
 
   const sourceCompanyStats = useMemo(() => {
@@ -276,7 +317,7 @@ export default function Dashboard() {
       stats[company].total++;
       if (v.status !== 'Sold') stats[company].inventory++;
     });
-    return Object.entries(stats).map(([name, data]) => ({ name, ...data })).sort((a,b) => b.inventory - a.inventory);
+    return Object.entries(stats).map(([name, data]) => ({ name, ...data })).sort((a, b) => b.inventory - a.inventory);
   }, [vehicles]);
 
   const filteredCompanyStats = sourceCompanyStats.filter(s => s.name.toLowerCase().includes(companySearch.toLowerCase()));
@@ -304,8 +345,8 @@ export default function Dashboard() {
     <div className="space-y-8 max-w-7xl mx-auto animate-fade-up pb-10">
       <svg width="0" height="0">
         <defs>
-          <linearGradient id="splitSales" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.8}/><stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0.1}/></linearGradient>
-          <linearGradient id="splitRepairs" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="hsl(38 92% 50%)" stopOpacity={0.8}/><stop offset="95%" stopColor="hsl(38 92% 50%)" stopOpacity={0.1}/></linearGradient>
+          <linearGradient id="splitSales" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.8} /><stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0.1} /></linearGradient>
+          <linearGradient id="splitRepairs" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="hsl(38 92% 50%)" stopOpacity={0.8} /><stop offset="95%" stopColor="hsl(38 92% 50%)" stopOpacity={0.1} /></linearGradient>
         </defs>
       </svg>
 
@@ -360,84 +401,84 @@ export default function Dashboard() {
 
 
             <Link to="/sales" className="md:col-span-3 group">
-               <div className="bento-card p-5 sm:p-6 flex flex-col justify-between relative overflow-hidden h-full min-h-[130px]">
-                 <div className="absolute top-0 right-0 w-32 h-32 bg-violet-500/10 blur-2xl rounded-full pointer-events-none transition-colors duration-500 group-hover:bg-violet-500/20" />
-                 <div className="p-2 sm:p-3 bg-violet-500/10 w-fit rounded-xl sm:rounded-2xl mb-2 sm:mb-4 group-hover:bg-violet-500/20"><DollarSign className="h-5 w-5 sm:h-6 sm:w-6 text-violet-500" /></div>
-                 <div className="z-10 relative">
-                    <h2 className="text-xl sm:text-2xl font-bold text-foreground">₦{totalSalesRevenue.toLocaleString()}</h2>
-                    <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wider mt-1 sm:mt-2 font-semibold line-clamp-1">Sales Revenue</p>
-                 </div>
-               </div>
+              <div className="bento-card p-5 sm:p-6 flex flex-col justify-between relative overflow-hidden h-full min-h-[130px]">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-violet-500/10 blur-2xl rounded-full pointer-events-none transition-colors duration-500 group-hover:bg-violet-500/20" />
+                <div className="p-2 sm:p-3 bg-violet-500/10 w-fit rounded-xl sm:rounded-2xl mb-2 sm:mb-4 group-hover:bg-violet-500/20"><DollarSign className="h-5 w-5 sm:h-6 sm:w-6 text-violet-500" /></div>
+                <div className="z-10 relative">
+                  <h2 className="text-xl sm:text-2xl font-bold text-foreground">₦{totalSalesRevenue.toLocaleString()}</h2>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wider mt-1 sm:mt-2 font-semibold line-clamp-1">Sales Revenue</p>
+                </div>
+              </div>
             </Link>
 
             <Link to="/repairs" className="md:col-span-3 group">
-               <div className="bento-card p-5 sm:p-6 flex flex-col justify-between relative overflow-hidden h-full min-h-[130px]">
-                 <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 blur-2xl rounded-full pointer-events-none transition-colors duration-500 group-hover:bg-amber-500/20" />
-                 <div className="p-2 sm:p-3 bg-amber-500/10 w-fit rounded-xl sm:rounded-2xl mb-2 sm:mb-4 group-hover:bg-amber-500/20"><Wrench className="h-5 w-5 sm:h-6 sm:w-6 text-amber-500" /></div>
-                 <div className="z-10 relative">
-                    <h2 className="text-xl sm:text-2xl font-bold text-foreground">₦{totalRepairsRevenue.toLocaleString()}</h2>
-                    <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wider mt-1 sm:mt-2 font-semibold line-clamp-1">Repairs Revenue</p>
-                 </div>
-               </div>
+              <div className="bento-card p-5 sm:p-6 flex flex-col justify-between relative overflow-hidden h-full min-h-[130px]">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 blur-2xl rounded-full pointer-events-none transition-colors duration-500 group-hover:bg-amber-500/20" />
+                <div className="p-2 sm:p-3 bg-amber-500/10 w-fit rounded-xl sm:rounded-2xl mb-2 sm:mb-4 group-hover:bg-amber-500/20"><Wrench className="h-5 w-5 sm:h-6 sm:w-6 text-amber-500" /></div>
+                <div className="z-10 relative">
+                  <h2 className="text-xl sm:text-2xl font-bold text-foreground">₦{totalRepairsRevenue.toLocaleString()}</h2>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wider mt-1 sm:mt-2 font-semibold line-clamp-1">Repairs Revenue</p>
+                </div>
+              </div>
             </Link>
 
 
             <Link to="/inquiries" className="md:col-span-1 group">
-               <div className="bento-card p-5 flex flex-col justify-between relative overflow-hidden h-full min-h-[130px]">
-                 <div className="absolute top-0 right-0 w-24 h-24 bg-sky-500/10 blur-xl rounded-full pointer-events-none transition-colors duration-500 group-hover:bg-sky-500/20" />
-                 <div className="p-2 bg-sky-500/10 w-fit rounded-xl mb-2 group-hover:bg-sky-500/20"><Search className="h-5 w-5 text-sky-500" /></div>
-                 <div className="z-10 relative">
-                    <h2 className="text-xl font-bold text-foreground">{pendingInquiriesCount}</h2>
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider mt-1 font-semibold line-clamp-1">Inquiries</p>
-                 </div>
-               </div>
+              <div className="bento-card p-5 flex flex-col justify-between relative overflow-hidden h-full min-h-[130px]">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-sky-500/10 blur-xl rounded-full pointer-events-none transition-colors duration-500 group-hover:bg-sky-500/20" />
+                <div className="p-2 bg-sky-500/10 w-fit rounded-xl mb-2 group-hover:bg-sky-500/20"><Search className="h-5 w-5 text-sky-500" /></div>
+                <div className="z-10 relative">
+                  <h2 className="text-xl font-bold text-foreground">{pendingInquiriesCount}</h2>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider mt-1 font-semibold line-clamp-1">Inquiries</p>
+                </div>
+              </div>
             </Link>
 
             <Link to="/performance-quotes" className="md:col-span-1 group">
-               <div className="bento-card p-5 flex flex-col justify-between relative overflow-hidden h-full min-h-[130px]">
-                 <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/10 blur-xl rounded-full pointer-events-none transition-colors duration-500 group-hover:bg-emerald-500/20" />
-                 <div className="p-2 bg-emerald-500/10 w-fit rounded-xl mb-2 group-hover:bg-emerald-500/20"><FileSignature className="h-5 w-5 text-emerald-500" /></div>
-                 <div className="z-10 relative">
-                    <h2 className="text-xl font-bold text-foreground">{performanceQuotes.length}</h2>
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider mt-1 font-semibold line-clamp-1">Perf. Quotes</p>
-                 </div>
-               </div>
+              <div className="bento-card p-5 flex flex-col justify-between relative overflow-hidden h-full min-h-[130px]">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/10 blur-xl rounded-full pointer-events-none transition-colors duration-500 group-hover:bg-emerald-500/20" />
+                <div className="p-2 bg-emerald-500/10 w-fit rounded-xl mb-2 group-hover:bg-emerald-500/20"><FileSignature className="h-5 w-5 text-emerald-500" /></div>
+                <div className="z-10 relative">
+                  <h2 className="text-xl font-bold text-foreground">{performanceQuotes.length}</h2>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider mt-1 font-semibold line-clamp-1">Perf. Quotes</p>
+                </div>
+              </div>
             </Link>
 
             <div className="md:col-span-2 bento-card p-5 flex flex-col justify-between relative overflow-hidden group h-full min-h-[130px]">
-               <div className="absolute top-0 right-0 w-24 h-24 bg-slate-500/10 blur-xl rounded-full pointer-events-none transition-colors duration-500 group-hover:bg-slate-500/20" />
-               <div className="p-2 bg-slate-500/10 w-fit rounded-xl mb-2 group-hover:bg-slate-500/20"><Clock className="h-5 w-5 text-slate-500" /></div>
-               <div className="z-10 relative">
-                  <h2 className="text-xl font-bold text-foreground">{turnaroundWait} <span className="text-xs text-muted-foreground font-medium">days</span></h2>
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider mt-1 font-semibold line-clamp-1">Avg Turnaround</p>
-               </div>
+              <div className="absolute top-0 right-0 w-24 h-24 bg-slate-500/10 blur-xl rounded-full pointer-events-none transition-colors duration-500 group-hover:bg-slate-500/20" />
+              <div className="p-2 bg-slate-500/10 w-fit rounded-xl mb-2 group-hover:bg-slate-500/20"><Clock className="h-5 w-5 text-slate-500" /></div>
+              <div className="z-10 relative">
+                <h2 className="text-xl font-bold text-foreground">{turnaroundWait} <span className="text-xs text-muted-foreground font-medium">days</span></h2>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mt-1 font-semibold line-clamp-1">Avg Turnaround</p>
+              </div>
             </div>
 
             <Link to="/customers" className="md:col-span-2 group">
-               <div className="bento-card p-5 flex flex-col justify-between relative overflow-hidden h-full min-h-[130px]">
-                 <div className="absolute top-0 right-0 w-24 h-24 bg-violet-500/10 blur-xl rounded-full pointer-events-none transition-colors duration-500 group-hover:bg-violet-500/20" />
-                 <div className="p-2 bg-violet-500/10 w-fit rounded-xl mb-2 group-hover:bg-violet-500/20"><Users className="h-5 w-5 text-violet-500" /></div>
-                 <div className="z-10 relative">
-                    <h2 className="text-xl font-bold text-foreground">{customers.length}</h2>
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider mt-1 font-semibold line-clamp-1">Total Customers</p>
-                 </div>
-               </div>
+              <div className="bento-card p-5 flex flex-col justify-between relative overflow-hidden h-full min-h-[130px]">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-violet-500/10 blur-xl rounded-full pointer-events-none transition-colors duration-500 group-hover:bg-violet-500/20" />
+                <div className="p-2 bg-violet-500/10 w-fit rounded-xl mb-2 group-hover:bg-violet-500/20"><Users className="h-5 w-5 text-violet-500" /></div>
+                <div className="z-10 relative">
+                  <h2 className="text-xl font-bold text-foreground">{customers.length}</h2>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider mt-1 font-semibold line-clamp-1">Total Customers</p>
+                </div>
+              </div>
             </Link>
 
             {/* MONTHLY REVENUE LINE CHART - 4 Cols */}
             <div className="md:col-span-4 bento-card p-6 flex flex-col min-h-[350px]">
               <div className="mb-6 flex justify-between items-start">
-                  <div>
-                    <h3 className="font-semibold text-lg flex items-center gap-2"><BarChart3 className="w-4 h-4 text-emerald-500" /> Revenue Growth</h3>
-                    <p className="text-sm text-muted-foreground">Sales & Service combined over last 6 months</p>
-                  </div>
+                <div>
+                  <h3 className="font-semibold text-lg flex items-center gap-2"><BarChart3 className="w-4 h-4 text-emerald-500" /> Revenue Growth</h3>
+                  <p className="text-sm text-muted-foreground">Sales & Service combined over last 6 months</p>
+                </div>
               </div>
               <div className="flex-1 w-full min-h-0">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={monthlyTimeline} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--foreground)/0.05)" />
                     <XAxis dataKey="name" tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={false} />
-                    <YAxis tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={false} tickFormatter={(v) => `₦${(v/1000)}k`} />
+                    <YAxis tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={false} tickFormatter={(v) => `₦${(v / 1000)}k`} />
                     <Tooltip content={<CustomTooltip />} />
                     <Area type="monotone" dataKey="Sales Revenue" stroke="hsl(var(--primary))" fill="url(#splitSales)" strokeWidth={3} />
                     <Area type="monotone" dataKey="Repairs Revenue" stroke="hsl(38 92% 50%)" fill="url(#splitRepairs)" strokeWidth={3} />
@@ -455,7 +496,7 @@ export default function Dashboard() {
                   <BarChart layout="vertical" data={inventoryAging} margin={{ top: 0, right: 20, left: -20, bottom: 0 }}>
                     <XAxis type="number" hide />
                     <YAxis dataKey="name" type="category" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={false} width={80} />
-                    <Tooltip content={<CustomTooltip />} cursor={{fill: 'hsl(var(--foreground)/0.05)'}} />
+                    <Tooltip content={<CustomTooltip />} cursor={{ fill: 'hsl(var(--foreground)/0.05)' }} />
                     <Bar dataKey="Count" fill="hsl(199 89% 48%)" radius={[0, 4, 4, 0]} barSize={20} />
                   </BarChart>
                 </ResponsiveContainer>
@@ -468,8 +509,8 @@ export default function Dashboard() {
               {revSplit.length > 0 ? (
                 <div className="w-full h-full min-h-[200px] flex items-center justify-center relative">
                   <div className="absolute inset-0 flex items-center justify-center flex-col pointer-events-none">
-                     <span className="text-[10px] uppercase text-muted-foreground font-bold tracking-wider">Total</span>
-                     <span className="text-lg font-bold">₦{(totalRevenue / 1000000).toFixed(1)}M</span>
+                    <span className="text-[10px] uppercase text-muted-foreground font-bold tracking-wider">Total</span>
+                    <span className="text-lg font-bold">₦{(totalRevenue / 1000000).toFixed(1)}M</span>
                   </div>
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
@@ -488,36 +529,36 @@ export default function Dashboard() {
               <h3 className="font-semibold text-lg flex items-center gap-2 mb-1"><DollarSign className="w-4 h-4 text-emerald-500" /> Profit Margins</h3>
               <p className="text-sm text-muted-foreground mb-4">Cost vs Profit breakdown for recent sales</p>
               <div className="flex-1 w-full min-h-0">
-                 <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={profitMarginData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
-                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--foreground)/0.05)" />
-                       <XAxis dataKey="name" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={false} />
-                       <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={false} tickFormatter={(v) => `₦${(v/1000)}k`} />
-                       <Tooltip content={<CustomTooltip />} cursor={{fill: 'hsl(var(--foreground)/0.05)'}} />
-                       <Bar dataKey="Cost" stackId="a" fill="hsl(var(--muted))" barSize={35} radius={[0,0,4,4]} />
-                       <Bar dataKey="Profit" stackId="a" fill="hsl(142 76% 36%)" barSize={35} radius={[4,4,0,0]} />
-                    </BarChart>
-                 </ResponsiveContainer>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={profitMarginData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--foreground)/0.05)" />
+                    <XAxis dataKey="name" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={false} />
+                    <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={false} tickFormatter={(v) => `₦${(v / 1000)}k`} />
+                    <Tooltip content={<CustomTooltip />} cursor={{ fill: 'hsl(var(--foreground)/0.05)' }} />
+                    <Bar dataKey="Cost" stackId="a" fill="hsl(var(--muted))" barSize={35} radius={[0, 0, 4, 4]} />
+                    <Bar dataKey="Profit" stackId="a" fill="hsl(142 76% 36%)" barSize={35} radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
             </div>
           </div>
 
           {/* SIDEBAR PANEL - 4 Cols */}
           <div className="lg:col-span-4 flex flex-col gap-4 md:gap-6">
-            
+
             {/* Top Makes Mini-List */}
             <div className="bento-card p-6">
               <h3 className="font-semibold text-lg mb-4">Top Brands Sold</h3>
               <div className="space-y-4">
-                 {topMakes.length === 0 ? <p className="text-sm text-muted-foreground">No sales yet.</p> : topMakes.map(([make, count], idx) => (
-                    <div key={make} className="flex items-center justify-between">
-                       <div className="flex items-center gap-3">
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs ${idx === 0 ? 'bg-amber-500/20 text-amber-500' : 'bg-foreground/5'}`}>#{idx+1}</div>
-                          <span className="font-medium">{make}</span>
-                       </div>
-                       <span className="text-sm font-semibold text-muted-foreground">{count} {count === 1 ? 'sold' : 'sold'}</span>
+                {topMakes.length === 0 ? <p className="text-sm text-muted-foreground">No sales yet.</p> : topMakes.map(([make, count], idx) => (
+                  <div key={make} className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs ${idx === 0 ? 'bg-amber-500/20 text-amber-500' : 'bg-foreground/5'}`}>#{idx + 1}</div>
+                      <span className="font-medium">{make}</span>
                     </div>
-                 ))}
+                    <span className="text-sm font-semibold text-muted-foreground">{count} {count === 1 ? 'sold' : 'sold'}</span>
+                  </div>
+                ))}
               </div>
             </div>
 
@@ -616,8 +657,8 @@ export default function Dashboard() {
                 <div className="flex items-center gap-2 w-full sm:w-auto">
                   <div className="relative flex-1 sm:w-48">
                     <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                    <Input 
-                      placeholder="Search company..." 
+                    <Input
+                      placeholder="Search company..."
                       value={companySearch}
                       onChange={(e) => setCompanySearch(e.target.value)}
                       className="pl-8 h-8 rounded-lg bg-background/50 border-white/5 text-xs"
@@ -631,7 +672,7 @@ export default function Dashboard() {
                   </Button>
                   <Button variant="outline" size="sm" className="h-8 rounded-lg" onClick={() => {
                     logAction("PRINT", "Dashboard Sourced Companies", "bulk", { count: filteredCompanyStats.length });
-                    printTable("Sourced Companies Inventory", filteredCompanyStats, [{key: 'name', label: 'Company'}, {key: 'inventory', label: 'In Stock'}, {key: 'total', label: 'Total Sourced'}]);
+                    printTable("Sourced Companies Inventory", filteredCompanyStats, [{ key: 'name', label: 'Company' }, { key: 'inventory', label: 'In Stock' }, { key: 'total', label: 'Total Sourced' }]);
                   }}>
                     <Printer className="h-3.5 w-3.5" />
                   </Button>
@@ -663,7 +704,7 @@ export default function Dashboard() {
                             </span>
                           </TableCell>
                           <TableCell className="text-center">
-                             <span className="text-xs font-medium text-muted-foreground">{s.total}</span>
+                            <span className="text-xs font-medium text-muted-foreground">{s.total}</span>
                           </TableCell>
                         </TableRow>
                       ))
@@ -673,7 +714,7 @@ export default function Dashboard() {
               </div>
             </div>
           </div>
-          
+
         </div>
       )}
     </div>
