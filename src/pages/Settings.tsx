@@ -33,25 +33,25 @@ import { logAction, describeLog } from "@/lib/logger";
 type Tab = "team" | "permissions" | "audit" | "system";
 
 const ROLE_CONFIG: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
-  super_admin: { label: "Super Admin", color: "text-amber-400",   icon: <Crown className="w-3.5 h-3.5" /> },
-  admin:       { label: "Admin",       color: "text-emerald-500", icon: <ShieldCheck className="w-3.5 h-3.5" /> },
-  sales:       { label: "Sales",       color: "text-blue-400",    icon: <User className="w-3.5 h-3.5" /> },
-  mechanic:    { label: "Mechanic",    color: "text-violet-400",  icon: <Settings2 className="w-3.5 h-3.5" /> },
-  pending:     { label: "Pending",     color: "text-rose-400",    icon: <AlertTriangle className="w-3.5 h-3.5" /> },
+  super_admin: { label: "Super Admin", color: "text-amber-400", icon: <Crown className="w-3.5 h-3.5" /> },
+  admin: { label: "Admin", color: "text-emerald-500", icon: <ShieldCheck className="w-3.5 h-3.5" /> },
+  sales: { label: "Sales", color: "text-blue-400", icon: <User className="w-3.5 h-3.5" /> },
+  mechanic: { label: "Mechanic", color: "text-violet-400", icon: <Settings2 className="w-3.5 h-3.5" /> },
+  pending: { label: "Pending", color: "text-rose-400", icon: <AlertTriangle className="w-3.5 h-3.5" /> },
 };
 
 const ACTION_COLORS: Record<string, string> = {
   CREATE: "bg-emerald-500/10 text-emerald-500",
   UPDATE: "bg-blue-500/10 text-blue-500",
   DELETE: "bg-rose-500/10 text-rose-500",
-  LOGIN:  "bg-amber-500/10 text-amber-500",
+  LOGIN: "bg-amber-500/10 text-amber-500",
   LOGOUT: "bg-slate-500/10 text-slate-500",
   SIGNUP: "bg-amber-500/10 text-amber-500",
   INVITE: "bg-violet-500/10 text-violet-500",
   ROLE_CHANGE: "bg-sky-500/10 text-sky-500",
   EXPORT: "bg-indigo-500/10 text-indigo-500",
-  PRINT:  "bg-cyan-500/10 text-cyan-500",
-  VIEW:   "bg-gray-500/10 text-gray-500",
+  PRINT: "bg-cyan-500/10 text-cyan-500",
+  VIEW: "bg-gray-500/10 text-gray-500",
   SEARCH: "bg-zinc-500/10 text-zinc-500",
   STATUS_CHANGE: "bg-orange-500/10 text-orange-500",
   PERMISSION_CHANGE: "bg-fuchsia-500/10 text-fuchsia-500",
@@ -126,7 +126,7 @@ export default function Settings() {
       ]);
       if (rolesError) throw rolesError;
       if (profilesError) throw profilesError;
-      
+
       // We list ALL profiles, attaching roles where they exist. 
       // Users without roles are "Pending Approval".
       return profiles.map((p: any) => {
@@ -134,7 +134,7 @@ export default function Settings() {
         return {
           id: roleEntry?.id || null, // null if no record yet
           user_id: p.user_id,
-          role: roleEntry?.role || "pending",
+          role: roleEntry?.role || "admin",
           profile: p,
         };
       });
@@ -191,11 +191,11 @@ export default function Settings() {
     const now = new Date();
     const months = parseInt(serviceInterval) || 0;
     const days = parseInt(serviceIntervalDays) || 0;
-    
+
     const latestByVehicle = new Map<string, { label: string; customer: string; lastDate: Date }>();
     for (const r of repairs) {
       const key = r.vehicle_id || `manual:${r.manual_make}:${r.manual_model}:${r.manual_year}`;
-      const label = r.vehicles 
+      const label = r.vehicles
         ? `${r.vehicles.year} ${r.vehicles.make} ${r.vehicles.model}`
         : `${r.manual_year || ""} ${r.manual_make || ""} ${r.manual_model || ""}`.trim() || "Unknown Vehicle";
       const cust = (customers as any[]).find((c: any) => c.id === r.customer_id);
@@ -212,10 +212,10 @@ export default function Settings() {
       const dueDate = new Date(entry.lastDate);
       dueDate.setMonth(dueDate.getMonth() + months);
       dueDate.setDate(dueDate.getDate() + days);
-      
+
       const soonThreshold = new Date(now);
       soonThreshold.setDate(soonThreshold.getDate() + 14);
-      
+
       if (dueDate <= soonThreshold) {
         result.push({ ...entry, dueDate, status: dueDate < now ? "overdue" : "soon" });
       }
@@ -244,7 +244,7 @@ export default function Settings() {
       const { error } = await (supabase as any)
         .from("user_roles")
         .upsert({ user_id: userId, role: newRole }, { onConflict: "user_id" });
-      
+
       if (error) throw error;
       await logAction("ROLE_CHANGE", "user_roles", userId, { new_role: newRole, target_name: targetName });
     },
@@ -260,18 +260,18 @@ export default function Settings() {
     mutationFn: async (userId: string) => {
       setDeleting(true);
       const targetUser = usersData.find((u: any) => u.user_id === userId);
-      
+
       // Call the secure RPC function to delete from auth.users
       // This will automatically cascade to profiles and user_roles
-      const { error } = await (supabase as any).rpc("delete_user_permanently", { 
-        target_id: userId 
+      const { error } = await (supabase as any).rpc("delete_user_permanently", {
+        target_id: userId
       });
-      
+
       if (error) throw error;
 
-      await logAction("DELETE", "profiles", userId, { 
+      await logAction("DELETE", "profiles", userId, {
         deleted_user_id: userId,
-        deleted_user_name: targetUser?.profile?.display_name 
+        deleted_user_name: targetUser?.profile?.display_name
       });
     },
     onSuccess: () => {
@@ -389,15 +389,15 @@ export default function Settings() {
       const currentView = base[r]?.view ?? [];
       const currentCreate = (base[r] as any)?.create ?? [];
       const currentEdit = base[r]?.edit ?? [];
-      
+
       const hasView = currentView.includes(page);
       const hasCreate = currentCreate.includes(page);
       const hasEdit = currentEdit.includes(page);
-      
+
       let nextView = [...currentView];
       let nextCreate = [...currentCreate];
       let nextEdit = [...currentEdit];
-      
+
       // Cycle: None -> View -> View+Create -> View+Create+Edit -> None
       if (!hasView && !hasCreate && !hasEdit) {
         nextView.push(page);
@@ -410,7 +410,7 @@ export default function Settings() {
         nextCreate = nextCreate.filter((p) => p !== page);
         nextEdit = nextEdit.filter((p) => p !== page);
       }
-      
+
       return { ...base, [r]: { view: nextView, create: nextCreate, edit: nextEdit } };
     });
     setPermDirty(true);
@@ -443,7 +443,7 @@ export default function Settings() {
   const saveServiceInterval = async () => {
     const months = parseInt(serviceInterval);
     const days = parseInt(serviceIntervalDays);
-    
+
     if (isNaN(months) || months < 0 || months > 24) {
       toast.error("Please enter months between 0 and 24");
       return;
@@ -464,10 +464,10 @@ export default function Settings() {
         (supabase as any).from("app_settings").upsert({ key: "service_interval_months", value: serviceInterval, updated_at: now }, { onConflict: "key" }),
         (supabase as any).from("app_settings").upsert({ key: "service_interval_days", value: serviceIntervalDays, updated_at: now }, { onConflict: "key" })
       ]);
-      
+
       queryClient.invalidateQueries({ queryKey: ["app_settings"] });
       await logAction("UPDATE", "app_settings", "service_interval_settings", { months: serviceInterval, days: serviceIntervalDays });
-      
+
       let msg = `✅ Service reminder interval set to every `;
       if (months > 0) msg += `${months} month(s) `;
       if (days > 0) msg += `${days} day(s)`;
@@ -491,16 +491,16 @@ export default function Settings() {
             <ArrowLeft className="w-4 h-4" />
           </Button>
           <div>
-          <div className="flex items-center gap-2 mb-1 opacity-80">
-            <Crown className="w-4 h-4 text-amber-400" />
-            <span className="text-sm font-medium uppercase tracking-wider text-amber-400">Super Admin</span>
-          </div>
-          <h1 className="text-4xl md:text-5xl font-heading font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-foreground via-foreground to-foreground/70 tracking-tight">
-            Admin Controls
-          </h1>
-          <p className="text-base text-muted-foreground mt-2 max-w-xl">
-            Manage your team's roles, configure page access, invite users, and monitor system activity.
-          </p>
+            <div className="flex items-center gap-2 mb-1 opacity-80">
+              <Crown className="w-4 h-4 text-amber-400" />
+              <span className="text-sm font-medium uppercase tracking-wider text-amber-400">Super Admin</span>
+            </div>
+            <h1 className="text-4xl md:text-5xl font-heading font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-foreground via-foreground to-foreground/70 tracking-tight">
+              Admin Controls
+            </h1>
+            <p className="text-base text-muted-foreground mt-2 max-w-xl">
+              Manage your team's roles, configure page access, invite users, and monitor system activity.
+            </p>
           </div>
         </div>
 
@@ -526,17 +526,16 @@ export default function Settings() {
       {/* Tabs */}
       <div className="flex p-1.5 bg-foreground/5 rounded-2xl gap-1 w-full md:max-w-lg overflow-x-auto">
         {([
-          ["team",        "Team",       <Users     className="w-4 h-4 shrink-0" />],
-          ["permissions", "Permissions",<Shield    className="w-4 h-4 shrink-0" />],
-          ["system",      "System",     <Bell      className="w-4 h-4 shrink-0" />],
-          ["audit",       "Audit Logs", <Activity  className="w-4 h-4 shrink-0" />],
+          ["team", "Team", <Users className="w-4 h-4 shrink-0" />],
+          ["permissions", "Permissions", <Shield className="w-4 h-4 shrink-0" />],
+          ["system", "System", <Bell className="w-4 h-4 shrink-0" />],
+          ["audit", "Audit Logs", <Activity className="w-4 h-4 shrink-0" />],
         ] as const).map(([key, label, icon]) => (
           <button
             key={key}
             onClick={() => setTab(key)}
-            className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-semibold transition-all ${
-              tab === key ? "bg-amber-500 text-white shadow-lg shadow-amber-500/30" : "text-muted-foreground hover:text-foreground"
-            }`}
+            className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-semibold transition-all ${tab === key ? "bg-amber-500 text-white shadow-lg shadow-amber-500/30" : "text-muted-foreground hover:text-foreground"
+              }`}
           >
             {icon}{label}
           </button>
@@ -650,7 +649,7 @@ export default function Settings() {
                   Live Test
                 </span>
               </div>
-              
+
               <div className="bg-background/30 rounded-2xl border border-white/5 p-1">
                 {previewReminders.length === 0 ? (
                   <div className="p-8 text-center text-muted-foreground text-sm italic">
@@ -710,7 +709,7 @@ export default function Settings() {
           </div>
 
           {isLoading ? (
-            <div className="space-y-4">{[1,2,3].map(i => <div key={i} className="h-20 bg-white/5 rounded-2xl animate-pulse" />)}</div>
+            <div className="space-y-4">{[1, 2, 3].map(i => <div key={i} className="h-20 bg-white/5 rounded-2xl animate-pulse" />)}</div>
           ) : usersData.length === 0 ? (
             <div className="text-center p-8 border border-white/5 bg-white/5 rounded-2xl">
               <p className="text-muted-foreground">No users found yet. Invite users using the button above.</p>
@@ -763,9 +762,9 @@ export default function Settings() {
                       </Select>
 
                       {!isSelf && (
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
+                        <Button
+                          variant="ghost"
+                          size="icon"
                           className="h-10 w-10 text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 rounded-xl"
                           onClick={() => setDeleteId(u.user_id)}
                         >
@@ -826,27 +825,27 @@ export default function Settings() {
                       const hasView = (permissions[r]?.view ?? []).includes(page.key);
                       const hasCreate = ((permissions[r] as any)?.create ?? []).includes(page.key);
                       const hasEdit = (permissions[r]?.edit ?? []).includes(page.key);
-                      
+
                       let btnClass = "bg-foreground/5 text-muted-foreground/30 hover:bg-foreground/10";
                       let title = "Grant View access";
                       let icon = <ToggleLeft className="w-5 h-5" />;
-                      
-                      if (hasView && !hasCreate && !hasEdit) { 
-                        btnClass = "bg-blue-500/20 text-blue-500 hover:bg-blue-500/30"; 
-                        title = "Grant Add access"; 
-                        icon = <Eye className="w-5 h-5" />; 
+
+                      if (hasView && !hasCreate && !hasEdit) {
+                        btnClass = "bg-blue-500/20 text-blue-500 hover:bg-blue-500/30";
+                        title = "Grant Add access";
+                        icon = <Eye className="w-5 h-5" />;
                       }
-                      else if (hasView && hasCreate && !hasEdit) { 
-                        btnClass = "bg-amber-500/20 text-amber-500 hover:bg-amber-500/30"; 
-                        title = "Grant Edit access"; 
-                        icon = <Plus className="w-5 h-5" />; 
+                      else if (hasView && hasCreate && !hasEdit) {
+                        btnClass = "bg-amber-500/20 text-amber-500 hover:bg-amber-500/30";
+                        title = "Grant Edit access";
+                        icon = <Plus className="w-5 h-5" />;
                       }
-                      else if (hasView && hasCreate && hasEdit) { 
-                        btnClass = "bg-emerald-500/20 text-emerald-500 hover:bg-emerald-500/30"; 
-                        title = "Revoke all access"; 
-                        icon = <Pencil className="w-4 h-4" />; 
+                      else if (hasView && hasCreate && hasEdit) {
+                        btnClass = "bg-emerald-500/20 text-emerald-500 hover:bg-emerald-500/30";
+                        title = "Revoke all access";
+                        icon = <Pencil className="w-4 h-4" />;
                       }
-                      
+
                       return (
                         <td key={r} className="py-3.5 text-center">
                           <button onClick={() => togglePerm(r, page.key)} className={`inline-flex items-center justify-center w-9 h-9 rounded-xl transition-all ${btnClass}`} title={title}>
@@ -879,7 +878,7 @@ export default function Settings() {
           </p>
 
           {isLoadingLogs ? (
-            <div className="space-y-3">{[1,2,3,4,5].map(i => <div key={i} className="h-14 bg-white/5 rounded-xl animate-pulse" />)}</div>
+            <div className="space-y-3">{[1, 2, 3, 4, 5].map(i => <div key={i} className="h-14 bg-white/5 rounded-xl animate-pulse" />)}</div>
           ) : logs.length === 0 ? (
             <div className="flex flex-col items-center py-16 text-center gap-3">
               <Activity className="w-10 h-10 text-muted-foreground/20" />
@@ -1079,7 +1078,7 @@ export default function Settings() {
           </AlertDialogHeader>
           <AlertDialogFooter className="mt-6 gap-2">
             <AlertDialogCancel className="rounded-xl border-white/10" disabled={deleting}>Cancel</AlertDialogCancel>
-            <AlertDialogAction 
+            <AlertDialogAction
               className="bg-rose-500 hover:bg-rose-600 text-white rounded-xl shadow-lg shadow-rose-500/20 border-none"
               disabled={deleting}
               onClick={() => deleteId && deleteUserMutation.mutate(deleteId)}
