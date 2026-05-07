@@ -120,51 +120,31 @@ export default function Settings() {
   const { data: usersData = [], isLoading } = useQuery({
     queryKey: ["users-roles"],
     queryFn: async () => {
-      // Strategy 1: Try fetching user_roles with embedded profiles
-      const { data: rolesWithProfiles, error: joinError } = await (supabase as any)
+      // user_roles is the source of truth — we know it has all 9 users
+      const { data: roles, error: rolesError } = await (supabase as any)
         .from("user_roles")
-        .select("*, profile:profiles(*)");
+        .select("*");
 
-      if (!joinError && rolesWithProfiles && rolesWithProfiles.length > 0) {
-        return rolesWithProfiles.map((r: any) => ({
+      if (rolesError) throw rolesError;
+      if (!roles || roles.length === 0) return [];
+
+      // Try to get profiles to enrich display names (not critical if it fails)
+      const { data: profiles } = await (supabase as any)
+        .from("profiles")
+        .select("id, user_id, display_name, phone, avatar_url");
+
+      const safeProfiles = profiles || [];
+
+      return roles.map((r: any) => {
+        // Profiles can be linked by user_id OR id (both reference auth.users.id)
+        const profile = safeProfiles.find((p: any) =>
+          p.user_id === r.user_id || p.id === r.user_id
+        );
+        return {
           id: r.id,
           user_id: r.user_id,
           role: r.role || "super_admin",
-          profile: r.profile || { display_name: "Unknown User", phone: null },
-        }));
-      }
-
-      // Strategy 2: Fallback — fetch separately and merge
-      const { data: roles } = await (supabase as any).from("user_roles").select("*");
-      const { data: profiles } = await (supabase as any).from("profiles").select("*");
-
-      const safeRoles = roles || [];
-      const safeProfiles = profiles || [];
-
-      if (safeRoles.length > 0) {
-        // Build from roles (we know these exist)
-        return safeRoles.map((r: any) => {
-          const profile = safeProfiles.find((p: any) => 
-            (p.user_id && p.user_id === r.user_id) || 
-            (p.id && p.id === r.user_id)
-          );
-          return {
-            id: r.id,
-            user_id: r.user_id,
-            role: r.role || "super_admin",
-            profile: profile || { display_name: "Unknown User", phone: null },
-          };
-        });
-      }
-
-      // Strategy 3: Build from profiles if roles table is empty
-      return safeProfiles.map((p: any) => {
-        const pid = p.user_id || p.id;
-        return {
-          id: null,
-          user_id: pid,
-          role: "super_admin",
-          profile: p,
+          profile: profile || { display_name: "User " + r.user_id.slice(0, 8), phone: null },
         };
       });
     },
