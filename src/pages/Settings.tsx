@@ -120,21 +120,50 @@ export default function Settings() {
   const { data: usersData = [], isLoading } = useQuery({
     queryKey: ["users-roles"],
     queryFn: async () => {
-      const [{ data: roles, error: rolesError }, { data: profiles, error: profilesError }] = await Promise.all([
-        (supabase as any).from("user_roles").select("*"),
-        (supabase as any).from("profiles").select("*"),
-      ]);
-      if (rolesError) throw rolesError;
-      if (profilesError) throw profilesError;
+      // Strategy 1: Try fetching user_roles with embedded profiles
+      const { data: rolesWithProfiles, error: joinError } = await (supabase as any)
+        .from("user_roles")
+        .select("*, profile:profiles(*)");
 
-      // We list ALL profiles, attaching roles where they exist. 
-      // Users without roles are "Pending Approval".
-      return profiles.map((p: any) => {
-        const roleEntry = roles.find((r: any) => r.user_id === p.user_id);
+      if (!joinError && rolesWithProfiles && rolesWithProfiles.length > 0) {
+        return rolesWithProfiles.map((r: any) => ({
+          id: r.id,
+          user_id: r.user_id,
+          role: r.role || "super_admin",
+          profile: r.profile || { display_name: "Unknown User", phone: null },
+        }));
+      }
+
+      // Strategy 2: Fallback — fetch separately and merge
+      const { data: roles } = await (supabase as any).from("user_roles").select("*");
+      const { data: profiles } = await (supabase as any).from("profiles").select("*");
+
+      const safeRoles = roles || [];
+      const safeProfiles = profiles || [];
+
+      if (safeRoles.length > 0) {
+        // Build from roles (we know these exist)
+        return safeRoles.map((r: any) => {
+          const profile = safeProfiles.find((p: any) => 
+            (p.user_id && p.user_id === r.user_id) || 
+            (p.id && p.id === r.user_id)
+          );
+          return {
+            id: r.id,
+            user_id: r.user_id,
+            role: r.role || "super_admin",
+            profile: profile || { display_name: "Unknown User", phone: null },
+          };
+        });
+      }
+
+      // Strategy 3: Build from profiles if roles table is empty
+      return safeProfiles.map((p: any) => {
+        const pid = p.user_id || p.id;
         return {
-          id: roleEntry?.id || null, // null if no record yet
-          user_id: p.user_id,
-          role: roleEntry?.role || "admin",
+          id: null,
+          user_id: pid,
+          role: "super_admin",
           profile: p,
         };
       });

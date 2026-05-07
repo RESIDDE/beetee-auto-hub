@@ -39,7 +39,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setState((prev) => ({
         ...prev,
         profile: profileResult.data || null,
-        role: roleResult.data?.role ?? "admin",
+        role: roleResult.data?.role ?? "super_admin",
         isLoading: false,
       }));
     } catch (err) {

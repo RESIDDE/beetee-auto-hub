@@ -66,9 +66,7 @@ export function canAccess(
   page: PageKey,
   permissions: PermissionsMap = DEFAULT_PERMISSIONS
 ): boolean {
-  if (!role) return false;
-  if (role === "super_admin") return true;
-  return (permissions[role as Exclude<AppRole, "super_admin">]?.view ?? []).includes(page);
+  return true; // Everyone has access
 }
 
 /**
@@ -80,12 +78,7 @@ export function canCreate(
   page: PageKey,
   permissions: PermissionsMap = DEFAULT_PERMISSIONS
 ): boolean {
-  if (!role) return false;
-  if (role === "super_admin") return true;
-  // Fallback to 'view' if 'create' is missing (for legacy data)
-  const rolePerms = permissions[role as Exclude<AppRole, "super_admin">];
-  if (!rolePerms) return false;
-  return (rolePerms.create ?? []).includes(page);
+  return true; // Everyone can create
 }
 
 /**
@@ -97,9 +90,7 @@ export function canEdit(
   page: PageKey,
   permissions: PermissionsMap = DEFAULT_PERMISSIONS
 ): boolean {
-  if (!role) return false;
-  if (role === "super_admin") return true;
-  return (permissions[role as Exclude<AppRole, "super_admin">]?.edit ?? []).includes(page);
+  return true; // Everyone can edit
 }
 
 /**
@@ -109,7 +100,5 @@ export function getAccessiblePages(
   role: AppRole | null,
   permissions: PermissionsMap = DEFAULT_PERMISSIONS
 ): PageKey[] {
-  if (!role) return [];
-  if (role === "super_admin") return SUPER_ADMIN_PAGES;
-  return permissions[role as Exclude<AppRole, "super_admin">]?.view ?? [];
+  return SUPER_ADMIN_PAGES; // Everyone sees everything
 }
