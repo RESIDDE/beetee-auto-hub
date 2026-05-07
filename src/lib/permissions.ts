@@ -59,46 +59,62 @@ export const DEFAULT_PERMISSIONS: PermissionsMap = {
 
 /**
  * Returns true if the given role can VIEW the given page.
- * super_admin always returns true.
+ * - null role (pending) = no access
+ * - super_admin = always full access
+ * - others = check permissions map
  */
 export function canAccess(
   role: AppRole | null,
   page: PageKey,
   permissions: PermissionsMap = DEFAULT_PERMISSIONS
 ): boolean {
-  return true; // Everyone has access
+  if (!role) return false; // Pending users blocked
+  if (role === "super_admin") return true;
+  return (permissions[role as Exclude<AppRole, "super_admin">]?.view ?? []).includes(page);
 }
 
 /**
  * Returns true if the given role can CREATE (ADD) on the given page.
- * super_admin always returns true.
+ * - null role (pending) = no access
+ * - super_admin = always full access
  */
 export function canCreate(
   role: AppRole | null,
   page: PageKey,
   permissions: PermissionsMap = DEFAULT_PERMISSIONS
 ): boolean {
-  return true; // Everyone can create
+  if (!role) return false; // Pending users blocked
+  if (role === "super_admin") return true;
+  const rolePerms = permissions[role as Exclude<AppRole, "super_admin">];
+  if (!rolePerms) return false;
+  return (rolePerms.create ?? []).includes(page);
 }
 
 /**
  * Returns true if the given role can EDIT on the given page.
- * super_admin always returns true.
+ * - null role (pending) = no access
+ * - super_admin = always full access
  */
 export function canEdit(
   role: AppRole | null,
   page: PageKey,
   permissions: PermissionsMap = DEFAULT_PERMISSIONS
 ): boolean {
-  return true; // Everyone can edit
+  if (!role) return false; // Pending users blocked
+  if (role === "super_admin") return true;
+  return (permissions[role as Exclude<AppRole, "super_admin">]?.edit ?? []).includes(page);
 }
 
 /**
  * Returns the list of pages accessible (viewable) by this role.
+ * - null role (pending) = empty list
+ * - super_admin = all pages
  */
 export function getAccessiblePages(
   role: AppRole | null,
   permissions: PermissionsMap = DEFAULT_PERMISSIONS
 ): PageKey[] {
-  return SUPER_ADMIN_PAGES; // Everyone sees everything
+  if (!role) return []; // Pending users see nothing
+  if (role === "super_admin") return SUPER_ADMIN_PAGES;
+  return permissions[role as Exclude<AppRole, "super_admin">]?.view ?? [];
 }
