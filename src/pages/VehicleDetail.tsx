@@ -233,15 +233,24 @@ export default function VehicleDetail() {
                 : null
             )}
             {info("Keys", vehicle.num_keys)}
-            {vehicle.inventory_type !== 'resale' && (
-              <>
-                {info("Company/Owner Source", vehicle.source_company)}
-                <div className="col-span-1 xs:col-span-2 space-y-4 pt-2 border-t border-white/5">
-                  {info("Company/Owner Contact", (vehicle as any).source_company_phone)}
-                  {info("Representative Name", (vehicle as any).source_rep_name)}
-                  {info("Representative Contact", (vehicle as any).source_rep_phone)}
+            
+            {/* Show source details for both types now */}
+            {vehicle.inventory_type !== 'resale' && info("Company/Owner Source", vehicle.source_company)}
+            <div className="col-span-1 xs:col-span-2 space-y-4 pt-2 border-t border-white/5">
+              {vehicle.inventory_type !== 'resale' && info("Company/Owner Contact", (vehicle as any).source_company_phone)}
+              {info(vehicle.inventory_type === 'resale' ? "Person Who Brought It" : "Representative Name", (vehicle as any).source_rep_name)}
+              {info(vehicle.inventory_type === 'resale' ? "Contact Number" : "Representative Contact", (vehicle as any).source_rep_phone)}
+            </div>
+
+            {vehicle.source_rep_signature && (
+              <div className="col-span-1 xs:col-span-2 space-y-3 pt-4 border-t border-white/5">
+                <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">
+                  {vehicle.inventory_type === 'resale' ? "Brought-in Signature" : "Rep Signature"}
+                </p>
+                <div className="bg-white p-3 rounded-2xl border border-white/5 inline-block shadow-sm">
+                  <img src={vehicle.source_rep_signature} alt="Rep Signature" className="max-h-[60px] object-contain mix-blend-multiply" />
                 </div>
-              </>
+              </div>
             )}
           </CardContent>
         </Card>

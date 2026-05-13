@@ -711,6 +711,9 @@ export type Database = {
           accepted_by_name: string | null
           accepted_date: string | null
           accepted_signature: string | null
+          source_rep_name: string | null
+          source_rep_phone: string | null
+          source_rep_signature: string | null
         }
         Insert: {
           color?: string | null
@@ -740,6 +743,9 @@ export type Database = {
           accepted_by_name?: string | null
           accepted_date?: string | null
           accepted_signature?: string | null
+          source_rep_name?: string | null
+          source_rep_phone?: string | null
+          source_rep_signature?: string | null
         }
         Update: {
           color?: string | null
@@ -769,6 +775,9 @@ export type Database = {
           accepted_by_name?: string | null
           accepted_date?: string | null
           accepted_signature?: string | null
+          source_rep_name?: string | null
+          source_rep_phone?: string | null
+          source_rep_signature?: string | null
         }
         Relationships: []
       }

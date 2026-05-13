@@ -53,6 +53,7 @@ interface FormData {
   condition: string;
   trim: string;
   inventory_type: string;
+  source_rep_signature: string;
   accepted_by_name: string;
   accepted_by_phone: string;
   accepted_date: string;
@@ -82,6 +83,7 @@ const emptyForm: FormData = {
   condition: "New",
   trim: "",
   inventory_type: "beetee",
+  source_rep_signature: "",
   accepted_by_name: "",
   accepted_by_phone: "",
   accepted_date: "",
@@ -183,6 +185,7 @@ export default function VehicleForm() {
         condition: v.condition || "Used",
         trim: v.trim || "",
         inventory_type: v.inventory_type || "beetee",
+        source_rep_signature: v.source_rep_signature || "",
         accepted_by_name: v.accepted_by_name || "",
         accepted_by_phone: v.accepted_by_phone || "",
         accepted_date: v.accepted_date || "",
@@ -273,6 +276,7 @@ export default function VehicleForm() {
         condition: form.condition,
         trim: form.trim.trim() || null,
         inventory_type: form.inventory_type,
+        source_rep_signature: form.source_rep_signature || null,
         accepted_by_name: form.accepted_by_name?.trim() || null,
         accepted_by_phone: form.accepted_by_phone?.trim() || null,
         accepted_date: form.accepted_date || null,
@@ -520,14 +524,6 @@ export default function VehicleForm() {
             {field("date_arrived", "Date Arrived", "date")}
             {field("date_stored", "Date Stored", "date")}
             {field("num_keys", "Number of Keys", "number")}
-            {form.inventory_type !== 'resale' && (
-              <>
-                {field("source_company", "Company/Owner the vehicle is from")}
-                {field("source_company_phone", "Company/Owner Phone Number", "tel")}
-                {field("source_rep_name", "Representative Name (from Company/Owner)")}
-                {field("source_rep_phone", "Representative Phone Number", "tel")}
-              </>
-            )}
             
             <div className="space-y-1">
               <Label>Inventory Type</Label>
@@ -542,6 +538,38 @@ export default function VehicleForm() {
                 </SelectContent>
               </Select>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Source Person Info - Show for both, but required for resale signature */}
+        <Card className={form.inventory_type === 'resale' ? "border-emerald-500/20 bg-emerald-500/5 shadow-lg" : ""}>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <FileSignature className="h-4 w-4" /> 
+              {form.inventory_type === 'resale' ? "Person Who Brought the Vehicle" : "Source Company/Owner Info"}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-4 md:grid-cols-2">
+            {form.inventory_type !== 'resale' && (
+              <>
+                {field("source_company", "Company/Owner the vehicle is from")}
+                {field("source_company_phone", "Company/Owner Phone Number", "tel")}
+              </>
+            )}
+            {field("source_rep_name", form.inventory_type === 'resale' ? "Full Name" : "Representative Name")}
+            {field("source_rep_phone", form.inventory_type === 'resale' ? "Phone Number" : "Representative Phone", "tel")}
+            
+            {(form.inventory_type === 'resale' || form.source_rep_name) && (
+              <div className="md:col-span-2 space-y-2 mt-2">
+                <Label>{form.inventory_type === 'resale' ? "Signature of Person Who Brought Vehicle" : "Representative Digital Signature"}</Label>
+                <div className="rounded-2xl border border-white/10 bg-background/50 p-4">
+                  <SignaturePad 
+                    value={form.source_rep_signature} 
+                    onChange={(v) => setForm({ ...form, source_rep_signature: v })} 
+                  />
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 

@@ -117,34 +117,36 @@ export default function Settings() {
   }
 
   // ── Team Query ─────────────────────────────────────────────────────────────
+  // profiles = ALL users (including pending with no role)
+  // user_roles = only approved users
+  // We merge: every profile appears, role is "pending" if no user_roles row exists
   const { data: usersData = [], isLoading } = useQuery({
     queryKey: ["users-roles"],
     queryFn: async () => {
-      // user_roles is the source of truth — we know it has all 9 users
-      const { data: roles, error: rolesError } = await (supabase as any)
-        .from("user_roles")
-        .select("*");
-
-      if (rolesError) throw rolesError;
-      if (!roles || roles.length === 0) return [];
-
-      // Try to get profiles to enrich display names (not critical if it fails)
-      const { data: profiles } = await (supabase as any)
+      // Fetch ALL profiles (every user who signed up)
+      const { data: profiles, error: profilesError } = await (supabase as any)
         .from("profiles")
         .select("id, user_id, display_name, phone, avatar_url");
 
-      const safeProfiles = profiles || [];
+      if (profilesError) throw profilesError;
+      if (!profiles || profiles.length === 0) return [];
 
-      return roles.map((r: any) => {
-        // Profiles can be linked by user_id OR id (both reference auth.users.id)
-        const profile = safeProfiles.find((p: any) =>
-          p.user_id === r.user_id || p.id === r.user_id
-        );
+      // Fetch roles separately (only approved users have a row here)
+      const { data: roles } = await (supabase as any)
+        .from("user_roles")
+        .select("*");
+
+      const safeRoles = roles || [];
+
+      return profiles.map((p: any) => {
+        const pid = p.user_id || p.id;
+        // Find the matching role row (if any)
+        const roleEntry = safeRoles.find((r: any) => r.user_id === pid);
         return {
-          id: r.id,
-          user_id: r.user_id,
-          role: r.role || "pending",
-          profile: profile || { display_name: "User " + r.user_id.slice(0, 8), phone: null },
+          id: roleEntry?.id || null,   // null means no role row yet (pending)
+          user_id: pid,
+          role: roleEntry?.role || "pending",
+          profile: p,
         };
       });
     },
