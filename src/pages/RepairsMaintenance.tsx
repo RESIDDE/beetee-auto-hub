@@ -915,7 +915,7 @@ export default function RepairsMaintenance() {
     return `<html><head><title>Job Card - ${r.job_card_no || r.id}</title>
     <style>
       @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
-      body { font-family: 'Inter', sans-serif; padding: 10px; max-width: 850px; margin: 0 auto; color: #1a1a1a; line-height: 1.3; }
+      body { font-family: 'Inter', sans-serif; padding: 10px; max-width: 850px; margin: 0 auto; color: #1a1a1a; line-height: 1.3; position: relative; }
       .job-header { text-align: center; font-weight: 800; font-size: 20px; text-transform: uppercase; margin: 10px 0; letter-spacing: 2px; }
       .section { border: 1.5px solid #000; margin-bottom: 10px; border-radius: 4px; overflow: hidden; }
       .section-title { background: transparent; padding: 4px 10px; font-size: 11px; font-weight: 800; border-bottom: 1.5px solid #000; text-transform: uppercase; display: flex; justify-content: space-between; }
@@ -1882,8 +1882,8 @@ export default function RepairsMaintenance() {
 
       {/* Payment History Dialog */}
       <Dialog open={!!paymentRepairId} onOpenChange={(v) => !v && setPaymentRepairId(null)}>
-        <DialogContent className="max-w-2xl rounded-3xl glass-panel border-white/10 p-0 overflow-hidden bg-background/95 backdrop-blur-3xl">
-          <div className="p-6 border-b border-white/5 bg-foreground/5 flex items-center justify-between">
+        <DialogContent className="max-w-2xl w-[95vw] sm:w-full rounded-3xl glass-panel border-white/10 p-0 overflow-hidden bg-background/95 backdrop-blur-3xl">
+          <div className="p-6 border-b border-white/5 bg-foreground/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <DialogHeader>
               <DialogTitle className="text-xl font-bold flex items-center gap-2">
                 <CreditCard className="w-5 h-5 text-emerald-500" /> Payment History & Balance
@@ -1894,7 +1894,7 @@ export default function RepairsMaintenance() {
               const totalPaid = repairPayments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
               const balance = (Number(repair?.repair_cost) || 0) - totalPaid;
               return (
-                <div className="text-right">
+                <div className="text-left sm:text-right shrink-0">
                   <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Total Balance Due</p>
                   <p className={`text-xl font-black ${balance <= 0 ? 'text-emerald-500' : 'text-amber-500'}`}>
                     ₦{balance.toLocaleString()}
@@ -1908,7 +1908,7 @@ export default function RepairsMaintenance() {
             {paymentRepairId && (
               <>
                 {/* Stats Summary */}
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="bg-background/50 p-4 rounded-2xl border border-white/5">
                     <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Total Repair Cost</p>
                     <p className="text-xl font-black">₦{(Number(repairs.find(r => r.id === paymentRepairId)?.repair_cost) || 0).toLocaleString()}</p>
@@ -1969,7 +1969,9 @@ export default function RepairsMaintenance() {
                   <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
                     <HistoryIcon className="w-3.5 h-3.5" /> Payment History
                   </h4>
-                  <div className="rounded-2xl border border-white/5 overflow-hidden bg-background/40">
+                  
+                  {/* Desktop Table View */}
+                  <div className="hidden md:block rounded-2xl border border-white/5 overflow-hidden bg-background/40">
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="bg-foreground/5 text-muted-foreground font-bold uppercase text-[9px] tracking-[0.1em] border-b border-white/5">
@@ -2037,6 +2039,66 @@ export default function RepairsMaintenance() {
                         )}
                       </tbody>
                     </table>
+                  </div>
+                  
+                  {/* Mobile Card List View */}
+                  <div className="md:hidden space-y-3">
+                    {repairPayments.length === 0 ? (
+                      <div className="p-6 text-center text-muted-foreground italic rounded-2xl border border-white/5 bg-background/40">
+                        No payments recorded yet.
+                      </div>
+                    ) : (
+                      [...repairPayments].reverse().map((p, idx) => {
+                        const currentRepair = repairs.find(r => r.id === paymentRepairId);
+                        const totalPaidUpToThis = repairPayments
+                          .filter(px => new Date(px.payment_date).getTime() <= new Date(p.payment_date).getTime())
+                          .reduce((sum, px) => sum + Number(px.amount), 0);
+                        const totalCost = Number(currentRepair?.repair_cost) || 0;
+                        
+                        const isFirst = repairPayments.indexOf(p) === 0;
+                        const isFull = totalPaidUpToThis >= totalCost;
+                        const ordinalLabels = ["1st", "2nd", "3rd", "4th", "5th"];
+                        const paymentIdx = repairPayments.indexOf(p);
+                        const label = isFull ? "Full" : isFirst ? "Deposit" : ordinalLabels[paymentIdx] || `${paymentIdx + 1}th`;
+
+                        return (
+                          <div key={p.id} className="p-4 rounded-2xl border border-white/5 bg-background/30 flex flex-col gap-3 shadow-inner">
+                            <div className="flex items-center justify-between">
+                              <span className={`text-[9px] font-black uppercase px-2 py-1 rounded-md border ${
+                                isFull ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 
+                                isFirst ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' : 
+                                'bg-sky-500/10 text-sky-500 border-sky-500/20'
+                              }`}>
+                                {label}
+                              </span>
+                              <span className="text-[10px] text-muted-foreground font-semibold">
+                                {new Date(p.payment_date).toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' })}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between gap-4">
+                              <div className="min-w-0 flex-1">
+                                <span className="uppercase text-[10px] font-bold opacity-60 bg-white/5 px-2 py-0.5 rounded">{p.payment_method}</span>
+                                {p.notes && <p className="text-[11px] text-muted-foreground italic mt-1 truncate">{p.notes}</p>}
+                              </div>
+                              <div className="flex items-center gap-3 shrink-0">
+                                <span className="font-black text-foreground text-sm">
+                                  ₦{Number(p.amount).toLocaleString()}
+                                </span>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-8 w-8 rounded-lg hover:bg-amber-500/10 text-amber-500"
+                                  onClick={() => printRepairPaymentReceipt(p, currentRepair!)}
+                                  title="Print Receipt"
+                                >
+                                  <Printer className="w-3.5 h-3.5" />
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
                   </div>
                 </div>
               </>

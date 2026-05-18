@@ -76,7 +76,7 @@ export function printTable(title: string, data: Record<string, any>[], columns: 
   const html = `
     <html><head><title>${title}</title>
     <style>
-      body { font-family: Arial, sans-serif; padding: 20px; }
+      body { font-family: Arial, sans-serif; padding: 20px; position: relative; }
       h1 { font-size: 18px; margin-bottom: 16px; }
       table { width: 100%; border-collapse: collapse; font-size: 12px; }
       th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }

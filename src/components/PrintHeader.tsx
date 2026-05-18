@@ -67,16 +67,21 @@ export function getPrintWatermarkHTML(base64Logo?: string) {
   const logoUrl = base64Logo || `${window.location.origin}${logo}`;
   return `
     <div style="
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       pointer-events: none;
       z-index: 0;
       opacity: 0.15;
       user-select: none;
     ">
-      <img src="${logoUrl}" style="width: 550px; height: 550px; object-fit: contain;" />
+      <img src="${logoUrl}" style="width: 550px; height: 550px; max-width: 90%; max-height: 90%; object-fit: contain;" />
     </div>
   `;
 }
+
