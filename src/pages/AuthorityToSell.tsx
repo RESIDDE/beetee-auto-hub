@@ -269,7 +269,7 @@ export default function AuthorityToSell() {
 
   // ── Helper ────────────────────────────────────────────────────────────────
   const Field = ({ label, value }: { label: string; value: string }) => (
-    <div className="flex items-baseline gap-2 py-1 border-b border-gray-200">
+    <div className="flex items-baseline gap-2 print:gap-1.5 py-1 print:py-[2px] border-b border-gray-200">
       <span className="font-bold text-sm text-gray-800 whitespace-nowrap">{label}:</span>
       <span className="flex-1 text-sm text-gray-900 font-medium">
         {value || <span className="text-transparent select-none">{"_".repeat(30)}</span>}
@@ -296,21 +296,21 @@ export default function AuthorityToSell() {
         {/* Printable Document */}
         <div
           ref={documentRef}
-          className="bg-white text-black rounded-3xl shadow-2xl border border-gray-100 print:shadow-none print:border-none print:rounded-none"
-          style={{ minHeight: "auto", padding: "16px 24px" }}
+          className="bg-white text-black rounded-3xl shadow-2xl border border-gray-100 p-4 sm:p-6 print:p-0 print:shadow-none print:border-none print:rounded-none"
+          style={{ minHeight: "auto" }}
         >
           <PrintWatermark />
           <PrintHeader />
 
           {/* Title */}
-          <div className="text-center my-2">
-            <h1 className="text-lg font-black text-black uppercase tracking-widest underline underline-offset-4">
+          <div className="text-center my-2 print:my-1">
+            <h1 className="text-lg print:text-base font-black text-black uppercase tracking-widest underline underline-offset-4">
               Authority to Sell Vehicle
             </h1>
           </div>
 
           {/* Date */}
-          <div className="flex items-baseline gap-2 mb-2 border-b border-gray-300 pb-0.5">
+          <div className="flex items-baseline gap-2 mb-2 print:mb-1.5 border-b border-gray-300 pb-0.5">
             <span className="font-bold text-[13px]">Date:</span>
             <span className="text-[13px] font-medium flex-1">
               {previewData.agreementDate
@@ -320,7 +320,7 @@ export default function AuthorityToSell() {
           </div>
 
           {/* Owner's Information */}
-          <section className="mb-2">
+          <section className="mb-2 print:mb-1.5">
             <h2 className="font-black text-xs uppercase tracking-wide mb-0.5">Owner's Information</h2>
             <div className="space-y-0.5">
               <Field label="Full Name" value={previewData.customerName} />
@@ -331,7 +331,7 @@ export default function AuthorityToSell() {
           </section>
 
           {/* Vehicle Information */}
-          <section className="mb-2">
+          <section className="mb-2 print:mb-1.5">
             <h2 className="font-black text-xs uppercase tracking-wide mb-0.5">Vehicle Information</h2>
             <div className="space-y-0.5">
               <Field label="Make/Brand" value={previewData.vehicleMake} />
@@ -343,9 +343,9 @@ export default function AuthorityToSell() {
           </section>
 
           {/* Authority Given */}
-          <section className="mb-2">
+          <section className="mb-2 print:mb-1.5">
             <h2 className="font-black text-xs uppercase tracking-wide mb-1">Authority Given</h2>
-            <p className="text-[13px] leading-[1.8] text-gray-800">
+            <p className="text-[13px] leading-[1.8] print:leading-[1.3] text-gray-800">
               I,{" "}
               <span className="inline-block min-w-[200px] border-b border-gray-800 text-center font-bold px-2">
                 {previewData.customerName || ""}
@@ -362,7 +362,7 @@ export default function AuthorityToSell() {
               )}, hereby authorize the above-named person to sell the vehicle described above on my behalf. This includes:
               Talking to potential buyers, accepting payment, signing necessary sale documents, Releasing the vehicle and its documents.
             </p>
-            <div className="flex items-baseline gap-2 mt-2 border-b border-gray-300 pb-0.5">
+            <div className="flex items-baseline gap-2 mt-2 print:mt-1 border-b border-gray-300 pb-0.5">
               <span className="font-bold text-[13px] whitespace-nowrap">This authority is valid until:</span>
               <span className="text-[13px] font-medium flex-1">
                 {previewData.validUntil
@@ -372,19 +372,20 @@ export default function AuthorityToSell() {
             </div>
           </section>
 
-          {/* Note */}
-          <section className="mb-2">
-            <h2 className="font-black text-xs uppercase tracking-wide mb-0.5">Note:</h2>
-            <p className="text-[13px] text-gray-800 leading-tight min-h-[20px] border-b border-gray-300 pb-1">
-              {previewData.note}
-            </p>
-          </section>
-
+          {/* Note (Only rendered if present to save layout space) */}
+          {previewData.note && (
+            <section className="mb-2 print:mb-1.5">
+              <h2 className="font-black text-xs uppercase tracking-wide mb-0.5">Note:</h2>
+              <p className="text-[13px] text-gray-800 leading-tight min-h-[20px] border-b border-gray-300 pb-1">
+                {previewData.note}
+              </p>
+            </section>
+          )}
 
           {/* Signatures */}
           <section>
             <h2 className="font-black text-xs uppercase tracking-wide mb-2">Signatures</h2>
-            <div className="grid grid-cols-2 gap-12">
+            <div className="grid grid-cols-2 gap-12 print:gap-8">
               {/* Owner / Representative */}
               <div>
                 <p className="text-[10px] font-bold text-gray-600 mb-0.5">Owner / Representative Signature:</p>
@@ -405,7 +406,7 @@ export default function AuthorityToSell() {
                     </div>
                   )}
                 </div>
-                <div className="flex items-baseline gap-2 border-b border-gray-400 pb-0.5 mt-1.5">
+                <div className="flex items-baseline gap-2 border-b border-gray-400 pb-0.5 mt-1.5 print:mt-1">
                   <span className="text-[9px] font-bold uppercase opacity-60">Date:</span>
                   <span className="text-[11px] font-medium flex-1">
                     {previewData.agreementDate

@@ -3,7 +3,7 @@ import React from 'react';
 // For use inside React DOM trees (like AuthorityToSell.tsx)
 export function PrintFooter() {
   return (
-    <div className="mt-12 pt-4 border-t border-gray-200 text-center opacity-70">
+    <div className="mt-12 print:mt-4 pt-4 border-t border-gray-200 text-center opacity-70">
       <p className="text-[10px] font-bold uppercase tracking-widest text-[#1D3557]">
         BEE TEE AUTOMOBILE — Sales • Services • Maintenance • Modification • Logistics
       </p>
