@@ -283,6 +283,33 @@ export default function AuthorityToSell() {
   if (mode === "preview") {
     return (
       <div className="animate-fade-up max-w-4xl mx-auto pb-12 print:p-0 print:m-0">
+        <style dangerouslySetInnerHTML={{ __html: `
+          @media (max-width: 768px) {
+            .print-document-page {
+              zoom: calc(100vw / 850);
+              margin: 0 auto !important;
+            }
+          }
+          @media print {
+            @page { margin: 0; size: auto; }
+            html, body, #root, [class*="overflow-"], [class*="h-["] {
+              height: auto !important; min-height: auto !important; max-height: none !important;
+              overflow: visible !important; position: static !important;
+            }
+            body * { visibility: hidden; }
+            .print-pages-container, .print-pages-container * { visibility: visible; }
+            .print-pages-container {
+              position: absolute !important; left: 0 !important; top: 0 !important;
+              width: 100% !important; margin: 0 !important; padding: 0 !important; display: block !important;
+            }
+            .print-document-page {
+              position: relative !important; width: 210mm !important; min-height: 297mm !important;
+              margin: 0 auto !important; padding: 20mm !important;
+              border: none !important; box-shadow: none !important; background: white !important;
+              page-break-after: auto !important; break-after: auto !important;
+            }
+          }
+        `}} />
         {/* Toolbar */}
         <div className="flex items-center justify-between mb-6 print:hidden">
           <Button variant="outline" onClick={() => setMode("edit")} className="rounded-xl gap-2 font-medium">
@@ -294,12 +321,12 @@ export default function AuthorityToSell() {
         </div>
 
         {/* Printable Document */}
-        <div
-          ref={documentRef}
-          className="bg-white text-black rounded-3xl shadow-2xl border border-gray-100 p-4 sm:p-6 print:p-0 print:shadow-none print:border-none print:rounded-none"
-          style={{ minHeight: "auto" }}
-        >
-          <PrintWatermark />
+        <div className="print-pages-container w-full flex justify-center overflow-x-auto custom-scrollbar">
+          <div
+            ref={documentRef}
+            className="print-document-page bg-white text-black shadow-2xl border border-gray-200 p-8 md:p-[20mm] md:w-[210mm] md:min-h-[297mm] shrink-0"
+          >
+            <PrintWatermark />
           <PrintHeader />
 
           {/* Title */}
@@ -440,6 +467,7 @@ export default function AuthorityToSell() {
             </div>
           </section>
           <PrintFooter />
+        </div>
         </div>
       </div>
     );

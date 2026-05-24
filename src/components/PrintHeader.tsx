@@ -4,13 +4,13 @@ const HEADER_BLUE = "#1D325F"; // Matches the dark navy in image
 
 export function PrintHeader() {
   return (
-    <div className="flex items-center justify-start pb-4 mb-6 print:pb-2 print:mb-2">
-      <img src={logo} alt="Bee Tee Logo" className="w-[120px] h-[120px] print:w-[80px] print:h-[80px] object-contain mr-6 print:mr-4" />
+    <div className="flex items-center justify-start pb-4 mb-6">
+      <img src={logo} alt="Bee Tee Logo" className="w-[120px] h-[120px] object-contain mr-6" />
       <div className="flex-1 flex flex-col items-start">
-        <h1 className="font-sans font-black text-[42px] print:text-[28px] tracking-tight uppercase m-0 leading-tight text-[#1D325F]" style={{ fontFamily: 'Arial Black, sans-serif' }}>
+        <h1 className="font-black text-[42px] tracking-[-2px] leading-[1.1] uppercase m-0 text-[#1D325F]" style={{ fontFamily: 'Arial Black, sans-serif', fontWeight: 900 }}>
           BEE TEE AUTOMOBILE
         </h1>
-        <div className="w-full text-left space-y-0.5">
+        <div className="w-full text-left space-y-0.5 mt-1">
           <p className="text-[13px] font-bold text-black m-0 leading-tight">
             Address: <span className="font-normal">Plot 36A &amp; 36B Wole Soyinka way, Cadastral zone B15, Jahi, Abuja.</span>
           </p>

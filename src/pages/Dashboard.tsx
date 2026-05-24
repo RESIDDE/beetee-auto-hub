@@ -161,7 +161,10 @@ export default function Dashboard() {
     queryKey: ["dash-vehicles"],
     queryFn: async () => {
       const { data, error } = await supabase.from("vehicles").select("*").eq("inventory_type", "beetee");
-      if (error) throw error;
+      if (error) {
+        toast.error("Vehicles query failed: " + error.message);
+        throw error;
+      }
       return data;
     },
   });

@@ -27,6 +27,7 @@ const Inspections = lazy(() => import("./pages/Inspections"));
 const RepairsMaintenance = lazy(() => import("./pages/RepairsMaintenance"));
 const AuthorityToSell = lazy(() => import("./pages/AuthorityToSell"));
 const PerformanceQuotes = lazy(() => import("./pages/PerformanceQuotes"));
+const Documents = lazy(() => import("./pages/Documents"));
 const SignRepair = lazy(() => import("./pages/SignRepair"));
 const SignCustomer = lazy(() => import("./pages/SignCustomer"));
 const SignInspection = lazy(() => import("./pages/SignInspection"));
@@ -114,6 +115,7 @@ function AppRoutes() {
                 <Route path="/repairs"           element={<RoleGuard page="repairs"><RepairsMaintenance /></RoleGuard>} />
                 <Route path="/authority-to-sell" element={<RoleGuard page="authority-to-sell"><AuthorityToSell /></RoleGuard>} />
                 <Route path="/performance-quotes" element={<RoleGuard page="performance-quotes"><PerformanceQuotes /></RoleGuard>} />
+                <Route path="/documents"          element={<RoleGuard page="documents"><Documents /></RoleGuard>} />
                 {/* Settings — only super_admin can see; RoleGuard handled internally */}
                 <Route path="/settings"          element={<Settings />} />
                 <Route path="/unauthorized"      element={<Unauthorized />} />

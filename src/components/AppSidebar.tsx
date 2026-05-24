@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, Car, Users, MessageSquare, ClipboardCheck,
-  Wrench, FileText, FileSignature, Crown,
+  Wrench, FileText, FileSignature, Crown, File,
 } from "lucide-react";
 import { NairaIcon } from "@/components/NairaIcon";
 import { NavLink } from "@/components/NavLink";
@@ -34,6 +34,7 @@ const ALL_NAV_ITEMS: NavItem[] = [
   { title: "Inspections",     url: "/inspections",        pageKey: "inspections",        icon: ClipboardCheck },
   { title: "Repairs",         url: "/repairs",            pageKey: "repairs",            icon: Wrench },
   { title: "Auth. Form",      url: "/authority-to-sell",  pageKey: "authority-to-sell",  icon: FileSignature },
+  { title: "Documents",       url: "/documents",          pageKey: "documents",          icon: File },
 ];
 
 export function AppSidebar() {

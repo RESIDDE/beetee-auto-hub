@@ -13,7 +13,8 @@ export type PageKey =
   | "inspections"
   | "repairs"
   | "authority-to-sell"
-  | "performance-quotes";
+  | "performance-quotes"
+  | "documents";
 
 export const ALL_PAGES: { key: PageKey; label: string; path: string }[] = [
   { key: "dashboard",          label: "Dashboard",       path: "/dashboard" },
@@ -27,6 +28,7 @@ export const ALL_PAGES: { key: PageKey; label: string; path: string }[] = [
   { key: "repairs",            label: "Repairs",         path: "/repairs" },
   { key: "authority-to-sell",  label: "Auth. Form",      path: "/authority-to-sell" },
   { key: "performance-quotes", label: "Proforma Quotes", path: "/performance-quotes" },
+  { key: "documents",          label: "Documents",       path: "/documents" },
 ];
 
 // super_admin can always see everything — not configurable
@@ -44,9 +46,9 @@ export const DEFAULT_PERMISSIONS: PermissionsMap = {
     edit: ALL_PAGES.map((p) => p.key),
   },
   sales: {
-    view: ["dashboard", "vehicles", "resale-vehicles", "customers", "sales", "invoices", "inquiries", "performance-quotes", "authority-to-sell"],
-    create: ["vehicles", "resale-vehicles", "customers", "sales", "invoices", "inquiries", "performance-quotes", "authority-to-sell"],
-    edit: ["vehicles", "resale-vehicles", "customers", "sales", "invoices", "inquiries", "performance-quotes", "authority-to-sell"],
+    view: ["dashboard", "vehicles", "resale-vehicles", "customers", "sales", "invoices", "inquiries", "performance-quotes", "authority-to-sell", "documents"],
+    create: ["vehicles", "resale-vehicles", "customers", "sales", "invoices", "inquiries", "performance-quotes", "authority-to-sell", "documents"],
+    edit: ["vehicles", "resale-vehicles", "customers", "sales", "invoices", "inquiries", "performance-quotes", "authority-to-sell", "documents"],
   },
   mechanic: {
     view: ["dashboard", "vehicles", "resale-vehicles", "repairs", "inspections"],
