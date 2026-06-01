@@ -71,7 +71,7 @@ export default function VehiclesList() {
   const [search, setSearch] = useState("");
   const [conditionFilter, setConditionFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [selectedMonth, setSelectedMonth] = useState<string>(format(new Date(), 'yyyy-MM'));
+  const [selectedMonth, setSelectedMonth] = useState<string>("all");
   const [selectedWeek, setSelectedWeek] = useState<string>("all");
   const [sourceCompanyFilter, setSourceCompanyFilter] = useState("all");
   const [page, setPage] = useState(0);

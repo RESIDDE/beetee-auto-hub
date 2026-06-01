@@ -91,7 +91,7 @@ export default function Inspections() {
   const [qrId, setQrId] = useState<string | null>(null);
   const [viewId, setViewId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
-  const [selectedMonth, setSelectedMonth] = useState<string>(format(new Date(), 'yyyy-MM'));
+  const [selectedMonth, setSelectedMonth] = useState<string>("all");
   const [selectedWeek, setSelectedWeek] = useState<string>("all");
   const [vehicleSearch, setVehicleSearch] = useState("");
   const [vehiclePopoverOpen, setVehiclePopoverOpen] = useState(false);

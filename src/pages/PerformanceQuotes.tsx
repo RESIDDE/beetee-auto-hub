@@ -47,7 +47,7 @@ export default function PerformanceQuotes() {
   const queryClient = useQueryClient();
 
   const [search, setSearch] = useState("");
-  const [selectedMonth, setSelectedMonth] = useState<string>(format(new Date(), 'yyyy-MM'));
+  const [selectedMonth, setSelectedMonth] = useState<string>("all");
   const [selectedWeek, setSelectedWeek] = useState<string>("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   

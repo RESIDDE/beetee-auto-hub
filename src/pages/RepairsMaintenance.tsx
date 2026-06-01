@@ -216,7 +216,7 @@ export default function RepairsMaintenance() {
   const [newPaymentNote, setNewPaymentNote] = useState("");
   const [printPaymentId, setPrintPaymentId] = useState<string | null>(null);
   const [activeServiceView, setActiveServiceView] = useState<"all" | "service_due">("all");
-  const [selectedMonth, setSelectedMonth] = useState<string>(format(new Date(), 'yyyy-MM'));
+  const [selectedMonth, setSelectedMonth] = useState<string>("all");
   const [selectedWeek, setSelectedWeek] = useState<string>("all");
   const PAGE_SIZE = 10;
 

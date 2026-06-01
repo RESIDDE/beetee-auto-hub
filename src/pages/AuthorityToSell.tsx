@@ -78,7 +78,7 @@ export default function AuthorityToSell() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm, clearDraft] = useFormPersistence("ats", { ...EMPTY_FORM, signature: "", repSignature: "" }, !!editingId, editingId || undefined);
   const [search, setSearch] = useState("");
-  const [selectedMonth, setSelectedMonth] = useState<string>(format(new Date(), 'yyyy-MM'));
+  const [selectedMonth, setSelectedMonth] = useState<string>("all");
   const [selectedWeek, setSelectedWeek] = useState<string>("all");
   const queryClient = useQueryClient();
 
