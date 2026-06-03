@@ -295,7 +295,7 @@ export default function ResaleVehicles() {
 
       {showAnalytics && (
         <div className="space-y-6 animate-fade-down">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 md:gap-6">
             <Card className="bento-card border-none shadow-xl">
               <CardContent className="p-6">
                 <div className="flex justify-between items-start mb-4">
@@ -313,6 +313,16 @@ export default function ResaleVehicles() {
                 </div>
                 <h3 className="text-3xl font-bold">₦{filtered.filter(v => v.status !== 'Sold').reduce((sum, v) => sum + (Number(v.cost_price) || 0), 0).toLocaleString()}</h3>
                 <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider mt-1">Stock Value</p>
+              </CardContent>
+            </Card>
+
+            <Card className="bento-card border-none shadow-xl">
+              <CardContent className="p-6">
+                <div className="flex justify-between items-start mb-4">
+                  <div className="p-3 bg-sky-500/10 rounded-2xl"><ShieldCheck className="h-6 w-6 text-sky-500" /></div>
+                </div>
+                <h3 className="text-3xl font-bold">₦{filtered.filter(v => v.status !== 'Sold').reduce((sum, v) => sum + (Number(v.price) || 0), 0).toLocaleString()}</h3>
+                <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider mt-1">Total Selling Price</p>
               </CardContent>
             </Card>
 

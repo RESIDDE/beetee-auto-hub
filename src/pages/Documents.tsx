@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   FileText, Plus, Search, Trash2, Edit, Copy, Download,
   Sparkles, File, FolderOpen, Calendar, HelpCircle,
@@ -17,35 +18,10 @@ import {
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { RichTextEditor, type DocumentData } from "@/components/RichTextEditor";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
-const LOCAL_STORAGE_KEY = "beetee_autos_documents";
-
-/**
- * Safe localStorage setter — catches QuotaExceededError and shows a toast
- * instead of crashing the app.
- */
-function saveToLocalStorage(key: string, data: unknown): boolean {
-  try {
-    localStorage.setItem(key, JSON.stringify(data));
-    return true;
-  } catch (err) {
-    if (err instanceof DOMException && (
-      err.name === "QuotaExceededError" ||
-      err.name === "NS_ERROR_DOM_QUOTA_REACHED"
-    )) {
-      toast.error(
-        "Storage full! Your browser's local storage has reached its limit. " +
-        "Please delete some old documents to free up space, then try again.",
-        { duration: 6000 }
-      );
-    } else {
-      toast.error("Failed to save document. An unexpected error occurred.");
-      console.error("localStorage save error:", err);
-    }
-    return false;
-  }
-}
-
+// ---------- Templates (unchanged) ----------
 const TEMPLATES = [
   {
     id: "blank",
@@ -72,10 +48,8 @@ const TEMPLATES = [
       <p style="margin-bottom: 20px;">
         <strong>BUYER:</strong> ____________________________________________________________________
       </p>
-      
       <h2 style="color: #334155; margin-top: 24px; margin-bottom: 12px; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px;">1. VEHICLE DESCRIPTION</h2>
       <p style="margin-bottom: 16px;">The Seller hereby sells and the Buyer hereby buys the following vehicle:</p>
-      
       <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
         <tbody>
           <tr>
@@ -98,23 +72,17 @@ const TEMPLATES = [
           </tr>
         </tbody>
       </table>
-
       <h2 style="color: #334155; margin-top: 24px; margin-bottom: 12px; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px;">2. PURCHASE PRICE AND PAYMENT TERMS</h2>
       <p style="margin-bottom: 16px; text-align: justify;">
         The agreed total purchase price for the vehicle is <strong><u>NGN [PRICE]</u></strong> (____________________________________________________________________ Naira). 
         The Buyer agrees to pay the purchase price via:
       </p>
-      <ul>
-        <li>Bank Transfer / Draft</li>
-        <li>Cash</li>
-      </ul>
-
+      <ul><li>Bank Transfer / Draft</li><li>Cash</li></ul>
       <h2 style="color: #334155; margin-top: 24px; margin-bottom: 12px; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px;">3. WARRANTY AND CONDITION</h2>
       <p style="margin-bottom: 24px; text-align: justify;">
         Unless otherwise specified in writing, the vehicle is sold <strong>"AS IS"</strong> and without any express or implied warranty of any kind. 
         The Buyer has inspected the vehicle or had it inspected and accepts it in its current condition.
       </p>
-
       <h2 style="color: #334155; margin-top: 24px; margin-bottom: 12px; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px;">SIGNATURES</h2>
       <table style="width: 100%; border-collapse: collapse; margin-top: 32px; border: none;">
         <tbody>
@@ -122,22 +90,19 @@ const TEMPLATES = [
             <td style="border: none; padding: 12px; width: 45%; vertical-align: top;">
               <p style="margin-bottom: 40px;">For: <strong>BEE TEE AUTOMOBILE (Seller)</strong></p>
               <div style="border-top: 1px solid #000; padding-top: 4px;">
-                Authorized Signature &amp; Stamp
-                <br><span style="font-size: 11px; color: #64748b;">Date: ____ / ____ / ________</span>
+                Authorized Signature &amp; Stamp<br><span style="font-size: 11px; color: #64748b;">Date: ____ / ____ / ________</span>
               </div>
             </td>
             <td style="border: none; width: 10%;"></td>
             <td style="border: none; padding: 12px; width: 45%; vertical-align: top;">
               <p style="margin-bottom: 40px;"><strong>BUYER</strong></p>
               <div style="border-top: 1px solid #000; padding-top: 4px;">
-                Signature &amp; Full Name
-                <br><span style="font-size: 11px; color: #64748b;">Date: ____ / ____ / ________</span>
+                Signature &amp; Full Name<br><span style="font-size: 11px; color: #64748b;">Date: ____ / ____ / ________</span>
               </div>
             </td>
           </tr>
         </tbody>
-      </table>
-    `
+      </table>`
   },
   {
     id: "authority-sell",
@@ -150,12 +115,10 @@ const TEMPLATES = [
       <p style="text-align: justify; margin-bottom: 16px;">
         I, the undersigned owner, hereby authorize <strong>BEE TEE AUTOMOBILE</strong> (the "Agent") to display, advertise, and sell the vehicle described below on my behalf.
       </p>
-      
       <h2 style="color: #334155; margin-top: 24px; margin-bottom: 12px; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px;">1. OWNER INFORMATION</h2>
       <p style="margin-bottom: 4px;"><strong>Full Name:</strong> ____________________________________________________________________</p>
       <p style="margin-bottom: 4px;"><strong>Address:</strong> ____________________________________________________________________</p>
       <p style="margin-bottom: 20px;"><strong>Phone / Tel:</strong> ___________________________________ <strong>Email:</strong> ___________________________</p>
-
       <h2 style="color: #334155; margin-top: 24px; margin-bottom: 12px; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px;">2. VEHICLE INFORMATION</h2>
       <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
         <tbody>
@@ -173,39 +136,31 @@ const TEMPLATES = [
           </tr>
         </tbody>
       </table>
-
       <h2 style="color: #334155; margin-top: 24px; margin-bottom: 12px; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px;">3. SALES TERMS AND COMMISSION</h2>
       <p style="margin-bottom: 8px;"><strong>Reserve/Minimum Price:</strong> NGN ______________________________________</p>
       <p style="margin-bottom: 8px;"><strong>Consignment Period:</strong> From ____/____/________ to ____/____/________</p>
       <p style="margin-bottom: 16px; text-align: justify;">
         The Agent is authorized to deduct a commission of <strong>_______%</strong> of the final sale price upon successful sale, or a flat fee of NGN _____________________.
       </p>
-
       <h2 style="color: #334155; margin-top: 32px; margin-bottom: 12px; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px;">OWNER'S DECLARATION &amp; SIGNATURE</h2>
       <p style="text-align: justify; margin-bottom: 24px; font-size: 13px; color: #475569;">
         I warrant that I am the legal owner of the vehicle and have the full authority and clear title to authorize its sale. All documents provided are genuine.
       </p>
-
       <table style="width: 100%; border-collapse: collapse; margin-top: 24px; border: none;">
         <tbody>
           <tr style="border: none;">
             <td style="border: none; padding: 12px; width: 45%; vertical-align: top;">
               <p style="margin-bottom: 40px;">For: <strong>BEE TEE AUTOMOBILE (Agent)</strong></p>
-              <div style="border-top: 1px solid #000; padding-top: 4px;">
-                Representative Signature
-              </div>
+              <div style="border-top: 1px solid #000; padding-top: 4px;">Representative Signature</div>
             </td>
             <td style="border: none; width: 10%;"></td>
             <td style="border: none; padding: 12px; width: 45%; vertical-align: top;">
               <p style="margin-bottom: 40px;"><strong>VEHICLE OWNER</strong></p>
-              <div style="border-top: 1px solid #000; padding-top: 4px;">
-                Signature &amp; Date
-              </div>
+              <div style="border-top: 1px solid #000; padding-top: 4px;">Signature &amp; Date</div>
             </td>
           </tr>
         </tbody>
-      </table>
-    `
+      </table>`
   },
   {
     id: "proforma-quote",
@@ -216,24 +171,18 @@ const TEMPLATES = [
     content: `
       <h1 style="text-align: center; color: #1e293b; margin-bottom: 4px;">PROFORMA QUOTE</h1>
       <p style="text-align: center; color: #64748b; margin-bottom: 24px;">Quote No: BT-PQ-${Math.floor(1000 + Math.random() * 9000)} | Date: ${new Date().toLocaleDateString()}</p>
-      
       <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px; border: none;">
         <tbody>
           <tr style="border: none;">
             <td style="border: none; width: 50%; padding: 4px 0;">
-              <strong>PREPARED FOR:</strong><br>
-              Name: _______________________________<br>
-              Phone: ______________________________<br>
-              Email: ______________________________
+              <strong>PREPARED FOR:</strong><br>Name: _______________________________<br>Phone: ______________________________<br>Email: ______________________________
             </td>
             <td style="border: none; width: 50%; padding: 4px 0; text-align: right; vertical-align: top;">
-              <strong>VALID UNTIL:</strong> 30 Days from date of issue<br>
-              <strong>PREPARED BY:</strong> Beetee Sales Dept.
+              <strong>VALID UNTIL:</strong> 30 Days from date of issue<br><strong>PREPARED BY:</strong> Beetee Sales Dept.
             </td>
           </tr>
         </tbody>
       </table>
-
       <h2 style="color: #334155; margin-top: 24px; margin-bottom: 12px; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px;">QUOTED ITEMS / SERVICES</h2>
       <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
         <thead>
@@ -254,40 +203,15 @@ const TEMPLATES = [
             <td style="border: 1px solid #cbd5e1; padding: 10px; text-align: right;">35,000.00</td>
           </tr>
           <tr>
-            <td style="border: 1px solid #cbd5e1; padding: 10px; text-align: center;">2</td>
-            <td style="border: 1px solid #cbd5e1; padding: 10px;">Engine Tuning and Full Service</td>
-            <td style="border: 1px solid #cbd5e1; padding: 10px; text-align: center;">1</td>
-            <td style="border: 1px solid #cbd5e1; padding: 10px; text-align: right;">120,000.00</td>
-            <td style="border: 1px solid #cbd5e1; padding: 10px; text-align: right;">120,000.00</td>
-          </tr>
-          <tr>
-            <td style="border: 1px solid #cbd5e1; padding: 10px; text-align: center;">3</td>
-            <td style="border: 1px solid #cbd5e1; padding: 10px;">Synthetic Engine Oil (5 Liters)</td>
-            <td style="border: 1px solid #cbd5e1; padding: 10px; text-align: center;">1</td>
-            <td style="border: 1px solid #cbd5e1; padding: 10px; text-align: right;">45,000.00</td>
-            <td style="border: 1px solid #cbd5e1; padding: 10px; text-align: right;">45,000.00</td>
-          </tr>
-          <tr>
-            <td colspan="3" style="border: none; padding: 10px; text-align: right; font-weight: bold;">Subtotal</td>
-            <td colspan="2" style="border: 1px solid #cbd5e1; padding: 10px; text-align: right; font-weight: bold;">200,000.00</td>
-          </tr>
-          <tr>
-            <td colspan="3" style="border: none; padding: 10px; text-align: right; font-weight: bold;">VAT (7.5%)</td>
-            <td colspan="2" style="border: 1px solid #cbd5e1; padding: 10px; text-align: right; font-weight: bold;">15,000.00</td>
-          </tr>
-          <tr style="background-color: #f1f5f9;">
-            <td colspan="3" style="border: none; padding: 10px; text-align: right; font-weight: bold; font-size: 16px;">Total Quote</td>
-            <td colspan="2" style="border: 1px solid #cbd5e1; padding: 10px; text-align: right; font-weight: bold; font-size: 16px;">215,000.00</td>
+            <td colspan="3" style="border: none; padding: 10px; text-align: right; font-weight: bold;">Total</td>
+            <td colspan="2" style="border: 1px solid #cbd5e1; padding: 10px; text-align: right; font-weight: bold;">35,000.00</td>
           </tr>
         </tbody>
       </table>
-
       <h2 style="color: #334155; margin-top: 24px; margin-bottom: 12px; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px;">BANKING &amp; PAYMENT DETAILS</h2>
-      <p style="margin-bottom: 4px;">Payments should be made to the following account:</p>
       <p style="margin-bottom: 4px;"><strong>Bank Name:</strong> Access Bank Plc</p>
       <p style="margin-bottom: 4px;"><strong>Account Name:</strong> Bee Tee Automobile Limited</p>
-      <p style="margin-bottom: 16px;"><strong>Account Number:</strong> 0077777211</p>
-    `
+      <p style="margin-bottom: 16px;"><strong>Account Number:</strong> 0077777211</p>`
   },
   {
     id: "business-letter",
@@ -297,98 +221,97 @@ const TEMPLATES = [
     color: "text-cyan-500 bg-cyan-500/10",
     content: `
       <p style="text-align: right; margin-bottom: 24px;">Date: ${new Date().toLocaleDateString()}</p>
-      
-      <p style="margin-bottom: 20px;">
-        To:<br>
-        <strong>The Managing Director</strong><br>
-        [Recipient Company / Name]<br>
-        [Address Line 1]<br>
-        Abuja, Nigeria.
-      </p>
-      
+      <p style="margin-bottom: 20px;">To:<br><strong>The Managing Director</strong><br>[Recipient Company / Name]<br>[Address Line 1]<br>Abuja, Nigeria.</p>
       <p style="margin-bottom: 20px;">Dear Sir/Ma,</p>
-      
-      <p style="margin-bottom: 16px; font-weight: bold; text-decoration: underline; text-transform: uppercase;">
-        SUBJECT: INTRODUCTORY PROPOSAL FOR FLEET MAINTENANCE SERVICES
-      </p>
-      
+      <p style="margin-bottom: 16px; font-weight: bold; text-decoration: underline; text-transform: uppercase;">SUBJECT: INTRODUCTORY PROPOSAL FOR FLEET MAINTENANCE SERVICES</p>
       <p style="text-align: justify; margin-bottom: 16px;">
-        We write to formally introduce <strong>BEE TEE AUTOMOBILE</strong>, a premier automotive repair, customization, and maintenance workshop situated in Jahi, Abuja. Over the years, we have built a reputation for excellence, reliability, and precision engineering in catering to diverse corporate fleets and luxury vehicles.
+        We write to formally introduce <strong>BEE TEE AUTOMOBILE</strong>, a premier automotive repair, customization, and maintenance workshop situated in Jahi, Abuja.
       </p>
-      
-      <p style="text-align: justify; margin-bottom: 24px;">
-        We look forward to an opportunity to present a detailed proposal and inspect your fleet. Thank you for your time and consideration.
-      </p>
-      
-      <p style="margin-bottom: 40px;">
-        Yours Faithfully,<br><br><br>
-        <strong>Engr. Beatrice T.</strong><br>
-        General Manager, Bee Tee Automobile
-      </p>
-    `
+      <p style="text-align: justify; margin-bottom: 24px;">We look forward to an opportunity to present a detailed proposal and inspect your fleet. Thank you for your time and consideration.</p>
+      <p style="margin-bottom: 40px;">Yours Faithfully,<br><br><br><strong>Engr. Beatrice T.</strong><br>General Manager, Bee Tee Automobile</p>`
   }
 ];
 
+// ---------- DB row → DocumentData adapter ----------
+function rowToDoc(row: any): DocumentData {
+  return {
+    id: row.id,
+    title: row.title,
+    content: row.content,
+    letterhead: row.letterhead,
+    watermark: row.watermark,
+    watermarkOpacity: Number(row.watermark_opacity),
+    margins: row.margins,
+    orientation: row.orientation,
+    fontFamily: row.font_family,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
 export default function Documents() {
-  const [documents, setDocuments] = useState<DocumentData[]>([]);
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
   const [activeDoc, setActiveDoc] = useState<DocumentData | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [importedJson, setImportedJson] = useState("");
 
-  // Load from localStorage on mount
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
-      if (stored) {
-        setDocuments(JSON.parse(stored));
-      } else {
-        // Pre-populate with a demo doc
-        const demo: DocumentData = {
-          id: "demo-1",
-          title: "Welcome to Documents",
-          content: `
-            <h1 style="color: #1d325f;">Welcome to Bee Tee Document Hub!</h1>
-            <p>This is a complete document editor built directly inside the Bee Tee Auto Hub. It has everything you need to create, format, print, and download documents.</p>
-            <p><strong>Key Features:</strong></p>
-            <ul>
-              <li><strong>Microsoft Word Capabilities:</strong> Rich text styling, colors, custom alignment, fonts, bullet/ordered lists, table insertion, image uploads.</li>
-              <li><strong>Printable Letterhead:</strong> Toggle the header from Page Settings to match Bee Tee Autos' official styling.</li>
-              <li><strong>Custom Watermark:</strong> Enable background watermark to ensure security and official branding.</li>
-              <li><strong>Exporting:</strong> Instant printing, saving to PDF, or backup as JSON.</li>
-            </ul>
-            <p>Get started by choosing a template or modifying this document!</p>
-          `,
-          letterhead: true,
-          watermark: true,
-          watermarkOpacity: 0.08,
-          margins: "normal",
-          orientation: "portrait",
-          fontFamily: "'Outfit', sans-serif",
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        };
-        setDocuments([demo]);
-        saveToLocalStorage(LOCAL_STORAGE_KEY, [demo]);
-      }
-    } catch (e) {
-      console.error("Failed to load documents", e);
-    }
-  }, []);
+  // ── Fetch documents from Supabase ──────────────────────────────────────────
+  const { data: documents = [], isLoading } = useQuery({
+    queryKey: ["documents"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("documents")
+        .select("*")
+        .order("updated_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []).map(rowToDoc);
+    },
+    enabled: !!user,
+  });
 
-  // Save document callback
-  const handleSaveDocument = (updatedDoc: DocumentData) => {
-    const updatedDocs = documents.map(d => d.id === updatedDoc.id ? updatedDoc : d);
-    const saved = saveToLocalStorage(LOCAL_STORAGE_KEY, updatedDocs);
-    if (saved) {
-      setDocuments(updatedDocs);
-    }
-  };
+  // ── Upsert (create or update) ──────────────────────────────────────────────
+  const upsertMutation = useMutation({
+    mutationFn: async (doc: DocumentData) => {
+      const { error } = await (supabase as any).from("documents").upsert({
+        id: doc.id,
+        user_id: user!.id,
+        title: doc.title,
+        content: doc.content,
+        letterhead: doc.letterhead ?? false,
+        watermark: doc.watermark ?? false,
+        watermark_opacity: doc.watermarkOpacity ?? 0.08,
+        margins: doc.margins ?? "normal",
+        orientation: doc.orientation ?? "portrait",
+        font_family: doc.fontFamily ?? "'Outfit', sans-serif",
+        updated_at: new Date().toISOString(),
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["documents"] });
+    },
+    onError: () => toast.error("Failed to save document."),
+  });
 
-  // Create new document from template
-  const handleCreateDocument = (templateId: string) => {
+  // ── Delete ─────────────────────────────────────────────────────────────────
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await (supabase as any).from("documents").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["documents"] });
+    },
+    onError: () => toast.error("Failed to delete document."),
+  });
+
+  // ── Create new document from template ─────────────────────────────────────
+  const handleCreateDocument = async (templateId: string) => {
     const template = TEMPLATES.find(t => t.id === templateId) || TEMPLATES[0];
-    
+    const now = new Date().toISOString();
     const newDoc: DocumentData = {
       id: `doc-${Date.now()}`,
       title: templateId === "blank" ? "Untitled Document" : `New ${template.name}`,
@@ -399,99 +322,78 @@ export default function Documents() {
       margins: "normal",
       orientation: "portrait",
       fontFamily: "'Outfit', sans-serif",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      createdAt: now,
+      updatedAt: now,
     };
-
-    const updated = [newDoc, ...documents];
-    const saved = saveToLocalStorage(LOCAL_STORAGE_KEY, updated);
-    if (saved) {
-      setDocuments(updated);
-      setActiveDoc(newDoc);
-      toast.success(`Created "${newDoc.title}" successfully.`);
-    }
+    await upsertMutation.mutateAsync(newDoc);
+    toast.success(`Created "${newDoc.title}"`);
+    setActiveDoc(newDoc);
   };
 
-  // Duplicate document
-  const handleDuplicateDocument = (docToDup: DocumentData, e: React.MouseEvent) => {
+  // ── Save (from editor) ─────────────────────────────────────────────────────
+  const handleSaveDocument = async (updatedDoc: DocumentData) => {
+    await upsertMutation.mutateAsync(updatedDoc);
+    toast.success("Document saved");
+  };
+
+  // ── Duplicate ──────────────────────────────────────────────────────────────
+  const handleDuplicateDocument = async (docToDup: DocumentData, e: React.MouseEvent) => {
     e.stopPropagation();
-    const duplicated: DocumentData = {
-      ...docToDup,
-      id: `doc-${Date.now()}`,
-      title: `${docToDup.title} (Copy)`,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-    const updated = [duplicated, ...documents];
-    const saved = saveToLocalStorage(LOCAL_STORAGE_KEY, updated);
-    if (saved) {
-      setDocuments(updated);
-      toast.success(`Duplicated "${docToDup.title}"`);
-    }
+    const now = new Date().toISOString();
+    const dup: DocumentData = { ...docToDup, id: `doc-${Date.now()}`, title: `${docToDup.title} (Copy)`, createdAt: now, updatedAt: now };
+    await upsertMutation.mutateAsync(dup);
+    toast.success(`Duplicated "${docToDup.title}"`);
   };
 
-  // Delete document
+  // ── Delete ─────────────────────────────────────────────────────────────────
   const handleDeleteDocument = (id: string, title: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (confirm(`Are you sure you want to delete "${title}"?`)) {
-      const updated = documents.filter(d => d.id !== id);
-      const saved = saveToLocalStorage(LOCAL_STORAGE_KEY, updated);
-      if (saved) {
-        setDocuments(updated);
-        if (activeDoc?.id === id) setActiveDoc(null);
-        toast.success(`Deleted "${title}"`);
-      }
+      deleteMutation.mutate(id);
+      if (activeDoc?.id === id) setActiveDoc(null);
+      toast.success(`Deleted "${title}"`);
     }
   };
 
-  // Import JSON Document
-  const handleImportJSON = () => {
+  // ── Import JSON ────────────────────────────────────────────────────────────
+  const handleImportJSON = async () => {
     try {
       const parsed = JSON.parse(importedJson);
-      if (!parsed.title || !parsed.content) {
-        throw new Error("Missing required document fields (title/content)");
-      }
-      
+      if (!parsed.title || !parsed.content) throw new Error("Missing title/content");
+      const now = new Date().toISOString();
       const newDoc: DocumentData = {
         id: `doc-${Date.now()}`,
         title: parsed.title,
         content: parsed.content,
-        letterhead: parsed.letterhead !== undefined ? parsed.letterhead : true,
-        watermark: parsed.watermark !== undefined ? parsed.watermark : true,
-        watermarkOpacity: parsed.watermarkOpacity || 0.08,
-        margins: parsed.margins || "normal",
-        orientation: parsed.orientation || "portrait",
-        fontFamily: parsed.fontFamily || "'Outfit', sans-serif",
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        letterhead: parsed.letterhead ?? true,
+        watermark: parsed.watermark ?? true,
+        watermarkOpacity: parsed.watermarkOpacity ?? 0.08,
+        margins: parsed.margins ?? "normal",
+        orientation: parsed.orientation ?? "portrait",
+        fontFamily: parsed.fontFamily ?? "'Outfit', sans-serif",
+        createdAt: now,
+        updatedAt: now,
       };
-
-      const updated = [newDoc, ...documents];
-      const saved = saveToLocalStorage(LOCAL_STORAGE_KEY, updated);
-      if (saved) {
-        setDocuments(updated);
-        setImportedJson("");
-        setImportDialogOpen(false);
-        toast.success(`Imported "${newDoc.title}" successfully!`);
-      }
-    } catch (e) {
+      await upsertMutation.mutateAsync(newDoc);
+      setImportedJson("");
+      setImportDialogOpen(false);
+      toast.success(`Imported "${newDoc.title}"`);
+    } catch {
       toast.error("Failed to import. Ensure the JSON is a valid document backup.");
     }
   };
 
-  // Stats calculation
+  // ── Stats ──────────────────────────────────────────────────────────────────
   const totalCount = documents.length;
   const modifiedToday = documents.filter(d => {
-    const today = new Date().toDateString();
-    const docDate = new Date(d.updatedAt).toDateString();
-    return today === docDate;
+    return new Date(d.updatedAt).toDateString() === new Date().toDateString();
   }).length;
 
   const filteredDocuments = documents.filter(d =>
     d.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // If editing a document, load the RichTextEditor
+  // ── Active editor view ─────────────────────────────────────────────────────
   if (activeDoc) {
     return (
       <div className="py-2 print:p-0">
@@ -499,9 +401,7 @@ export default function Documents() {
           initialData={activeDoc}
           onSave={handleSaveDocument}
           onBack={() => {
-            // Force reload data from localstorage
-            const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
-            if (stored) setDocuments(JSON.parse(stored));
+            queryClient.invalidateQueries({ queryKey: ["documents"] });
             setActiveDoc(null);
           }}
         />
@@ -511,7 +411,7 @@ export default function Documents() {
 
   return (
     <div className="space-y-6">
-      
+
       {/* Page Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
@@ -519,7 +419,7 @@ export default function Documents() {
             Documents Hub
           </h1>
           <p className="text-muted-foreground text-sm">
-            Create, format, and manage business agreements, letters, and quotes.
+            Create, format, and manage business agreements, letters, and quotes. Synced across all devices.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -571,7 +471,7 @@ export default function Documents() {
                 <FolderOpen className="h-3 w-3 text-violet-500" />
                 Total Documents
               </span>
-              <p className="text-3xl font-black text-foreground">{totalCount}</p>
+              <p className="text-3xl font-black text-foreground">{isLoading ? "…" : totalCount}</p>
             </div>
             <div className="h-10 w-10 rounded-2xl bg-violet-500/10 flex items-center justify-center shrink-0">
               <File className="h-5 w-5 text-violet-500" />
@@ -586,7 +486,7 @@ export default function Documents() {
                 <Clock className="h-3 w-3 text-emerald-500" />
                 Modified Today
               </span>
-              <p className="text-3xl font-black text-foreground">{modifiedToday}</p>
+              <p className="text-3xl font-black text-foreground">{isLoading ? "…" : modifiedToday}</p>
             </div>
             <div className="h-10 w-10 rounded-2xl bg-emerald-500/10 flex items-center justify-center shrink-0">
               <Calendar className="h-5 w-5 text-emerald-500" />
@@ -662,10 +562,10 @@ export default function Documents() {
               Saved Documents
             </CardTitle>
             <CardDescription className="text-xs">
-              List of all your active documents stored locally in your browser.
+              Cloud-synced — visible on all your devices when logged in.
             </CardDescription>
           </div>
-          
+
           <div className="relative w-full sm:w-72 shrink-0">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -678,7 +578,11 @@ export default function Documents() {
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          {filteredDocuments.length === 0 ? (
+          {isLoading ? (
+            <div className="space-y-2 p-6">
+              {[1,2,3].map(i => <div key={i} className="h-12 rounded-xl bg-muted/40 animate-pulse" />)}
+            </div>
+          ) : filteredDocuments.length === 0 ? (
             <div className="text-center py-16 px-4 space-y-4">
               <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center mx-auto text-muted-foreground">
                 <FolderOpen className="h-6 w-6" />

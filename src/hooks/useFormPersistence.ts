@@ -28,7 +28,25 @@ export function useFormPersistence<T>(key: string, initialState: T, isEdit: bool
     // Only save if it's NOT the initial state or if it has been modified
     // To keep it simple, we save whenever formData changes.
     // If it's an edit mode, we still save drafts so that if the user edits and leaves, they don't lose changes.
-    localStorage.setItem(storageKey, JSON.stringify(formData));
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(formData));
+    } catch (e) {
+      console.warn("Failed to save form draft to localStorage", e);
+      // Optional: Attempt to clear old drafts if quota is exceeded
+      try {
+        const keysToRemove = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k?.startsWith("form_draft_")) {
+            keysToRemove.push(k);
+          }
+        }
+        keysToRemove.forEach(k => localStorage.removeItem(k));
+        localStorage.setItem(storageKey, JSON.stringify(formData));
+      } catch (retryError) {
+        console.warn("Still failed to save after clearing old drafts", retryError);
+      }
+    }
   }, [storageKey, formData]);
 
   const clearDraft = () => {

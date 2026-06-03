@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useFormPersistence } from "@/hooks/useFormPersistence";
 import { supabase } from "@/integrations/supabase/client";
@@ -21,7 +21,8 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { PlusCircle, Pencil, Trash2, MessageSquare, Car, Users, Search, ArrowLeft } from "lucide-react";
+import { PlusCircle, Pencil, Trash2, MessageSquare, Car, Users, Search, ArrowLeft, Settings, Eye } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
@@ -44,7 +45,21 @@ const emptyForm = {
   manual_vehicle_model: "",
   manual_vehicle_year: "",
   is_new_customer: false,
-  manual_customer_address: ""
+  manual_customer_address: "",
+  taken_by: "",
+  advanced_questionnaire: {
+    budget: "",
+    timeline: "",
+    financing_required: "Undecided",
+    desired_features: ""
+  }
+};
+
+// Formats a number string with commas for display, strips non-numeric chars for storage
+const formatBudgetDisplay = (value: string) => {
+  const digits = value.replace(/[^0-9]/g, "");
+  if (!digits) return "";
+  return Number(digits).toLocaleString();
 };
 
 export default function Inquiries() {
@@ -53,6 +68,7 @@ export default function Inquiries() {
   const hasEdit = canEdit(role, "inquiries", permissions);
 
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [viewId, setViewId] = useState<string | null>(null);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm, clearDraft] = useFormPersistence("inquiry", emptyForm, !!editId, editId || undefined);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -60,6 +76,8 @@ export default function Inquiries() {
   const [selectedMonth, setSelectedMonth] = useState<string>("all");
   const [selectedWeek, setSelectedWeek] = useState<string>("all");
   const [page, setPage] = useState(0);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsForm, setSettingsForm] = useState({ autoCloseEnabled: false, autoCloseDays: "14" });
   const PAGE_SIZE = 15;
   const queryClient = useQueryClient();
 
@@ -92,6 +110,63 @@ export default function Inquiries() {
 
   const vehicleMap = Object.fromEntries(vehicles.map((v) => [v.id, `${v.year} ${v.make} ${v.model}`]));
   const customerMap = Object.fromEntries(customers.map((c) => [c.id, c.name]));
+
+  const { data: settingsData } = useQuery({
+    queryKey: ["app_settings", "inquiry_settings"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("app_settings").select("value").eq("key", "inquiry_settings").maybeSingle();
+      if (error && error.code !== 'PGRST116') throw error;
+      return (data?.value as unknown) as { autoCloseEnabled: boolean, autoCloseDays: string } | undefined;
+    },
+  });
+
+  const saveSettingsMutation = useMutation({
+    mutationFn: async (newSettings: any) => {
+      const { error } = await supabase.from("app_settings").upsert({
+        key: "inquiry_settings",
+        value: newSettings,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Settings saved successfully");
+      queryClient.invalidateQueries({ queryKey: ["app_settings", "inquiry_settings"] });
+      setSettingsOpen(false);
+    },
+    onError: () => toast.error("Failed to save settings"),
+  });
+
+  useEffect(() => {
+    if (settingsData) {
+      setSettingsForm({
+        autoCloseEnabled: settingsData.autoCloseEnabled || false,
+        autoCloseDays: settingsData.autoCloseDays || "14",
+      });
+    }
+  }, [settingsData]);
+
+  useEffect(() => {
+    if (!settingsData?.autoCloseEnabled || !inquiries.length) return;
+    
+    const days = parseInt(settingsData.autoCloseDays) || 14;
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - days);
+    
+    const toClose = (inquiries as any[]).filter(i => 
+      (i.status === "Open" || i.status === "In Progress") && 
+      new Date(i.created_at) < cutoff
+    );
+    
+    if (toClose.length > 0) {
+      const closeOldInquiries = async () => {
+        const updatePromises = toClose.map(i => supabase.from("inquiries").update({ status: "Closed" }).eq("id", i.id));
+        await Promise.all(updatePromises);
+        queryClient.invalidateQueries({ queryKey: ["inquiries"] });
+        toast.info(`Auto-closed ${toClose.length} old inquiries based on your settings.`);
+      };
+      closeOldInquiries();
+    }
+  }, [settingsData?.autoCloseEnabled, settingsData?.autoCloseDays, inquiries, queryClient]);
 
   const filtered = (inquiries as any[]).filter((i) => {
     // Monthly Filter
@@ -156,6 +231,8 @@ export default function Inquiries() {
         manual_vehicle_make: form.manual_vehicle_make || null,
         manual_vehicle_model: form.manual_vehicle_model || null,
         manual_vehicle_year: form.manual_vehicle_year || null,
+        taken_by: form.taken_by || null,
+        advanced_questionnaire: form.advanced_questionnaire,
       };
 
       if (editId) {
@@ -229,6 +306,8 @@ export default function Inquiries() {
       manual_vehicle_year: i.manual_vehicle_year || "",
       is_new_customer: false,
       manual_customer_address: i.manual_customer_address || "",
+      taken_by: i.taken_by || "",
+      advanced_questionnaire: i.advanced_questionnaire || emptyForm.advanced_questionnaire,
     });
     setDialogOpen(true);
   };
@@ -249,7 +328,12 @@ export default function Inquiries() {
             Track customer requests, messages, and vehicle interest logs.
           </p>
         </div>
-        <div className="shrink-0">
+        <div className="shrink-0 flex flex-wrap gap-2">
+          {hasEdit && (
+            <Button variant="outline" size="lg" onClick={() => setSettingsOpen(true)} className="rounded-2xl glass-panel border-white/10 hover:bg-white/5 transition-all h-11 w-11 px-0">
+              <Settings className="w-5 h-5 text-muted-foreground" />
+            </Button>
+          )}
           {canCreate(role, "inquiries", permissions) && (
             <Button onClick={() => { setEditId(null); setDialogOpen(true); }} size="lg" className="rounded-2xl shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all bg-indigo-500 hover:bg-indigo-600 text-white">
               <PlusCircle className="mr-2 h-5 w-5" /> Add Inquiry
@@ -373,6 +457,9 @@ export default function Inquiries() {
                       </TableCell>
                       <TableCell className="text-right px-6">
                         <div className="flex justify-end gap-1 opacity-50 group-hover:opacity-100 transition-opacity">
+                          <Button variant="ghost" size="icon" onClick={() => setViewId(i.id)} className="h-8 w-8 rounded-lg hover:bg-foreground/20">
+                            <Eye className="h-4 w-4" />
+                          </Button>
                           {hasEdit && (
                             <>
                               <Button variant="ghost" size="icon" onClick={() => openEdit(i)} className="h-8 w-8 rounded-lg hover:bg-foreground/20">
@@ -414,6 +501,9 @@ export default function Inquiries() {
                   <div className="flex justify-between items-center pt-2">
                     <span className="text-[10px] text-muted-foreground">{new Date(i.created_at).toLocaleDateString()}</span>
                     <div className="flex gap-1">
+                      <Button variant="ghost" size="sm" onClick={() => setViewId(i.id)} className="h-8 rounded-lg hover:bg-foreground/20">
+                        <Eye className="h-3.5 w-3.5" />
+                      </Button>
                       {hasEdit && (
                         <>
                           <Button variant="ghost" size="sm" onClick={() => openEdit(i)} className="h-8 rounded-lg hover:bg-foreground/20">
@@ -577,6 +667,57 @@ export default function Inquiries() {
                 </div>
               ) : null}
             </div>
+            <div className="space-y-4 pt-2">
+              <div className="flex items-center gap-2 mb-1">
+                <Users className="w-4 h-4 text-indigo-500" />
+                <h3 className="text-xs font-bold uppercase tracking-wider text-indigo-500">Inquiry Intake Details</h3>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-[10px] uppercase font-bold text-muted-foreground ml-1">Taken By (Representative)</Label>
+                <Input className="rounded-lg h-9 bg-background/50 border-white/10" value={form.taken_by} onChange={(e) => setForm({ ...form, taken_by: e.target.value })} placeholder="Name of rep who took this inquiry" />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 rounded-2xl bg-indigo-500/5 border border-indigo-500/10">
+                <div className="sm:col-span-2">
+                  <h4 className="text-[11px] font-bold uppercase text-foreground mb-3 border-b border-indigo-500/10 pb-2">Advanced Automobile Questionnaire</h4>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] uppercase font-bold text-muted-foreground ml-1">Budget</Label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground font-medium select-none">₦</span>
+                    <Input
+                      className="rounded-lg h-9 bg-background/50 border-white/10 pl-7"
+                      value={formatBudgetDisplay(form.advanced_questionnaire?.budget || "")}
+                      onChange={(e) => {
+                        const raw = e.target.value.replace(/[^0-9]/g, "");
+                        setForm({ ...form, advanced_questionnaire: { ...form.advanced_questionnaire, budget: raw } });
+                      }}
+                      placeholder="5,000,000"
+                      inputMode="numeric"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] uppercase font-bold text-muted-foreground ml-1">Timeline</Label>
+                  <Input className="rounded-lg h-9 bg-background/50 border-white/10" value={form.advanced_questionnaire?.timeline || ""} onChange={(e) => setForm({ ...form, advanced_questionnaire: { ...form.advanced_questionnaire, timeline: e.target.value } })} placeholder="e.g. ASAP, 2 weeks" />
+                </div>
+                <div className="space-y-1.5 sm:col-span-2">
+                  <Label className="text-[10px] uppercase font-bold text-muted-foreground ml-1">Financing Required?</Label>
+                  <Select value={form.advanced_questionnaire?.financing_required || "Undecided"} onValueChange={(v) => setForm({ ...form, advanced_questionnaire: { ...form.advanced_questionnaire, financing_required: v } })}>
+                    <SelectTrigger className="rounded-lg h-9 bg-background/50 border-white/10"><SelectValue /></SelectTrigger>
+                    <SelectContent className="glass-panel">
+                      <SelectItem value="Yes">Yes</SelectItem>
+                      <SelectItem value="No">No</SelectItem>
+                      <SelectItem value="Undecided">Undecided</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5 sm:col-span-2">
+                  <Label className="text-[10px] uppercase font-bold text-muted-foreground ml-1">Desired Features & Specs</Label>
+                  <Textarea className="rounded-lg min-h-[60px] bg-background/50 border-white/10" value={form.advanced_questionnaire?.desired_features || ""} onChange={(e) => setForm({ ...form, advanced_questionnaire: { ...form.advanced_questionnaire, desired_features: e.target.value } })} placeholder="e.g. Leather seats, V6, Sunroof, automatic transmission" />
+                </div>
+              </div>
+            </div>
             <div className="space-y-2">
               <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Message *</Label>
               <Textarea className="rounded-xl min-h-[100px] bg-background/50 border-white/10 focus-visible:ring-indigo-500" value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })} placeholder="Type the inquiry description here..." />
@@ -621,6 +762,141 @@ export default function Inquiries() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Advanced Settings Dialog */}
+      <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
+        <DialogContent className="max-w-md rounded-3xl glass-panel shadow-2xl border-white/10 p-0 bg-background/95 backdrop-blur-3xl">
+          <div className="p-6 border-b border-white/5 bg-foreground/5 flex items-center gap-3">
+            <Settings className="w-5 h-5 text-indigo-500" />
+            <DialogTitle className="text-xl font-bold">Advanced Settings</DialogTitle>
+          </div>
+          <div className="p-6 space-y-6">
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label className="text-base font-semibold">Auto-Close Inquiries</Label>
+                <p className="text-xs text-muted-foreground max-w-[250px]">
+                  Automatically mark old inquiries as "Closed" after a specified number of days.
+                </p>
+              </div>
+              <Switch
+                checked={settingsForm.autoCloseEnabled}
+                onCheckedChange={(c) => setSettingsForm({ ...settingsForm, autoCloseEnabled: c })}
+              />
+            </div>
+
+            {settingsForm.autoCloseEnabled && (
+              <div className="space-y-2 animate-fade-down">
+                <Label className="text-xs font-semibold uppercase text-muted-foreground">Close After</Label>
+                <Select
+                  value={settingsForm.autoCloseDays}
+                  onValueChange={(v) => setSettingsForm({ ...settingsForm, autoCloseDays: v })}
+                >
+                  <SelectTrigger className="rounded-xl h-11 bg-background/50 border-white/10 focus-visible:ring-indigo-500">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="glass-panel rounded-xl">
+                    <SelectItem value="7" className="rounded-lg">7 Days</SelectItem>
+                    <SelectItem value="14" className="rounded-lg">14 Days</SelectItem>
+                    <SelectItem value="30" className="rounded-lg">30 Days</SelectItem>
+                    <SelectItem value="60" className="rounded-lg">60 Days</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+          <div className="p-6 border-t border-white/5 bg-foreground/5 flex justify-end gap-3">
+            <Button variant="outline" onClick={() => setSettingsOpen(false)} className="rounded-xl border-white/10 hover:bg-white/5">Cancel</Button>
+            <Button 
+              onClick={() => saveSettingsMutation.mutate(settingsForm)} 
+              disabled={saveSettingsMutation.isPending}
+              className="rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white shadow-lg shadow-indigo-500/20"
+            >
+              {saveSettingsMutation.isPending ? "Saving..." : "Save Settings"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+      {/* View Inquiry Dialog */}
+      <Dialog open={!!viewId} onOpenChange={(open) => { if (!open) setViewId(null); }}>
+        <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto rounded-3xl glass-panel shadow-2xl border-white/10 p-0 bg-background/95 backdrop-blur-3xl">
+          {(() => {
+            const i = (inquiries as any[]).find(inq => inq.id === viewId);
+            if (!i) return null;
+            return (
+              <>
+                <div className="p-6 border-b border-white/5 bg-foreground/5 sticky top-0 z-50 backdrop-blur-md flex items-center justify-between">
+                  <DialogTitle className="text-xl font-bold flex items-center gap-2">
+                    <MessageSquare className="w-5 h-5 text-indigo-500" />
+                    Inquiry Details
+                  </DialogTitle>
+                  <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold uppercase tracking-wider ${
+                    i.status === "Open" ? "bg-indigo-500/10 text-indigo-500 border border-indigo-500/20" :
+                    i.status === "In Progress" ? "bg-amber-500/10 text-amber-500 border border-amber-500/20" :
+                    "bg-muted/50 text-muted-foreground border border-white/5"
+                  }`}>{i.status}</span>
+                </div>
+                <div className="p-6 space-y-6">
+                  {/* Customer & Intake Info */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-[10px] font-bold uppercase text-muted-foreground mb-1">Customer</p>
+                      <p className="font-semibold text-sm">{i.customer_id ? customerMap[i.customer_id] || "—" : i.manual_customer_name || "—"}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{i.manual_customer_phone} {i.manual_customer_email ? `| ${i.manual_customer_email}` : ""}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{i.manual_customer_address}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold uppercase text-muted-foreground mb-1">Intake Details</p>
+                      <p className="font-semibold text-sm">{new Date(i.created_at).toLocaleString()}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">Taken By: <span className="font-medium text-foreground">{i.taken_by || "—"}</span></p>
+                    </div>
+                  </div>
+
+                  {/* Vehicle Interest & Message */}
+                  <div className="space-y-4">
+                    <div className="bg-foreground/5 p-4 rounded-2xl border border-white/5">
+                      <p className="text-[10px] font-bold uppercase text-muted-foreground mb-1">Vehicle Interest</p>
+                      <p className="font-semibold text-sm">
+                        {i.vehicle_id ? vehicleMap[i.vehicle_id] || "—" : i.manual_vehicle_make ? `${i.manual_vehicle_year || ""} ${i.manual_vehicle_make} ${i.manual_vehicle_model || ""}`.trim() : "General Inquiry"}
+                      </p>
+                    </div>
+                    
+                    <div className="bg-indigo-500/5 p-4 rounded-2xl border border-indigo-500/10">
+                      <p className="text-[10px] font-bold uppercase text-muted-foreground mb-2">Message / Notes</p>
+                      <p className="text-sm whitespace-pre-wrap">{i.message}</p>
+                    </div>
+                  </div>
+
+                  {/* Advanced Questionnaire */}
+                  <div className="bg-foreground/5 p-4 rounded-2xl border border-white/5">
+                    <p className="text-[10px] font-bold uppercase text-muted-foreground mb-3 pb-2 border-b border-white/5">Advanced Questionnaire</p>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-[10px] font-bold uppercase text-muted-foreground">Budget</p>
+                        <p className="text-sm font-medium">{i.advanced_questionnaire?.budget || "—"}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold uppercase text-muted-foreground">Timeline</p>
+                        <p className="text-sm font-medium">{i.advanced_questionnaire?.timeline || "—"}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold uppercase text-muted-foreground">Financing Required</p>
+                        <p className="text-sm font-medium">{i.advanced_questionnaire?.financing_required || "—"}</p>
+                      </div>
+                      <div className="col-span-2">
+                        <p className="text-[10px] font-bold uppercase text-muted-foreground">Desired Features</p>
+                        <p className="text-sm font-medium whitespace-pre-wrap">{i.advanced_questionnaire?.desired_features || "—"}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="p-4 border-t border-white/5 bg-foreground/5 flex justify-end">
+                  <Button variant="outline" onClick={() => setViewId(null)} className="rounded-xl border-white/10">Close</Button>
+                </div>
+              </>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
