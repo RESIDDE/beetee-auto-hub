@@ -240,6 +240,7 @@ export default function Invoices() {
         padding: 20px;
         position: relative;
         border: none;
+        min-height: 600px;
       }
       .content-wrapper { position: relative; z-index: 1; }
       .bill-title { text-align: center; text-decoration: underline; font-weight: 900; font-size: 20px; margin-bottom: 20px; color: #1e293b; text-transform: uppercase; }
@@ -336,7 +337,7 @@ export default function Invoices() {
             }).join("")}
             <tr class="total-row">
               <td colspan="2" style="text-align: right;">GRAND TOTAL</td>
-              <td style="text-align: right;">₦${totalAmount.toLocaleString()}</td>
+              <td style="text-align: right; white-space: nowrap;">₦${totalAmount.toLocaleString()}</td>
             </tr>
           </tbody>
         </table>

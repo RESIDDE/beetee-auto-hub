@@ -305,7 +305,7 @@ export default function PerformanceQuotes() {
         .date-section { text-align: right; font-weight: 800; font-size: 13px; margin-bottom: 5px; text-transform: uppercase; }
         .bill-to { margin-bottom: 10px; }
         .bill-to p { margin: 1px 0; font-size: 13px; }
-        .main-container { position: relative; padding: 5px 20px; }
+        .main-container { position: relative; padding: 5px 20px; min-height: 600px; }
         .content-wrapper { position: relative; z-index: 1; }
         .bill-title { text-align: center; text-decoration: underline; font-weight: 900; font-size: 20px; margin-bottom: 10px; color: #1e293b; text-transform: uppercase; }
         table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
@@ -368,9 +368,9 @@ export default function PerformanceQuotes() {
             </tbody>
           </table>` : ''}
 
-          <div style="display: flex; justify-content: flex-end; margin-top: 20px; border-top: 2px solid #1e293b; padding-top: 10px;">
+          <div style="display: flex; justify-content: flex-end; align-items: center; margin-top: 20px; border-top: 2px solid #1e293b; padding-top: 10px;">
             <div style="font-weight: 900; font-size: 16px; margin-right: 40px;">GRAND TOTAL</div>
-            <div style="font-weight: 900; font-size: 16px; text-align: right; width: 140px;">₦${(Number(quote.total_amount) || 0).toLocaleString()}</div>
+            <div style="font-weight: 900; font-size: 16px; text-align: right; white-space: nowrap;">₦${(Number(quote.total_amount) || 0).toLocaleString()}</div>
           </div>
           <div class="amount-words">AMOUNT IN WORDS: ${numberToWords(Number(quote.total_amount) || 0)}</div>
           ${quote.notes ? `<div class="notes-box"><strong>NOTES:</strong><br/>${quote.notes}</div>` : ''}
@@ -447,6 +447,7 @@ export default function PerformanceQuotes() {
         padding: 0px 20px;
         position: relative;
         border: none;
+        min-height: 600px;
       }
       .content-wrapper { position: relative; z-index: 1; }
       .bill-title { text-align: center; text-decoration: underline; font-weight: 900; font-size: 18px; margin-bottom: 10px; color: #1e293b; text-transform: uppercase; }
@@ -558,9 +559,9 @@ export default function PerformanceQuotes() {
         </table>
         ` : ''}
 
-        <div style="display: flex; justify-content: flex-end; margin-top: 20px; border-top: 3px solid #1e293b; padding-top: 15px;">
+        <div style="display: flex; justify-content: flex-end; align-items: center; margin-top: 20px; border-top: 3px solid #1e293b; padding-top: 15px;">
           <div style="font-weight: 900; font-size: 18px; margin-right: 40px;">GRAND TOTAL</div>
-          <div style="font-weight: 900; font-size: 18px; text-align: right; width: 144px;">₦${(Number(quote.total_amount) || 0).toLocaleString()}</div>
+          <div style="font-weight: 900; font-size: 18px; text-align: right; white-space: nowrap;">₦${(Number(quote.total_amount) || 0).toLocaleString()}</div>
         </div>
 
         <div class="amount-words">
