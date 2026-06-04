@@ -65,6 +65,8 @@ export default function PerformanceQuotes() {
       has_duty: boolean;
       duty_price: string;
       quantity: number;
+      isManual?: boolean;
+      vehicleDescription?: string;
     }[],
     notes: ""
   };
@@ -72,6 +74,8 @@ export default function PerformanceQuotes() {
   const [form, setForm, clearDraft] = useFormPersistence("performance_quote", emptyForm);
   const [vehicleSearch, setVehicleSearch] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [vehicleMode, setVehicleMode] = useState<"inventory" | "manual">("inventory");
+  const [manualVehicleForm, setManualVehicleForm] = useState({ make: "", model: "", year: "", vin: "", price: "" });
   
   // Queries
   const { data: quotes = [], isLoading: loadingQuotes } = useQuery({
@@ -169,7 +173,8 @@ export default function PerformanceQuotes() {
       // Create Quote Items
       const items = form.selectedVehicles.map((v) => ({
         quote_id: quote.id,
-        vehicle_id: v.id,
+        vehicle_id: v.isManual ? null : v.id,
+        vehicle_description: v.isManual ? v.vehicleDescription : null,
         base_price: Number(v.base_price) || 0,
         has_duty: v.has_duty,
         duty_price: Number(v.duty_price) || 0,
@@ -210,6 +215,33 @@ export default function PerformanceQuotes() {
     setDialogOpen(false);
     setForm(emptyForm);
     setVehicleSearch("");
+    setVehicleMode("inventory");
+    setManualVehicleForm({ make: "", model: "", year: "", vin: "", price: "" });
+  };
+
+  const handleAddManualVehicle = () => {
+    const { make, model, year, vin, price } = manualVehicleForm;
+    if (!make.trim() || !model.trim()) return;
+    const desc = [year.trim(), make.trim(), model.trim(), vin.trim()].filter(Boolean).join(" ");
+    const tempId = `manual-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    setForm(prev => ({
+      ...prev,
+      selectedVehicles: [...prev.selectedVehicles, {
+        id: tempId,
+        make: make.trim(),
+        model: model.trim(),
+        year: year.trim(),
+        vin: vin.trim(),
+        base_price: price || "0",
+        has_duty: false,
+        duty_price: "0",
+        quantity: 1,
+        isManual: true,
+        vehicleDescription: desc,
+      }]
+    }));
+    setManualVehicleForm({ make: "", model: "", year: "", vin: "", price: "" });
+    setVehicleMode("inventory");
   };
 
   const handleAddVehicle = (v: any) => {
@@ -299,15 +331,19 @@ export default function PerformanceQuotes() {
               <tr><th style="width: 40px;">#</th><th>VEHICLE DESCRIPTION</th><th style="width: 60px;">QTY</th><th style="width: 120px;">UNIT PRICE</th><th style="width: 120px; text-align: right;">AMOUNT (₦)</th></tr>
             </thead>
             <tbody>
-              ${quote.performance_quote_items?.map((item: any, i: number) => `
+              ${quote.performance_quote_items?.map((item: any, i: number) => {
+                const vehicleDesc = item.vehicle_description
+                  ? item.vehicle_description
+                  : (`${item.vehicles?.year || ''} ${item.vehicles?.make || ''} ${item.vehicles?.model || ''} ${item.vehicles?.trim || ''}`).trim();
+                return `
                 <tr>
                   <td>${i+1}.</td>
-                  <td>${(`${item.vehicles?.year || ''} ${item.vehicles?.make || ''} ${item.vehicles?.model || ''} ${item.vehicles?.trim || ''}`).trim().toUpperCase()}</td>
+                  <td>${vehicleDesc.toUpperCase()}</td>
                   <td style="text-align: center;">${item.quantity}</td>
                   <td>₦${Number(item.base_price).toLocaleString()}</td>
                   <td style="text-align: right;">₦${(Number(item.base_price) * Number(item.quantity)).toLocaleString()}</td>
                 </tr>
-              `).join('')}
+              `}).join('')}
             </tbody>
           </table>
 
@@ -316,15 +352,19 @@ export default function PerformanceQuotes() {
           <table>
             <thead><tr><th style="width: 40px;">#</th><th>DESCRIPTION</th><th style="width: 60px;">QTY</th><th style="width: 120px;">UNIT PRICE</th><th style="width: 120px; text-align: right;">AMOUNT (₦)</th></tr></thead>
             <tbody>
-              ${quote.performance_quote_items?.filter((item: any) => item.has_duty).map((item: any, i: number) => `
+              ${quote.performance_quote_items?.filter((item: any) => item.has_duty).map((item: any, i: number) => {
+                const dutyDesc = item.vehicle_description
+                  ? item.vehicle_description
+                  : (`${item.vehicles?.make || ''} ${item.vehicles?.model || ''}`).trim();
+                return `
                 <tr>
                   <td>${i+1}.</td>
-                  <td>CUSTOM DUTY - ${(`${item.vehicles?.make || ''} ${item.vehicles?.model || ''}`).trim().toUpperCase()}</td>
+                  <td>CUSTOM DUTY - ${dutyDesc.toUpperCase()}</td>
                   <td style="text-align: center;">${item.quantity}</td>
                   <td>₦${Number(item.duty_price).toLocaleString()}</td>
                   <td style="text-align: right;">₦${(Number(item.duty_price) * Number(item.quantity)).toLocaleString()}</td>
                 </tr>
-              `).join('')}
+              `}).join('')}
             </tbody>
           </table>` : ''}
 
@@ -456,7 +496,9 @@ export default function PerformanceQuotes() {
                 const v = item.vehicles;
                 const basePrice = Number(item.base_price) || 0;
                 const qty = Number(item.quantity) || 1;
-                const vehicleDesc = `${v?.year || ''} ${v?.make || ''} ${v?.model || ''} ${v?.trim || ''}`.trim();
+                const vehicleDesc = item.vehicle_description
+                  ? item.vehicle_description
+                  : `${v?.year || ''} ${v?.make || ''} ${v?.model || ''} ${v?.trim || ''}`.trim();
 
                 rowsHtml += `
                 <tr>
@@ -495,7 +537,9 @@ export default function PerformanceQuotes() {
                   const v = item.vehicles;
                   const dutyPrice = Number(item.duty_price) || 0;
                   const qty = Number(item.quantity) || 1;
-                  const vehicleDesc = `${v?.year || ''} ${v?.make || ''} ${v?.model || ''}`.trim();
+                  const vehicleDesc = item.vehicle_description
+                    ? item.vehicle_description
+                    : `${v?.year || ''} ${v?.make || ''} ${v?.model || ''}`.trim();
 
                   rowsHtml += `
                   <tr>
@@ -848,33 +892,115 @@ export default function PerformanceQuotes() {
 
             {/* Vehicle Selection */}
             <div className="space-y-4">
-              <h3 className="text-lg font-bold">Select Vehicles</h3>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input 
-                  placeholder="Search inventory by make, model, VIN..." 
-                  value={vehicleSearch} 
-                  onChange={(e) => setVehicleSearch(e.target.value)} 
-                  className="pl-10"
-                />
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-bold">Vehicles</h3>
+                <div className="flex items-center gap-2 text-sm bg-foreground/5 p-1 rounded-lg">
+                  <button
+                    onClick={() => { setVehicleMode("inventory"); setVehicleSearch(""); }}
+                    className={`px-3 py-1.5 rounded-md transition-colors ${vehicleMode === 'inventory' ? 'bg-background shadow font-semibold' : 'text-muted-foreground'}`}
+                  >
+                    From Inventory
+                  </button>
+                  <button
+                    onClick={() => { setVehicleMode("manual"); setVehicleSearch(""); }}
+                    className={`px-3 py-1.5 rounded-md transition-colors ${vehicleMode === 'manual' ? 'bg-background shadow font-semibold' : 'text-muted-foreground'}`}
+                  >
+                    Add Manually
+                  </button>
+                </div>
               </div>
 
-              {vehicleSearch && (
-                <div className="border border-white/10 rounded-xl bg-black/40 overflow-hidden max-h-[200px] overflow-y-auto">
-                  {vehicles.filter(v => 
-                    (v.make.toLowerCase().includes(vehicleSearch.toLowerCase()) || 
-                     v.model.toLowerCase().includes(vehicleSearch.toLowerCase()) || 
-                     (v.vin && v.vin.toLowerCase().includes(vehicleSearch.toLowerCase()))) &&
-                    !form.selectedVehicles.some(sv => sv.id === v.id)
-                  ).map(v => (
-                    <div key={v.id} className="p-3 border-b border-white/5 hover:bg-white/5 flex justify-between items-center cursor-pointer" onClick={() => handleAddVehicle(v)}>
-                      <div>
-                        <p className="font-semibold text-sm">{v.year} {v.make} {v.model}</p>
-                        <p className="text-xs text-muted-foreground font-mono">{v.vin}</p>
-                      </div>
-                      <PlusCircle className="h-5 w-5 text-emerald-500" />
+              {vehicleMode === "inventory" ? (
+                <>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search inventory by make, model, VIN..."
+                      value={vehicleSearch}
+                      onChange={(e) => setVehicleSearch(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                  {vehicleSearch && (
+                    <div className="border border-white/10 rounded-xl bg-black/40 overflow-hidden max-h-[200px] overflow-y-auto">
+                      {vehicles.filter(v =>
+                        (v.make.toLowerCase().includes(vehicleSearch.toLowerCase()) ||
+                         v.model.toLowerCase().includes(vehicleSearch.toLowerCase()) ||
+                         (v.vin && v.vin.toLowerCase().includes(vehicleSearch.toLowerCase()))) &&
+                        !form.selectedVehicles.some(sv => sv.id === v.id)
+                      ).map(v => (
+                        <div key={v.id} className="p-3 border-b border-white/5 hover:bg-white/5 flex justify-between items-center cursor-pointer" onClick={() => handleAddVehicle(v)}>
+                          <div>
+                            <p className="font-semibold text-sm">{v.year} {v.make} {v.model}</p>
+                            <p className="text-xs text-muted-foreground font-mono">{v.vin}</p>
+                          </div>
+                          <PlusCircle className="h-5 w-5 text-emerald-500" />
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  )}
+                </>
+              ) : (
+                <div className="p-4 border border-dashed border-emerald-500/30 rounded-2xl bg-emerald-500/5 space-y-4">
+                  <p className="text-sm text-muted-foreground font-medium flex items-center gap-2">
+                    <Car className="h-4 w-4 text-emerald-500" />
+                    Enter vehicle details manually (not from inventory)
+                  </p>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Make *</Label>
+                      <Input
+                        placeholder="e.g. Toyota"
+                        value={manualVehicleForm.make}
+                        onChange={e => setManualVehicleForm(p => ({...p, make: e.target.value}))}
+                        className="bg-background/50 border-white/10"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Model *</Label>
+                      <Input
+                        placeholder="e.g. Camry"
+                        value={manualVehicleForm.model}
+                        onChange={e => setManualVehicleForm(p => ({...p, model: e.target.value}))}
+                        className="bg-background/50 border-white/10"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Year</Label>
+                      <Input
+                        placeholder="e.g. 2023"
+                        value={manualVehicleForm.year}
+                        onChange={e => setManualVehicleForm(p => ({...p, year: e.target.value}))}
+                        className="bg-background/50 border-white/10"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">VIN / Chassis No.</Label>
+                      <Input
+                        placeholder="Optional"
+                        value={manualVehicleForm.vin}
+                        onChange={e => setManualVehicleForm(p => ({...p, vin: e.target.value}))}
+                        className="bg-background/50 border-white/10"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Base Price (₦)</Label>
+                      <CurrencyInput
+                        value={manualVehicleForm.price}
+                        onChange={e => setManualVehicleForm(p => ({...p, price: e.target.value}))}
+                      />
+                    </div>
+                    <div className="flex items-end">
+                      <Button
+                        type="button"
+                        onClick={handleAddManualVehicle}
+                        disabled={!manualVehicleForm.make.trim() || !manualVehicleForm.model.trim()}
+                        className="w-full rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white"
+                      >
+                        <PlusCircle className="h-4 w-4 mr-2" /> Add Vehicle
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -889,7 +1015,12 @@ export default function PerformanceQuotes() {
                       
                       <div className="flex items-center gap-2 mb-4">
                         <div className="bg-emerald-500/20 p-2 rounded-lg"><Car className="h-4 w-4 text-emerald-500" /></div>
-                        <h4 className="font-bold">{sv.year} {sv.make} {sv.model}</h4>
+                        <div>
+                          <h4 className="font-bold">{sv.year} {sv.make} {sv.model}</h4>
+                          {sv.isManual && (
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-full">Manual Entry</span>
+                          )}
+                        </div>
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
