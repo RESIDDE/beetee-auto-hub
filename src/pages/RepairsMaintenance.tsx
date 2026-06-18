@@ -774,11 +774,22 @@ export default function RepairsMaintenance() {
     return null;
   };
 
-  const renderCheckboxesHTML = (items: string[], allOptions: string[]) => {
+  const renderCheckboxesHTML = (items: any, allOptions: string[]) => {
+    let parsedItems: string[] = [];
+    if (Array.isArray(items)) {
+      parsedItems = items;
+    } else if (typeof items === 'string') {
+      try {
+        parsedItems = JSON.parse(items);
+      } catch(e) {
+        parsedItems = [items];
+      }
+    }
+    
     return allOptions.map(opt => `
       <span style="display:inline-flex; align-items:center; margin-right: 15px; font-size: 11px;">
         <span style="width:12px; height:12px; border:1.5px solid #333; display:inline-block; margin-right:5px; text-align:center; line-height:10px; font-weight:bold;">
-          ${items?.includes(opt) ? '✓' : ''}
+          ${(parsedItems as any)?.includes(opt) ? '✓' : ''}
         </span>
         ${opt}
       </span>
@@ -1012,14 +1023,14 @@ export default function RepairsMaintenance() {
         <div style="margin-bottom: 10px;">
           <strong style="font-size: 10px;">A. PAINTING & BODY WORK</strong><br/>
           <div class="checkbox-grid">
-            ${renderCheckboxesHTML(r.painting_bodywork?.items || [], ['Full Body Respray', 'Panel Beating', 'Dent Removal', 'Scratch Removal', 'Color Change', 'Polishing & Buffing'])}
+            ${renderCheckboxesHTML(r.painting_bodywork?.items || [], ['Buffing / Polishing', 'Full Respray', 'Panel Beating', 'Accident Repair', 'Chassis Alignment', 'Plastic Repair', 'Wheel Refurbishment'])}
           </div>
           <div style="font-size: 10px; margin-top: 4px; font-style: italic;">Details: ${r.painting_bodywork?.details || '—'}</div>
         </div>
         <div>
           <strong style="font-size: 10px;">B. MECHANICAL & GENERAL SERVICE</strong><br/>
           <div class="checkbox-grid">
-            ${renderCheckboxesHTML(r.mechanical_service?.items || [], ['Engine Service', 'Oil Change', 'Brake Service', 'Suspension', 'Electricals', 'AC Service', 'Diagnostics', 'Wheel Balancing and Alignment'])}
+            ${renderCheckboxesHTML(r.mechanical_service?.items || [], ['Engine Service', 'Oil Change', 'Brake Service', 'Suspension', 'Electricals', 'AC Service', 'Diagnostics', 'Wheel Balancing'])}
           </div>
           <div style="font-size: 10px; margin-top: 4px; font-style: italic;">Details: ${r.mechanical_service?.details || '—'}</div>
         </div>
