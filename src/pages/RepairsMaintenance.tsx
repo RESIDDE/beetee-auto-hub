@@ -538,6 +538,8 @@ export default function RepairsMaintenance() {
       }
 
       const payload: any = {
+        job_card_no: form.job_card_no || null,
+        respray_notes: form.respray_notes || null,
         vehicle_id: finalVehicleId || null,
         manual_make: form.make,
         manual_model: form.model,
