@@ -508,6 +508,14 @@ export default function RepairsMaintenance() {
         finalCustomerId = "";
       }
 
+      if (!finalCustomerId && !(form.is_new_customer && form.manual_customer_name)) {
+        throw new Error("Please select a customer or provide new customer details before saving.");
+      }
+
+      if (!finalVehicleId && !form.make) {
+        throw new Error("Please select a vehicle or provide vehicle details before saving.");
+      }
+
       // Handle New Customer Creation
       if (form.is_new_customer && form.manual_customer_name) {
         const { data: newCust, error: cErr } = await supabase.from("customers").insert({
@@ -520,21 +528,38 @@ export default function RepairsMaintenance() {
         finalCustomerId = newCust.id;
       }
 
+      // Handle New Vehicle Creation
       if (!finalVehicleId && form.make) {
-        const { data: newV, error: vErr } = await supabase.from("vehicles").insert({
-          make: form.make,
-          model: form.model,
-          year: Number(form.year) || new Date().getFullYear(),
-          color: form.color || null,
-          vin: form.vin || null,
-          status: "Customer Car",
-          price: 0,
-          condition: "Customer Vehicle",
-          num_keys: 1,
-          inventory_type: 'service'
-        }).select().single();
-        if (vErr) throw vErr;
-        finalVehicleId = newV.id;
+        if (form.vin) {
+          const { data: existingV } = await supabase.from("vehicles").select("id").eq("vin", form.vin).maybeSingle();
+          if (existingV) {
+            finalVehicleId = existingV.id;
+          }
+        }
+        
+        if (!finalVehicleId) {
+          const { data: newV, error: vErr } = await supabase.from("vehicles").insert({
+            make: form.make,
+            model: form.model,
+            year: Number(form.year) || new Date().getFullYear(),
+            color: form.color || null,
+            vin: form.vin || null,
+            status: "Customer Car",
+            price: 0,
+            condition: "Customer Vehicle",
+            num_keys: 1,
+            inventory_type: 'service',
+            customer_id: finalCustomerId,
+          }).select().single();
+          
+          if (vErr) {
+            if (vErr.message?.includes('duplicate key value')) {
+              throw new Error("A vehicle with this VIN or Registration already exists. Please select it from the list instead of manually entering.");
+            }
+            throw vErr;
+          }
+          finalVehicleId = newV.id;
+        }
       }
 
       const payload: any = {
@@ -1392,6 +1417,23 @@ export default function RepairsMaintenance() {
     }
   };
 
+  const isDuplicate = (r: Repair) => {
+    const rDate = new Date(r.created_at).toDateString();
+    return repairs.some(other => 
+      other.id !== r.id &&
+      new Date(other.created_at).getTime() < new Date(r.created_at).getTime() &&
+      new Date(other.created_at).toDateString() === rDate &&
+      (
+        (r.customer_id && other.customer_id === r.customer_id) || 
+        (r.brought_in_by && r.brought_in_by.length > 0 && other.brought_in_by === r.brought_in_by)
+      ) &&
+      (
+        (r.vehicle_id && other.vehicle_id === r.vehicle_id) || 
+        (r.manual_make && r.manual_make.length > 0 && other.manual_make === r.manual_make && other.manual_model === r.manual_model)
+      )
+    );
+  };
+
   return (
     <div className="space-y-8 animate-fade-up pb-10 max-w-7xl mx-auto px-4 md:px-0">
       {/* Header Section */}
@@ -1757,7 +1799,14 @@ export default function RepairsMaintenance() {
                       <Car className="h-5 w-5 text-foreground/70 group-hover:text-amber-500 transition-colors" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-bold text-lg text-foreground truncate group-hover:text-primary transition-colors" title={getVehicleLabel(r)}>{getVehicleLabel(r)}</h3>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-bold text-lg text-foreground truncate group-hover:text-primary transition-colors" title={getVehicleLabel(r)}>{getVehicleLabel(r)}</h3>
+                        {r.job_card_no && (
+                          <span className="text-[10px] font-mono bg-foreground/10 text-foreground px-2 py-0.5 rounded-md shrink-0">
+                            #{r.job_card_no}
+                          </span>
+                        )}
+                      </div>
                       
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
                         {r.company && <span className="text-xs text-muted-foreground font-medium">Company: {r.company}</span>}
@@ -1771,6 +1820,7 @@ export default function RepairsMaintenance() {
                            </span>
                            <span className="text-[11px] font-medium text-muted-foreground bg-foreground/5 px-2 py-1.5 rounded-lg uppercase tracking-wider">{paymentTypeLabel(r.payment_type)}</span>
                            {r.to_be_resprayed && <span className="text-[11px] font-bold uppercase px-2 py-1.5 rounded-lg bg-blue-500/10 text-blue-500 border border-blue-500/20">Re-spray</span>}
+                           {isDuplicate(r) && <span className="text-[11px] font-bold uppercase px-2 py-1.5 rounded-lg bg-red-500/10 text-red-500 border border-red-500/20">Duplicate</span>}
                       </div>
                     </div>
                   </div>
