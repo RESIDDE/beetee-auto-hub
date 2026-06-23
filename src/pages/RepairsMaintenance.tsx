@@ -538,7 +538,7 @@ export default function RepairsMaintenance() {
         }
         
         if (!finalVehicleId) {
-          const { data: newV, error: vErr } = await supabase.from("vehicles").insert({
+          const { data: newV, error: vErr } = await supabase.from("vehicles" as any).insert({
             make: form.make,
             model: form.model,
             year: Number(form.year) || new Date().getFullYear(),
@@ -558,7 +558,7 @@ export default function RepairsMaintenance() {
             }
             throw vErr;
           }
-          finalVehicleId = newV.id;
+          finalVehicleId = (newV as any).id;
         }
       }
 
