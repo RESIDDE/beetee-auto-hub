@@ -549,7 +549,6 @@ export default function RepairsMaintenance() {
             condition: "Customer Vehicle",
             num_keys: 1,
             inventory_type: 'service',
-            customer_id: finalCustomerId,
           }).select().single();
           
           if (vErr) {
