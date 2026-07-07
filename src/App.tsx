@@ -9,6 +9,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { PermissionsRealtimeSync } from "@/hooks/usePermissions";
 import { lazy, Suspense } from "react";
 import { Loader2 } from "lucide-react";
+import DebaScreen from "@/pages/DebaScreen";
 
 // Lazy load pages
 const Index = lazy(() => import("./pages/Index"));
@@ -137,7 +138,7 @@ const App = () => (
       <BrowserRouter>
         {/* Single global Realtime listener — must be inside QueryClientProvider */}
         <PermissionsRealtimeSync />
-        <AppRoutes />
+        <DebaScreen />
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
